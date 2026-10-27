@@ -8,6 +8,8 @@
   const mobileNav = $('mobileNav');
   const cropViewport = $('cropViewport');
   const cropImage = $('cropImage');
+  const cropLoader = $('cropLoader');
+  const heroLoader = $('heroLoader');
   const zoom = $('cropZoom');
   const widthInput = $('wallWidth');
   const heightInput = $('wallHeight');
@@ -25,6 +27,17 @@
   let state = {zoom: 1, dx: 0, dy: 0, ratio: 4 / 3, width: 300, height: 225};
   let imageLoaded = false;
   let activePointer = null;
+  let heroTimer = null;
+  let cropTimer = null;
+  function loading(el,show) { if (el) el.hidden=!show; }
+  function stopHeroLoading() { clearTimeout(heroTimer); loading(heroLoader,false); }
+  function stopCropLoading() { clearTimeout(cropTimer); loading(cropLoader,false); }
+  function showCatalogLoading() {
+    const wrapper=document.createElement('div');wrapper.className='catalog-loading';
+    wrapper.setAttribute('role','status');wrapper.setAttribute('aria-label','Загрузка каталога');
+    const ring=document.createElement('span');ring.className='loading-ring';ring.setAttribute('aria-hidden','true');
+    wrapper.append(ring);catalogGrid.replaceChildren(wrapper);
+  }
 
   const esc = (value) => String(value);
   const storageKey = (sku) => 'afreska:crop:v1:' + sku;
@@ -142,6 +155,7 @@
   }
   async function loadCatalog() {
     catalogStatus.textContent='Загружаем изображения…';
+    showCatalogLoading();
     try {
       const response=await fetch('/api/catalog.php',{cache:'no-store',headers:{'Accept':'application/json'}});
       if (!response.ok) throw new Error('HTTP '+response.status);
@@ -151,6 +165,7 @@
       catalogGrid.replaceChildren();
       if (items.length===0) {
         catalogStatus.textContent='Пока нет изображений';
+        stopHeroLoading();
         catalogMessage('Как только изображения по артикулам появятся в /Images/catalog/ на FTP, карточки автоматически появятся здесь. Также поддерживается /Images/каталог/.');
         return;
       }
@@ -161,9 +176,14 @@
       const first=items[0];
       const heroArt=$('heroArt');
       if (heroArt) {
-        heroArt.src=first.image;
+        clearTimeout(heroTimer);
+        loading(heroLoader,true);
+        heroArt.onload=stopHeroLoading;
+        heroArt.onerror=()=>{stopHeroLoading();heroArt.removeAttribute('src');};
         heroArt.alt='Фрагмент фрески, артикул '+first.sku;
-        heroArt.onerror=()=>heroArt.removeAttribute('src');
+        heroArt.src=first.image;
+        if(heroArt.complete && heroArt.naturalWidth>0)stopHeroLoading();
+        else heroTimer=setTimeout(stopHeroLoading,12000);
       }
       const teaserArt=$('teaserArt');
       if (teaserArt) {
@@ -176,6 +196,7 @@
       // Click handling is registered once below for all catalog states.
     } catch (error) {
       catalogStatus.textContent='Каталог временно недоступен';
+      stopHeroLoading();
       catalogMessage('Не удалось получить список фотографий с сервера. Проверьте размещение Images/catalog и доступность PHP-обработчика /api/catalog.php.');
     }
   }
@@ -237,12 +258,15 @@
     editorTitle.textContent='Ваш кадр фрески';
     selectedSku.textContent='Артикул '+item.sku;
     imageLoaded=false;
+    clearTimeout(cropTimer);
+    loading(cropLoader,true);
     cropImage.removeAttribute('src');
     showFeedback('Передвигайте изображение пальцем или мышью и меняйте масштаб.');
     setModal(modalEditor,trigger);
-    cropImage.onload=()=>{ imageLoaded=true; updateCrop(); };
-    cropImage.onerror=()=>{ imageLoaded=false;showFeedback('Не удалось загрузить фото фрески. Проверьте путь на FTP.',true); };
+    cropImage.onload=()=>{ imageLoaded=true; stopCropLoading();updateCrop(); };
+    cropImage.onerror=()=>{ imageLoaded=false;stopCropLoading();showFeedback('Не удалось загрузить фото фрески. Проверьте путь на FTP.',true); };
     cropImage.src=item.image;
+    cropTimer=setTimeout(()=>{if(!imageLoaded){stopCropLoading();showFeedback('Изображение загружается слишком долго. Проверьте файл и повторите попытку.',true);}},12000);
     updateCrop();
   }
   document.querySelectorAll('[data-ratio]').forEach(btn => btn.addEventListener('click',()=>setRatio(Number(btn.dataset.ratio))));
