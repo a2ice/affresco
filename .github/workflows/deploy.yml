@@ -1,4 +1,4 @@
-name: AFreska — CI and guarded FTPS deploy
+name: AFFRESCO — CI and guarded FTPS deploy
 
 on:
   pull_request:
@@ -72,7 +72,7 @@ jobs:
             fi
           done
           if [[ "$FTP_SERVER_DIR" != "/" ]]; then
-            echo 'FTP_SERVER_DIR must equal / after the dedicated FTP user has been confined to the AFreska web root.' >&2
+            echo 'FTP_SERVER_DIR must equal / after the dedicated FTP user has been confined to the AFFRESCO web root.' >&2
             exit 1
           fi
           echo 'All four secrets exist; isolated virtual FTP root format accepted.'
