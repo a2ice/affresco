@@ -1,0 +1,16 @@
+[{
+	"id": 1,
+	"login": "admin",
+	"pass": "e1d3c3fd7db003722e34a1550a81e1ba",
+	"generations_limit": 10,
+	"generations_used": 0,
+	"generations_failed": 0
+},
+{
+	"id": 2,
+	"login": "demo",
+	"pass": "43aae93effaf7b8b98220bf8ac68fac0",
+	"generations_limit": 10,
+	"generations_used": 0,
+	"generations_failed": 0
+}]
