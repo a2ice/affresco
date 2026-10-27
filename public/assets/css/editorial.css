@@ -632,7 +632,8 @@ h2 {line-height:1.02;}
 }
 .heart-icon{display:block;width:23px;height:23px;fill:transparent;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;transition:fill .16s ease,transform .16s ease;}
 .header-favorites:hover .heart-icon{transform:scale(1.07);}
-.header-favorites[aria-pressed="true"] .heart-icon{fill:#25231f;}
+.header-favorites .heart-icon{fill:none!important;stroke:currentColor;}
+/* Only a card heart is filled when the server confirms it is saved. */
 .header-favorites-count{
   min-width:14px;padding:0 2px;line-height:1;font-size:10px;
   text-align:center;font-weight:700;align-self:flex-end;margin-left:-2px;margin-bottom:3px;
@@ -1279,4 +1280,103 @@ h2 {line-height:1.02;}
 #catalog .catalog-favorites-retry:disabled{opacity:.65;cursor:wait;}
 #catalog .catalog-favorites-retry:focus-visible{
   outline:2px solid #685a49;outline-offset:2px;
+}
+
+/* Dedicated favorites list in a modal; the header heart is a dialog trigger. */
+#favoritesModal .favorites-modal-panel{
+  box-sizing:border-box;
+  width:min(95vw,560px);
+  max-width:95vw;
+  max-height:95dvh;
+  overflow-y:auto;
+}
+#favoritesModal #favoritesTitle{font-size:clamp(32px,4vw,42px);margin:9px 0 10px;}
+#favoritesModal .favorites-modal-summary,
+#favoritesModal .favorites-modal-note{
+  margin:0 0 16px;
+  color:#786e63;
+  font:400 13px/1.55 var(--font-ui);
+}
+#favoritesModal .favorites-modal-items{
+  display:flex;
+  flex-direction:column;
+  gap:0;
+  max-height:min(45vh,410px);
+  overflow-y:auto;
+  margin:12px 0 17px;
+}
+#favoritesModal .favorites-modal-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:10px 0;
+  border-bottom:1px solid #e6ded4;
+}
+#favoritesModal .favorites-modal-open{
+  display:flex;
+  gap:12px;
+  align-items:center;
+  flex:1 1 0;
+  min-width:0;
+  min-height:68px;
+  border:0;
+  padding:0;
+  background:transparent;
+  color:#292521;
+  text-align:left;
+  cursor:pointer;
+}
+#favoritesModal .favorites-modal-open:hover .favorites-modal-name{
+  text-decoration:underline;text-underline-offset:3px;
+}
+#favoritesModal .favorites-modal-open:disabled{cursor:default;opacity:.7;}
+#favoritesModal .favorites-modal-thumb{
+  flex:none;
+  width:79px;
+  height:63px;
+  object-fit:cover;
+  background:#eee8df;
+}
+#favoritesModal .favorites-modal-labels{min-width:0;display:flex;flex-direction:column;gap:5px;}
+#favoritesModal .favorites-modal-name{
+  font:500 20px/1.16 var(--font-display);
+  overflow-wrap:anywhere;
+}
+#favoritesModal .favorites-modal-sku{
+  font:500 11px/1.5 var(--font-ui);
+  color:#82776d;
+}
+#favoritesModal .favorites-modal-remove{
+  flex:none;
+  display:grid;
+  place-items:center;
+  width:40px;
+  height:40px;
+  padding:0;
+  border:1px solid #d7cfc3;
+  background:transparent;
+  color:#3e3932;
+  cursor:pointer;
+  font:400 27px/1 var(--font-ui);
+}
+#favoritesModal .favorites-modal-remove:hover{background:#f0ebe4;}
+#favoritesModal .favorites-modal-remove:disabled{opacity:.45;cursor:wait;}
+#favoritesModal .favorites-modal-actions{display:grid;gap:8px;margin:12px 0;}
+#favoritesModal .favorites-modal-actions .button{margin:0;min-height:46px;}
+#favoritesModal .favorites-modal-note{margin-top:14px;font-size:11px;}
+#favoritesModal .favorites-modal-message{
+  color:#953d31;
+  font:500 12px/1.5 var(--font-ui);
+  margin:10px 0;
+}
+#favoritesModal [hidden]{display:none!important;}
+#favoritesModal .favorites-modal-open:focus-visible,
+#favoritesModal .favorites-modal-remove:focus-visible{
+  outline:2px solid #5b4e41;
+  outline-offset:2px;
+}
+@media(max-width:600px){
+  #favoritesModal .favorites-modal-panel{width:95vw;max-width:95vw;}
+  #favoritesModal .favorites-modal-thumb{width:68px;height:57px;}
+  #favoritesModal .favorites-modal-name{font-size:18px;}
 }
