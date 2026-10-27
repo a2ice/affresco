@@ -155,6 +155,13 @@ h2 {line-height:1.02;}
   background:#e9e1d5;
   border:1px solid rgba(45,41,35,.05);
 }
+.catalog-image img {
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  object-position:center;
+}
 .catalog-image img {filter:saturate(.9);transition:transform 500ms cubic-bezier(.2,.8,.2,1),filter 450ms;}
 .catalog-card:hover .catalog-image img {filter:saturate(1);transform:scale(1.035);}
 .catalog-label {
