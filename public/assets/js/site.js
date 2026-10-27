@@ -349,18 +349,14 @@
     const boxW=Math.min(maxW,maxH*ratio),boxH=boxW/ratio;
     applySelectionPx({x:(w-boxW)/2,y:(h-boxH)/2,w:boxW,h:boxH});
   }
-  function syncDimensionsToSelection(){
-    const {w,h}=selectionPixels();
-    if(!w||!h)return;
-    state.ratio=w/h;
-    let width=state.width;
-    let height=Math.round(width/state.ratio);
-    if(height>1000){height=1000;width=Math.round(height*state.ratio);}
-    if(height<30){height=30;width=Math.round(height*state.ratio);}
-    if(width>1000){width=1000;height=Math.round(width/state.ratio);}
-    if(width<30){width=30;height=Math.round(width/state.ratio);}
-    state.width=clamp(width,30,1000);
-    state.height=clamp(height,30,1000);
+  function syncDimensionsAfterResize(before,after,startWidthCm,startHeightCm){
+    // Both dimensions scale with their respective crop edges. In particular,
+    // shrinking the frame horizontally must NEVER increase its height in cm.
+    // Start from pointer-down values rather than rounded intermediate frames.
+    if(before.w<=0||before.h<=0)return;
+    state.width=clamp(Math.round(startWidthCm*(after.w/before.w)),30,1000);
+    state.height=clamp(Math.round(startHeightCm*(after.h/before.h)),30,1000);
+    state.ratio=state.width/state.height;
     widthInput.value=state.width;
     heightInput.value=state.height;
   }
@@ -521,7 +517,7 @@
   }));
   ratioLock.addEventListener('change',()=>{
     state.lockRatio=ratioLock.checked;
-    if(state.lockRatio)syncDimensionsToSelection();
+    // Switching aspect-ratio lock must not silently change wall dimensions.
     updateCrop();saveDraft();
   });
   zoom.addEventListener('input',()=>{state.zoom=clamp(Number(zoom.value),1,3);updateCrop();});
@@ -531,8 +527,10 @@
     const handle=e.target.closest('[data-crop-handle]')?.dataset.cropHandle||null;
     if(!handle && !e.target.closest('#cropSelection'))return;
     e.preventDefault();
+    const box=selectionPixels();
     activePointer={id:e.pointerId,x:e.clientX,y:e.clientY,dx:state.dx,dy:state.dy,
-      handle,box:selectionPixels(),locked:state.lockRatio,ratio:state.width/state.height};
+      handle,box,locked:state.lockRatio,ratio:box.w/box.h,
+      startWidthCm:state.width,startHeightCm:state.height};
     cropViewport.setPointerCapture(e.pointerId);
   });
   cropViewport.addEventListener('pointermove',e=>{
@@ -543,7 +541,8 @@
       const rect=resizeSelection(activePointer.box,activePointer.handle,deltaX,deltaY,
         activePointer.locked,activePointer.ratio,w,h);
       applySelectionPx(rect);
-      if(!activePointer.locked)syncDimensionsToSelection();
+      syncDimensionsAfterResize(activePointer.box,rect,
+        activePointer.startWidthCm,activePointer.startHeightCm);
     }else{
       state.dx=activePointer.dx+deltaX;state.dy=activePointer.dy+deltaY;
     }
@@ -560,10 +559,11 @@
     const delta=(e.shiftKey?20:8),dx=e.key==='ArrowLeft'?-delta:e.key==='ArrowRight'?delta:0,
       dy=e.key==='ArrowUp'?-delta:e.key==='ArrowDown'?delta:0;
     const {w,h}=stageSize();
-    const box=resizeSelection(selectionPixels(),btn.dataset.cropHandle,dx,dy,
-      state.lockRatio,state.width/state.height,w,h);
+    const before=selectionPixels();
+    const box=resizeSelection(before,btn.dataset.cropHandle,dx,dy,
+      state.lockRatio,before.w/before.h,w,h);
     applySelectionPx(box);
-    if(!state.lockRatio)syncDimensionsToSelection();
+    syncDimensionsAfterResize(before,box,state.width,state.height);
     updateCrop();saveDraft();
   }));
   cropViewport.addEventListener('wheel',e=>{
