@@ -4,6 +4,14 @@
   const $ = (id) => document.getElementById(id);
   const catalogGrid = $('catalogGrid');
   const catalogStatus = $('catalogStatus');
+  const catalogLoadMore = $('catalogLoadMore');
+  const catalogBatchLoader = $('catalogBatchLoader');
+  const catalogMoreButton = $('catalogMoreButton');
+  const CATALOG_BATCH_SIZE = 6;
+  let displayedCatalogCount = 0;
+  let catalogLoadingBatch = false;
+  let catalogGeneration = 0;
+  let catalogObserver = null;
   const menuToggle = $('menuToggle');
   const mobileNav = $('mobileNav');
   const cropViewport = $('cropViewport');
@@ -131,7 +139,8 @@
     const photo = document.createElement('img');
     photo.src=item.image;
     photo.alt='Фреска, артикул ' + item.sku;
-    photo.loading='lazy';
+    // Only create and request the six images in the current batch.
+    photo.loading='eager';
     photo.decoding='async';
     photo.onerror = () => {
       photo.removeAttribute('src');
@@ -153,7 +162,74 @@
     card.addEventListener('click', () => openEditor(item,card));
     return card;
   }
+  function awaitCardImage(card) {
+    const photo=card.querySelector('img');
+    if(!photo || photo.complete) return Promise.resolve();
+    return new Promise(resolve=>{
+      let finished=false;
+      const done=()=>{
+        if(finished) return;
+        finished=true;
+        window.clearTimeout(timeout);
+        photo.removeEventListener('load',done);
+        photo.removeEventListener('error',done);
+        resolve();
+      };
+      const timeout=window.setTimeout(done,10000);
+      photo.addEventListener('load',done);
+      photo.addEventListener('error',done);
+      if(photo.complete) done();
+    });
+  }
+  function updateCatalogStatus() {
+    catalogStatus.textContent='Показано '+displayedCatalogCount+' из '+items.length+' · Выберите фреску для кадрирования';
+  }
+  function watchCatalogBottom() {
+    if(catalogObserver) catalogObserver.disconnect();
+    if(displayedCatalogCount>=items.length || catalogLoadingBatch) return;
+    if(!('IntersectionObserver' in window)) return; // The visible button works as fallback.
+    if(!catalogObserver) {
+      catalogObserver=new IntersectionObserver(entries=>{
+        if(entries.some(entry=>entry.isIntersecting)) void renderNextCatalogBatch();
+      },{rootMargin:'250px 0px',threshold:0});
+    }
+    catalogObserver.observe(catalogLoadMore);
+  }
+  async function renderNextCatalogBatch() {
+    if(catalogLoadingBatch || displayedCatalogCount>=items.length) return;
+    const generation=catalogGeneration;
+    catalogLoadingBatch=true;
+    catalogLoadMore.hidden=false;
+    loading(catalogBatchLoader,true);
+    catalogMoreButton.hidden=true;
+
+    const next=items.slice(displayedCatalogCount,displayedCatalogCount+CATALOG_BATCH_SIZE);
+    const cards=next.map(buildCard);
+    const fragment=document.createDocumentFragment();
+    cards.forEach(card=>fragment.append(card));
+    catalogGrid.append(fragment);
+    displayedCatalogCount+=cards.length;
+    updateCatalogStatus();
+    await Promise.all(cards.map(awaitCardImage));
+    // A refresh may have replaced the catalogue while the old images loaded.
+    if(generation!==catalogGeneration) return;
+    catalogLoadingBatch=false;
+    loading(catalogBatchLoader,false);
+    catalogLoadMore.hidden=displayedCatalogCount>=items.length;
+    catalogMoreButton.hidden=catalogLoadMore.hidden;
+    watchCatalogBottom();
+  }
+  function resetCatalogPagination() {
+    ++catalogGeneration;
+    if(catalogObserver) catalogObserver.disconnect();
+    displayedCatalogCount=0;
+    catalogLoadingBatch=false;
+    catalogLoadMore.hidden=true;
+    catalogMoreButton.hidden=false;
+    loading(catalogBatchLoader,false);
+  }
   async function loadCatalog() {
+    resetCatalogPagination();
     catalogStatus.textContent='Загружаем изображения…';
     showCatalogLoading();
     try {
@@ -169,10 +245,8 @@
         catalogMessage('Как только изображения по артикулам появятся в /Images/catalog/ на FTP, карточки автоматически появятся здесь. Также поддерживается /Images/каталог/.');
         return;
       }
-      const fragment=document.createDocumentFragment();
-      items.forEach(item=>fragment.append(buildCard(item)));
-      catalogGrid.append(fragment);
-      catalogStatus.textContent='В каталоге: '+items.length+' · Выберите фреску для кадрирования';
+      // Only six cards/images are mounted at first. Remaining images wait for scrolling.
+      void renderNextCatalogBatch();
       const first=items[0];
       const heroArt=$('heroArt');
       if (heroArt) {
@@ -333,6 +407,7 @@
   });
   $('backToEditor').addEventListener('click',()=>setModal(modalEditor));
   $('retryCatalog').addEventListener('click',loadCatalog);
+  catalogMoreButton.addEventListener('click',()=>void renderNextCatalogBatch());
   $('openFirstEditor').addEventListener('click',()=>{
     if(items.length)openEditor(items[0],$('openFirstEditor'));
     else location.hash='catalog';
