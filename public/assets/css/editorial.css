@@ -1211,3 +1211,49 @@ h2 {line-height:1.02;}
   #editorModal .editor-heading-subtitle{font-size:13px;}
   #editorModal .editor-settings-body{padding-top:16px;}
 }
+
+/* Send crop by email: real mailbox flow, using the same form system. */
+#emailModal .email-modal-panel,
+#emailSuccessModal .email-modal-panel{
+  width:min(95vw,560px);
+  max-width:95vw;
+  max-height:95dvh;
+  overflow-y:auto;
+}
+#emailModal .modal-panel > p,
+#emailSuccessModal .modal-panel > p{
+  color:#70665b;
+  font:400 14px/1.65 var(--font-ui);
+}
+#emailModal #emailRecipient,
+#accountModal #accountEmail{
+  display:block;
+  box-sizing:border-box;
+  width:100%;
+  height:46px;
+  min-height:46px;
+  padding:10px 12px;
+  border:1px solid #b7ada1;
+  border-radius:0;
+  background:#fff;
+  color:#292521;
+  font:500 16px/1.35 var(--font-ui);
+  -webkit-appearance:none;
+  appearance:none;
+}
+#emailModal .email-send-feedback,
+#accountModal #accountEmailFeedback{
+  min-height:1.4em;
+  color:#9a4438;
+  font:500 12px/1.5 var(--font-ui);
+  margin:10px 0;
+}
+#emailModal .modal-back{margin-top:10px;}
+#accountModal .account-email-form{margin:18px 0 20px;}
+#accountModal .account-email-form .field-group{margin:0 0 12px;}
+#accountModal .account-email-form .button{min-height:44px;}
+.editor-action-icon svg{display:block;width:20px;height:20px;}
+@media(max-width:600px){
+  #emailModal .email-modal-panel,
+  #emailSuccessModal .email-modal-panel{width:95vw;max-width:95vw;}
+}
