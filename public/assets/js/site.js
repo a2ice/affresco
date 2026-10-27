@@ -170,81 +170,120 @@
     catalogGrid.append(box);
   }
   const heartSvg = '<svg class="heart-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"/></svg>';
+  // Distinct buttons: choosing a crop, copying the SKU and favoriting
+  // never nest interactive elements or trigger one another.
+  let toastTimer=null;
+  const catalogToast=$('catalogToast');
+  function showCatalogToast(message){
+    clearTimeout(toastTimer);
+    catalogToast.textContent=message;
+    catalogToast.hidden=false;
+    toastTimer=setTimeout(()=>{catalogToast.hidden=true;},2400);
+  }
+  async function copyCatalogSku(sku){
+    let copied=false;
+    try{
+      if(navigator.clipboard?.writeText){
+        await navigator.clipboard.writeText(sku);
+        copied=true;
+      }
+    }catch(_){}
+    if(!copied){
+      // Fallback for older/in-app Safari: temporarily select plain text.
+      const field=document.createElement('textarea');
+      field.value=sku;
+      field.setAttribute('readonly','');
+      field.style.cssText='position:fixed;left:-9999px;top:0;opacity:0;';
+      document.body.append(field);
+      field.select();
+      try{copied=document.execCommand('copy');}catch(_){}
+      field.remove();
+    }
+    showCatalogToast(copied?'Артикул скопирован':'Не удалось скопировать артикул');
+  }
   function buildCard(item) {
-    // The card is not a button: its two actions must be independently focusable.
-    const card = document.createElement('article');
+    const card=document.createElement('article');
     card.className='catalog-card';
-    const open = document.createElement('button');
+    const content=document.createElement('div');
+    content.className='catalog-card-body';
+    const open=document.createElement('button');
     open.type='button';
     open.className='catalog-open';
-    open.setAttribute('aria-label','Открыть редактор фрески, артикул ' + item.sku);
-    const figure = document.createElement('div');
+    open.setAttribute('aria-label','Открыть редактор фрески, артикул '+item.sku);
+    const figure=document.createElement('div');
     figure.className='catalog-image';
-    const photo = document.createElement('img');
+    const photo=document.createElement('img');
     photo.src=item.image;
-    photo.alt='Фреска, артикул ' + item.sku;
-    // Only create and request the six images in the current batch.
+    photo.alt='Фреска, артикул '+item.sku;
     photo.loading='eager';
     photo.decoding='async';
-    photo.onerror = () => {
+    photo.onerror=()=>{
       photo.removeAttribute('src');
       photo.alt='Изображение временно недоступно';
-      figure.style.background = 'linear-gradient(135deg,#ded6c8,#a49c8e)';
+      figure.style.background='linear-gradient(135deg,#ded6c8,#a49c8e)';
     };
-    const flag = document.createElement('span');
+    const flag=document.createElement('span');
     flag.className='catalog-label';
     flag.textContent='Выбрать фреску';
     figure.append(photo,flag);
-    const meta = document.createElement('div');
+    open.append(figure);
+    open.addEventListener('click',()=>openEditor(item,open));
+    const meta=document.createElement('div');
     meta.className='catalog-meta';
-    const text=document.createElement('div');
-    text.className='catalog-card-details';
-    const title = document.createElement('strong');
-    title.className='catalog-card-sku';
-    title.textContent='Арт. ' + item.sku;
-    text.append(title);
-    if(typeof item.name==='string' && item.name.trim()){
-      const artworkName=document.createElement('span');
-      artworkName.className='catalog-card-name';
-      artworkName.textContent=item.name.trim();
-      text.append(artworkName);
-    }
+    const details=document.createElement('div');
+    details.className='catalog-card-details';
+    const name=document.createElement('button');
+    name.type='button';
+    name.className='catalog-card-name';
+    name.textContent=typeof item.name==='string'&&item.name.trim()
+      ?item.name.trim():'Фреска';
+    name.setAttribute('aria-label','Кадрировать фреску '+name.textContent+', артикул '+item.sku);
+    name.addEventListener('click',()=>openEditor(item,name));
+    const sku=document.createElement('button');
+    sku.type='button';
+    sku.className='catalog-card-sku';
+    sku.textContent='Арт. '+item.sku;
+    sku.title='Скопировать артикул';
+    sku.setAttribute('aria-label','Скопировать артикул '+item.sku);
+    sku.addEventListener('click',()=>void copyCatalogSku(item.sku));
+    details.append(name,sku);
     const width=Number(item.width_cm),height=Number(item.height_cm);
-    const validW=item.width_cm!==null && item.width_cm!==undefined && Number.isFinite(width) && width>0;
-    const validH=item.height_cm!==null && item.height_cm!==undefined && Number.isFinite(height) && height>0;
-    if(validW || validH){
+    const validW=item.width_cm!==null&&item.width_cm!==undefined&&Number.isFinite(width)&&width>0;
+    const validH=item.height_cm!==null&&item.height_cm!==undefined&&Number.isFinite(height)&&height>0;
+    if(validW||validH){
       const dimensions=document.createElement('span');
       dimensions.className='catalog-card-dimensions';
       const format=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:2}).format(n);
       const approximate=item.dimensions_estimated===true;
-      const formatted=validW&&validH ? format(width)+' × '+format(height)+' см'
+      const formatted=validW&&validH?format(width)+' × '+format(height)+' см'
         :validW?'Ширина '+format(width)+' см':'Высота '+format(height)+' см';
       dimensions.textContent=(approximate?'≈ ':'')+formatted;
       if(approximate){
         dimensions.title='Ориентировочный формат; фактические размеры не подтверждены';
         dimensions.setAttribute('aria-label','Ориентировочный размер: '+formatted);
       }
-      text.append(dimensions);
+      details.append(dimensions);
     }
-    if(typeof item.description==='string' && item.description.trim()){
+    if(typeof item.description==='string'&&item.description.trim()){
       const description=document.createElement('p');
       description.className='catalog-card-description';
       description.textContent=item.description.trim();
-      text.append(description);
+      details.append(description);
     }
-    const arrow = document.createElement('span');
-    arrow.className='catalog-card-open-label';
-    arrow.textContent='Кадрировать ↗';
-    meta.append(text,arrow);
-    open.append(figure,meta);
-    open.addEventListener('click', () => openEditor(item,open));
-    const favoriteButton = document.createElement('button');
+    const crop=document.createElement('button');
+    crop.type='button';
+    crop.className='catalog-card-open-label';
+    crop.textContent='Кадрировать ↗';
+    crop.addEventListener('click',()=>openEditor(item,crop));
+    meta.append(details,crop);
+    content.append(open,meta);
+    const favoriteButton=document.createElement('button');
     favoriteButton.type='button';
     favoriteButton.className='catalog-fav';
     favoriteButton.dataset.favoriteSku=item.sku;
     favoriteButton.innerHTML=heartSvg;
     favoriteButton.addEventListener('click',()=>void toggleFavorite(item.sku));
-    card.append(open,favoriteButton);
+    card.append(content,favoriteButton);
     updateFavoriteButton(favoriteButton,item.sku);
     return card;
   }
