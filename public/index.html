@@ -71,8 +71,14 @@
           <p>Каждый рисунок — отправная точка. Выберите артикул, откройте редактор и настройте фрагмент под свою стену.</p>
         </div>
         <div class="section-caption"><span class="small muted" id="catalogStatus" role="status" aria-live="polite">Загружаем каталог…</span><button id="retryCatalog" type="button">Обновить изображения ↻</button><a class="text-link" href="#try">Как выбрать свой кадр <span aria-hidden="true">↗</span></a></div>
-        <div class="catalog-grid" id="catalogGrid" aria-live="polite" aria-label="Каталог фресок">
+        <div class="catalog-grid" id="catalogGrid" aria-label="Каталог фресок">
           <div class="catalog-loading" role="status" aria-label="Загрузка каталога"><span class="loading-ring" aria-hidden="true"></span></div>
+        </div>
+        <div class="catalog-more" id="catalogLoadMore" hidden>
+          <div class="catalog-loading" id="catalogBatchLoader" role="status" aria-label="Загрузка следующих фресок" hidden>
+            <span class="loading-ring" aria-hidden="true"></span>
+          </div>
+          <button class="text-link" id="catalogMoreButton" type="button">Показать ещё ↗</button>
         </div>
       </div>
     </section>
