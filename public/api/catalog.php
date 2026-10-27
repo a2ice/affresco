@@ -116,10 +116,10 @@ foreach ($allSkus as $sku) {
     // Editorial fields are filled from owner-approved per-SKU mapping only.
     $name = $meta['name'] ?? null;
     $name = is_string($name) ? trim($name) : '';
-    $name = $name !== '' ? mb_substr($name, 0, 180) : null;
+    $name = $name !== '' ? (function_exists('mb_substr') ? mb_substr($name, 0, 180) : $name) : null;
     $description = $meta['description'] ?? null;
     $description = is_string($description) ? trim($description) : '';
-    $description = $description !== '' ? mb_substr($description, 0, 500) : null;
+    $description = $description !== '' ? (function_exists('mb_substr') ? mb_substr($description, 0, 500) : $description) : null;
 
     $items[] = [
         'sku' => (string) $sku,
