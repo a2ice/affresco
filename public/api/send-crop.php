@@ -35,31 +35,48 @@ if (!is_string($binary) || strlen($binary)<100 || strlen($binary)>2200000 ||
     $info[0]<20 || $info[1]<20) {
     af_response(422,['error'=>'invalid_image']);
 }
-// Keep the public demo from becoming an unrestricted mail relay.
-// The limit is applied per IP (independent of the browser cookie).
-function af_mail_rate_limited(): bool {
+// Only messages accepted by the mail transport count against the hourly
+// quota. Earlier revisions counted attempts, including all 503 failures.
+// Use a new key so unsuccessful legacy attempts do not block visitors.
+function af_mail_quota_open(): array {
     $dir=rtrim(sys_get_temp_dir(),DIRECTORY_SEPARATOR).'/affresco-mail-rate';
-    if (!is_dir($dir) && !@mkdir($dir,0700,true) && !is_dir($dir)) return true;
-    $key=hash('sha256',($_SERVER['REMOTE_ADDR']??'unknown').'|affresco-send-v1');
+    if (!is_dir($dir) && !@mkdir($dir,0700,true) && !is_dir($dir)) {
+        af_response(503,['error'=>'rate_storage_unavailable']);
+    }
+    $key=hash('sha256',($_SERVER['REMOTE_ADDR']??'unknown').'|affresco-accepted-v2');
     $handle=@fopen($dir.'/'.$key.'.json','c+');
-    if (!$handle) return true;
-    if (!flock($handle,LOCK_EX)) {fclose($handle);return true;}
+    if ($handle===false)af_response(503,['error'=>'rate_storage_unavailable']);
+    if (!flock($handle,LOCK_EX)) {
+        fclose($handle);
+        af_response(503,['error'=>'rate_storage_unavailable']);
+    }
+    rewind($handle);
     $raw=stream_get_contents($handle);
     $times=json_decode(is_string($raw)?$raw:'[]',true);
     if (!is_array($times))$times=[];
     $now=time();
     $times=array_values(array_filter($times,static fn($t)=>is_int($t)&&$t>$now-3600));
-    $blocked=count($times)>=4;
-    if (!$blocked){
-        $times[]=$now;
-        $out=json_encode($times);
-        if (!is_string($out) || !rewind($handle) || !ftruncate($handle,0) ||
-            fwrite($handle,$out)!==strlen($out) || !fflush($handle)) $blocked=true;
+    if (count($times)>=4) {
+        flock($handle,LOCK_UN);fclose($handle);
+        af_response(429,['error'=>'send_rate_limit']);
     }
-    flock($handle,LOCK_UN);fclose($handle);
-    return $blocked;
+    return [$handle,$times];
 }
-if (af_mail_rate_limited())af_response(429,['error'=>'send_rate_limit']);
+function af_mail_quota_close($handle,array $times,bool $accepted): void {
+    if ($accepted) {
+        $times[]=time();
+        $encoded=json_encode($times);
+        if (is_string($encoded)) {
+            rewind($handle);
+            if (ftruncate($handle,0)) {
+                fwrite($handle,$encoded);
+                fflush($handle);
+            }
+        }
+    }
+    flock($handle,LOCK_UN);
+    fclose($handle);
+}
 // Only persist the recipient to the account owned by the current session.
 // Guests can send a limited number of messages but have no saved profile.
 $account=af_current_account();
@@ -93,7 +110,12 @@ $body="--".$boundary."\r\n".
     "Content-Disposition: attachment; filename=\"affresco-".$sku.".jpg\"\r\n\r\n".
     chunk_split(base64_encode($binary),76,"\r\n").
     "--".$boundary."--\r\n";
-if (!function_exists('mail') || !@mail($email,$subject,$body,implode("\r\n",$headers))) {
+// Hold the per-IP lock across the short mail transport call, so concurrent
+// successful submissions cannot exceed the limit.
+[$quotaHandle,$acceptedTimes]=af_mail_quota_open();
+$accepted=function_exists('mail') && @mail($email,$subject,$body,implode("\r\n",$headers));
+af_mail_quota_close($quotaHandle,$acceptedTimes,$accepted);
+if (!$accepted) {
     af_response(503,['error'=>'mail_unavailable']);
 }
 // mail() confirms only acceptance by the server's local mail transport.
