@@ -714,7 +714,14 @@
   window.addEventListener('affresco:open-fresco',event=>{
     const sku=event.detail?.sku;
     const item=items.find(fresco=>fresco.sku===sku);
-    if(item)openEditor(item);
+    if(item){
+      openEditor(item);
+    }else{
+      setModal(null);
+      showFavoritesError('Фреска с артикулом '+String(sku||'')+
+        ' сейчас недоступна в каталоге. Попробуйте обновить изображения.');
+      $('catalog').scrollIntoView({block:'start',behavior:'smooth'});
+    }
   });
   favoritesToggle.addEventListener('click',()=>{
     if(!favoritesReady){showFavoritesError('Избранное ещё не загрузилось.');return;}
