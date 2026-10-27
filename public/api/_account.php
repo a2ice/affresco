@@ -49,7 +49,7 @@ function af_private_root(): string {
     return dirname(__DIR__, 2);
 }
 function af_accounts(): ?array {
-    $file = af_private_root() . '/data/accounts.json';
+    $file = is_file(af_private_root() . '/data/accounts.json') ? af_private_root() . '/data/accounts.json' : dirname(__DIR__) . '/data/accounts.json';
     if (!is_file($file) || !is_readable($file)) return null;
     $raw = @file_get_contents($file);
     if (!is_string($raw) || strlen($raw) > 1048576) return null;
