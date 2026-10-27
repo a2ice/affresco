@@ -929,8 +929,19 @@
     // Start from pointer-down values rather than rounded intermediate frames.
     if(before.w<=0||before.h<=0)return;
     const limits=sizeLimits();
-    state.width=clamp(Math.round(startWidthCm*(after.w/before.w)),30,limits.width);
-    state.height=clamp(Math.round(startHeightCm*(after.h/before.h)),30,limits.height);
+    if(state.lockRatio){
+      // The lock applies to physical dimensions as well as crop geometry.
+      // Stop both sizes at the first reached per-SKU maximum.
+      const scale=Math.min(after.w/before.w,after.h/before.h,
+        limits.width/startWidthCm,limits.height/startHeightCm);
+      state.width=clamp(Math.round(startWidthCm*scale),30,limits.width);
+      state.height=clamp(Math.round(startHeightCm*scale),30,limits.height);
+    }else{
+      // Without a lock, a change to one edge must not grow the other
+      // physical dimension. Each axis has its own catalogue maximum.
+      state.width=clamp(Math.round(startWidthCm*(after.w/before.w)),30,limits.width);
+      state.height=clamp(Math.round(startHeightCm*(after.h/before.h)),30,limits.height);
+    }
     state.ratio=state.width/state.height;
     state.dimensionsSource='custom';
     widthInput.value=state.width;
