@@ -919,13 +919,18 @@
     const boxW=Math.min(maxW,maxH*ratio),boxH=boxW/ratio;
     applySelectionPx({x:(w-boxW)/2,y:(h-boxH)/2,w:boxW,h:boxH});
   }
+  function sizeLimits(){
+    const dimensions=catalogDimensions(currentItem);
+    return dimensions || {width:1000,height:1000};
+  }
   function syncDimensionsAfterResize(before,after,startWidthCm,startHeightCm){
     // Both dimensions scale with their respective crop edges. In particular,
     // shrinking the frame horizontally must NEVER increase its height in cm.
     // Start from pointer-down values rather than rounded intermediate frames.
     if(before.w<=0||before.h<=0)return;
-    state.width=clamp(Math.round(startWidthCm*(after.w/before.w)),30,1000);
-    state.height=clamp(Math.round(startHeightCm*(after.h/before.h)),30,1000);
+    const limits=sizeLimits();
+    state.width=clamp(Math.round(startWidthCm*(after.w/before.w)),30,limits.width);
+    state.height=clamp(Math.round(startHeightCm*(after.h/before.h)),30,limits.height);
     state.ratio=state.width/state.height;
     state.dimensionsSource='custom';
     widthInput.value=state.width;
@@ -933,7 +938,9 @@
   }
   function ratioFromDimensions(){
     const width=Number(widthInput.value),height=Number(heightInput.value);
-    if(!Number.isFinite(width)||!Number.isFinite(height)||width<30||height<30||width>1000||height>1000)return false;
+    const limits=sizeLimits();
+    if(!Number.isFinite(width)||!Number.isFinite(height)||
+       width<30||height<30||width>limits.width||height>limits.height)return false;
     state.width=width;state.height=height;state.ratio=width/height;
     state.dimensionsSource='custom';
     fitSelectionToRatio(state.ratio);
@@ -941,9 +948,18 @@
     return true;
   }
   function setRatio(value){
-    state.width=clamp(state.width,30,1000);
+    const limits=sizeLimits();
+    // Keep as much of the current width as the chosen ratio and the
+    // individual catalogue width/height limits permit.
+    state.width=Math.floor(Math.min(limits.width,limits.height*value,
+      Math.max(30,state.width)));
     state.height=Math.round(state.width/value);
-    if(state.height<30||state.height>1000){state.width=300;state.height=Math.round(300/value);}
+    if(state.height>limits.height){
+      state.height=limits.height;
+      state.width=Math.floor(state.height*value);
+    }
+    state.width=clamp(state.width,30,limits.width);
+    state.height=clamp(state.height,30,limits.height);
     state.ratio=state.width/state.height;
     state.dimensionsSource='custom';
     state.lockRatio=true;ratioLock.checked=true;
@@ -1074,7 +1090,11 @@
     const dimensionsNote=$('editorDimensionsNote');
     dimensionsNote.hidden=!hasDimensions||item.dimensions_estimated!==true||customSize;
     state.zoom=clamp(state.zoom,1,3);
-    state.width=clamp(state.width,30,1000);state.height=clamp(state.height,30,1000);
+    const limits=sizeLimits();
+    state.width=clamp(state.width,30,limits.width);
+    state.height=clamp(state.height,30,limits.height);
+    widthInput.max=String(limits.width);
+    heightInput.max=String(limits.height);
     state.ratio=state.width/state.height;
     state.lockRatio=state.lockRatio!==false;
     if(!validSelection(state.selection))state.selection=null;
@@ -1121,7 +1141,9 @@
   [widthInput,heightInput].forEach(input=>input.addEventListener('change',()=>{
     const oldW=state.width,oldH=state.height;
     if(!ratioFromDimensions()){
-      showFeedback('Введите ширину и высоту от 30 до 1000 см.',true);
+      const limits=sizeLimits();
+      showFeedback('Введите ширину от 30 до '+limits.width+
+        ' см и высоту от 30 до '+limits.height+' см.',true);
       widthInput.value=oldW;heightInput.value=oldH;return;
     }
     saveDraft();
