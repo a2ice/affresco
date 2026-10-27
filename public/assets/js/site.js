@@ -365,8 +365,27 @@
     }
   }
   setCatalogView(restoreCatalogView(),false);
-  viewList.addEventListener('click',()=>setCatalogView('list'));
-  viewCards.addEventListener('click',()=>setCatalogView('cards'));
+  function scrollToFirstCatalogCard(){
+    // Measure after the grid has switched layout so the first card is not
+    // hidden behind the sticky site header and the catalogue toolbar.
+    requestAnimationFrame(()=>{
+      const target=catalogGrid.querySelector('.catalog-card') || catalogGrid;
+      const header=document.querySelector('.site-header');
+      const toolbar=$('catalogToolbar');
+      const offset=(header?.getBoundingClientRect().height || 0)+
+        (toolbar?.getBoundingClientRect().height || 0)+12;
+      const top=window.scrollY+target.getBoundingClientRect().top-offset;
+      const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({top:Math.max(0,top),behavior:reducedMotion?'auto':'smooth'});
+    });
+  }
+  function changeCatalogView(view){
+    if(catalogView===view)return;
+    setCatalogView(view);
+    scrollToFirstCatalogCard();
+  }
+  viewList.addEventListener('click',()=>changeCatalogView('list'));
+  viewCards.addEventListener('click',()=>changeCatalogView('cards'));
   // Remember layouts separately for phone and larger screens, and update on resize.
   let wasMobile=mobileGalleryQuery.matches;
   window.addEventListener('resize',()=>{
