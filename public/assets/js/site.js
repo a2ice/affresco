@@ -7,6 +7,20 @@
   const catalogLoadMore = $('catalogLoadMore');
   const catalogBatchLoader = $('catalogBatchLoader');
   const catalogMoreButton = $('catalogMoreButton');
+  const pickerSearch = $('pickerSearch');
+  const pickerSuggestions = $('pickerSuggestions');
+  const pickerGrid = $('pickerGrid');
+  const pickerStatus = $('pickerStatus');
+  const pickerScroll = $('pickerScroll');
+  const pickerMore = $('pickerMore');
+  const pickerLoader = $('pickerLoader');
+  const pickerMoreButton = $('pickerMoreButton');
+  let pickerMatches = [];
+  let pickerRendered = 0;
+  let pickerLoading = false;
+  let pickerToken = 0;
+  let pickerObserver = null;
+  let pickerSearchTimer = null;
   const CATALOG_BATCH_SIZE = 6;
   let displayedCatalogCount = 0;
   let catalogLoadingBatch = false;
@@ -24,10 +38,11 @@
   const feedback = $('editorFeedback');
   const editorTitle = $('editorTitle');
   const selectedSku = $('selectedSku');
+  const modalPicker = $('pickerModal');
   const modalEditor = $('editorModal');
   const modalLogin = $('loginModal');
   const modalFuture = $('futureModal');
-  const modals = [modalEditor, modalLogin, modalFuture];
+  const modals = [modalPicker, modalEditor, modalLogin, modalFuture];
   let previousFocus = null;
   let openDialog = null;
   let items = [];
@@ -90,6 +105,7 @@
 
   function setModal(modal, trigger=null) {
     if (!openDialog && trigger) previousFocus = trigger;
+    if(modal !== modalPicker && pickerObserver) pickerObserver.disconnect();
     modals.forEach(el => el.hidden = el !== modal);
     openDialog = modal;
     document.body.classList.toggle('modal-open', Boolean(modal));
@@ -289,6 +305,7 @@
       }
       const tryDemo=$('openFirstEditor');
       tryDemo.disabled=false;
+      if(openDialog === modalPicker) updatePickerResults();
       // Click handling is registered once below for all catalog states.
     } catch (error) {
       if(requestGeneration!==catalogGeneration) return;
@@ -429,11 +446,123 @@
     }
   });
   $('backToEditor').addEventListener('click',()=>setModal(modalEditor));
+
+  function pickerResultsFor(query) {
+    const q=query.trim().toLocaleLowerCase('ru');
+    if(!q) return items;
+    return items.filter(item =>
+      item.sku.toLocaleLowerCase('ru').includes(q) ||
+      (typeof item.name==='string' && item.name.toLocaleLowerCase('ru').includes(q))
+    );
+  }
+  function hidePickerSuggestions() {
+    pickerSuggestions.hidden=true;
+    pickerSearch.setAttribute('aria-expanded','false');
+  }
+  function renderPickerSuggestions() {
+    const query=pickerSearch.value.trim();
+    pickerSuggestions.replaceChildren();
+    if(!query) {hidePickerSuggestions();return;}
+    const suggestions=pickerResultsFor(query).slice(0,5);
+    if(!suggestions.length) {hidePickerSuggestions();return;}
+    suggestions.forEach((item,index)=>{
+      const option=document.createElement('button');
+      option.type='button';option.className='picker-suggestion';
+      option.id='picker-suggestion-'+index;option.setAttribute('role','option');
+      option.textContent='Арт. '+item.sku+(item.name && item.name!=='Фреска '+item.sku ? ' · '+item.name : '');
+      option.addEventListener('click',()=>{hidePickerSuggestions();openEditor(item,option);});
+      pickerSuggestions.append(option);
+    });
+    pickerSuggestions.hidden=false;
+    pickerSearch.setAttribute('aria-expanded','true');
+  }
+  function watchPickerBottom() {
+    if(pickerObserver) pickerObserver.disconnect();
+    if(openDialog!==modalPicker || pickerLoading || pickerRendered>=pickerMatches.length) return;
+    if(!('IntersectionObserver' in window)) return;
+    if(!pickerObserver) {
+      pickerObserver=new IntersectionObserver(entries=>{
+        if(entries.some(entry=>entry.isIntersecting)) void loadPickerBatch();
+      },{root:pickerScroll,rootMargin:'0px',threshold:0});
+    }
+    pickerObserver.observe(pickerMore);
+  }
+  async function loadPickerBatch() {
+    if(pickerLoading || pickerRendered>=pickerMatches.length) return;
+    const token=pickerToken;
+    pickerLoading=true;
+    pickerMore.hidden=false;
+    loading(pickerLoader,true);
+    pickerMoreButton.hidden=true;
+    const batch=pickerMatches.slice(pickerRendered,pickerRendered+CATALOG_BATCH_SIZE);
+    const cards=batch.map(item=>{
+      const card=buildCard(item);
+      card.classList.add('picker-card');
+      card.querySelector('.catalog-label').textContent='Выбрать фреску';
+      return card;
+    });
+    const fragment=document.createDocumentFragment();
+    cards.forEach(card=>fragment.append(card));
+    const first=pickerRendered===0;
+    if(first)pickerGrid.append(fragment);
+    pickerRendered+=cards.length;
+    await Promise.all(cards.map(awaitCardImage));
+    if(!first)await new Promise(resolve=>setTimeout(resolve,200));
+    if(token!==pickerToken || openDialog!==modalPicker) return;
+    if(!first)pickerGrid.append(fragment);
+    pickerLoading=false;
+    loading(pickerLoader,false);
+    pickerStatus.textContent='Показано '+pickerRendered+' из '+pickerMatches.length+' фресок';
+    pickerMore.hidden=pickerRendered>=pickerMatches.length;
+    pickerMoreButton.hidden=pickerMore.hidden;
+    watchPickerBottom();
+  }
+  function updatePickerResults() {
+    ++pickerToken;
+    if(pickerObserver)pickerObserver.disconnect();
+    pickerMatches=pickerResultsFor(pickerSearch.value);
+    pickerRendered=0;
+    pickerLoading=false;
+    pickerGrid.replaceChildren();
+    pickerMore.hidden=true;
+    pickerMoreButton.hidden=false;
+    loading(pickerLoader,false);
+    if(!pickerMatches.length){
+      pickerStatus.textContent='По вашему запросу фрески не найдены. Попробуйте другой артикул.';
+      return;
+    }
+    pickerStatus.textContent='Найдено '+pickerMatches.length+' фресок';
+    void loadPickerBatch();
+  }
+  pickerSearch.addEventListener('input',()=>{
+    renderPickerSuggestions();
+    clearTimeout(pickerSearchTimer);
+    pickerSearchTimer=setTimeout(updatePickerResults,130);
+  });
+  pickerSearch.addEventListener('keydown',event=>{
+    if(event.key==='Enter'){
+      const suggestion=pickerResultsFor(pickerSearch.value)[0];
+      if(suggestion && pickerSearch.value.trim()){
+        event.preventDefault();
+        clearTimeout(pickerSearchTimer);
+        hidePickerSuggestions();
+        openEditor(suggestion,pickerSearch);
+      }
+    } else if(event.key==='ArrowDown' && !pickerSuggestions.hidden) {
+      event.preventDefault();
+      pickerSuggestions.querySelector('button')?.focus();
+    }
+  });
+  pickerMoreButton.addEventListener('click',()=>void loadPickerBatch());
+
   $('retryCatalog').addEventListener('click',loadCatalog);
   if(catalogMoreButton) catalogMoreButton.addEventListener('click',()=>void renderNextCatalogBatch());
   $('openFirstEditor').addEventListener('click',()=>{
-    if(items.length)openEditor(items[0],$('openFirstEditor'));
-    else location.hash='catalog';
+    if(!items.length) {location.hash='catalog';return;}
+    setModal(modalPicker,$('openFirstEditor'));
+    pickerSearch.value='';
+    updatePickerResults();
+    pickerSearch.focus();
   });
   loadCatalog();
 })();
