@@ -25,6 +25,11 @@
     if(!response.ok)throw new Error(result?.error||'HTTP '+response.status);
     return result;
   }
+  function normalizedFavorites(data){
+    return Array.isArray(data.items)?data.items.map(sku=>
+      typeof sku==='number'&&Number.isSafeInteger(sku)&&sku>=0?String(sku):sku
+    ).filter(sku=>typeof sku==='string'&&/^[a-zA-Z0-9_.-]{1,100}$/.test(sku)):[];
+  }
   function signedIn(){return Boolean(user);}
   function getDraft(sku){return signedIn()?drafts[sku]||null:null;}
   function updateHeader(){
@@ -87,7 +92,7 @@
     const data=await request(stateEndpoint);
     // A slow GET must not undo a more recent heart click or crop save.
     if(requestNumber!==latestStateRequest||revisionAtStart!==collectionRevision||!signedIn())return;
-    favorites=Array.isArray(data.items)?data.items:[];
+    favorites=normalizedFavorites(data);
     drafts=data.drafts&&typeof data.drafts==='object'?data.drafts:{};
     renderDashboard();
     return data;
@@ -107,7 +112,7 @@
   }
   function setCollection(data){
     if(!signedIn()||!data)return;
-    favorites=Array.isArray(data.items)?data.items:[];
+    favorites=normalizedFavorites(data);
     // Favorites responses must not overwrite a crop draft being saved.
     collectionRevision++;
     renderDashboard();
