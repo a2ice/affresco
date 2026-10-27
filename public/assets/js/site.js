@@ -247,6 +247,11 @@
     sku.type='button';
     sku.className='catalog-card-sku';
     sku.textContent='Арт. '+item.sku;
+    sku.insertAdjacentHTML('beforeend',
+      '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'+
+      '<rect x="8" y="8" width="12" height="12" rx="2"/>'+
+      '<path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>'+
+      '</svg>');
     sku.title='Скопировать артикул';
     sku.setAttribute('aria-label','Скопировать артикул '+item.sku);
     sku.addEventListener('click',()=>void copyCatalogSku(item.sku));
@@ -261,7 +266,7 @@
       const approximate=item.dimensions_estimated===true;
       const formatted=validW&&validH?format(width)+' × '+format(height)+' см'
         :validW?'Ширина '+format(width)+' см':'Высота '+format(height)+' см';
-      dimensions.textContent=(approximate?'≈ ':'')+formatted;
+      dimensions.textContent=formatted;
       if(approximate){
         dimensions.title='Ориентировочный формат; фактические размеры не подтверждены';
         dimensions.setAttribute('aria-label','Ориентировочный размер: '+formatted);
