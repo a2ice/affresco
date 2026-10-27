@@ -1,0 +1,142 @@
+name: AFreska — CI and guarded FTPS deploy
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Preview FTPS transfer without uploading
+        type: boolean
+        required: true
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: afreska-ftps
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate deployable files
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Check expected structure and tracked sensitive files
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f public/index.html
+          test -f docs/Tasks.md
+          if git ls-files | grep -Ei '(^|/)(\.env($|\.)|users\.json|accounts\.json|private/|storage/|runtime/|uploads/|.*\.(sqlite3?|sql|pem|key|p12|pfx)$)'; then
+            echo 'Sensitive or runtime file tracked: CI refused' >&2
+            exit 1
+          fi
+
+      - name: Check PHP and standalone JS syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do php -l "$file" >/dev/null; done < <(find public -type f -name '*.php' -print0)
+          while IFS= read -r -d '' file; do node --check "$file"; done < <(find public -type f -name '*.js' -print0)
+          echo 'Syntax validation complete'
+
+  preflight:
+    name: Manual credentials presence check (no secret values)
+    needs: validate
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify required secrets and isolated FTP target
+        shell: bash
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR }}
+        run: |
+          set -euo pipefail
+          for key in FTP_HOST FTP_USER FTP_PASSWORD FTP_SERVER_DIR; do
+            if [[ -z "${!key}" ]]; then
+              echo "Missing required secret: $key" >&2
+              exit 1
+            fi
+          done
+          if [[ "$FTP_SERVER_DIR" != "/" ]]; then
+            echo 'FTP_SERVER_DIR must equal / after the dedicated FTP user has been confined to the AFreska web root.' >&2
+            exit 1
+          fi
+          echo 'All four secrets exist; isolated virtual FTP root format accepted.'
+          echo 'This does NOT prove FTP access or hostname correctness.'
+
+  deploy:
+    name: Protected FTPS deploy to afreska.2ice.ru
+    needs: [validate, preflight]
+    if: >-
+      always()
+      && needs.validate.result == 'success'
+      && github.ref == 'refs/heads/main'
+      && vars.FTP_TARGET_VERIFIED == 'true'
+      && (
+        (github.event_name == 'push' && vars.FTP_DEPLOY_ENABLED == 'true')
+        || (github.event_name == 'workflow_dispatch' && needs.preflight.result == 'success')
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: demonstration
+    env:
+      NODE_OPTIONS: --dns-result-order=ipv4first
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Validate target and credentials before connection
+        shell: bash
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR }}
+        run: |
+          set -euo pipefail
+          for key in FTP_HOST FTP_USER FTP_PASSWORD FTP_SERVER_DIR; do
+            if [[ -z "${!key}" ]]; then
+              echo "Missing required secret: $key" >&2
+              exit 1
+            fi
+          done
+          if [[ "$FTP_SERVER_DIR" != "/" ]]; then
+            echo 'Refusing FTPS to an unverified server path: expected dedicated-site virtual root /' >&2
+            exit 1
+          fi
+          test -f public/index.html
+
+      - name: Upload public/ over strict FTPS (or preview)
+        uses: SamKirkland/FTP-Deploy-Action@110f9186c050f71550953127052e77650219c287 # v4.4.0
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          port: 21
+          security: strict
+          timeout: 120000
+          local-dir: ./public/
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          state-name: .affresco-ftps-state.json
+          dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+          dangerous-clean-slate: false
+          log-level: standard
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/.DS_Store
+            **/node_modules/**
