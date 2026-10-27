@@ -1,0 +1,4 @@
+# Prevent HTTP reading of demo account data.
+<Files "accounts.json">
+  Require all denied
+</Files>
