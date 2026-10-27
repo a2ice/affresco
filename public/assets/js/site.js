@@ -505,6 +505,19 @@
     }
     // A refresh may have replaced the catalogue while the old images loaded.
     if(generation!==catalogGeneration) return;
+    // A batch requested just before an anchor jump must not be appended above
+    // the destination after the scroll has started or finished.
+    const trySection=$('try');
+    const settledAtTry=location.hash==='#try' && trySection &&
+      trySection.getBoundingClientRect().top<=window.innerHeight;
+    if(isAdditionalBatch && (guideNavigationTarget || settledAtTry)){
+      displayedCatalogCount-=cards.length;
+      catalogLoadingBatch=false;
+      loading(catalogBatchLoader,false);
+      if(catalogLoadMore)catalogLoadMore.hidden=false;
+      if(catalogMoreButton)catalogMoreButton.hidden=false;
+      return;
+    }
     if(isAdditionalBatch) {
       catalogGrid.append(fragment);
       requestAnimationFrame(()=>cards.forEach(card=>card.classList.remove('catalog-card-pending')));
