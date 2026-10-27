@@ -21,6 +21,7 @@
   let pickerToken = 0;
   let pickerObserver = null;
   let pickerSearchTimer = null;
+  let pickerHasSearchContext = false;
   const CATALOG_BATCH_SIZE = 6;
   let displayedCatalogCount = 0;
   let catalogLoadingBatch = false;
@@ -362,6 +363,8 @@
   }
   function openEditor(item,trigger) {
     if(!item||!safeSku(item.sku))return;
+    // Remember whether the selection was made inside the picker or directly in the catalogue.
+    pickerHasSearchContext = openDialog === modalPicker;
     currentItem=item;
     state={zoom:1,dx:0,dy:0,ratio:4/3,width:300,height:225,...(getDraft(item.sku)||{})};
     state.zoom=clamp(state.zoom,1,3);
@@ -446,6 +449,16 @@
     }
   });
   $('backToEditor').addEventListener('click',()=>setModal(modalEditor));
+  $('changeSelectedFresco').addEventListener('click',()=>{
+    // Preserve the current framing without mixing drafts between different SKUs.
+    if(currentItem && imageLoaded) saveDraft();
+    if(!pickerHasSearchContext) pickerSearch.value='';
+    setModal(modalPicker);
+    hidePickerSuggestions();
+    updatePickerResults();
+    pickerScroll.scrollTop=0;
+    pickerSearch.focus();
+  });
 
   function pickerResultsFor(query) {
     const q=query.trim().toLocaleLowerCase('ru');
@@ -560,6 +573,7 @@
   $('openFirstEditor').addEventListener('click',()=>{
     if(!items.length) {location.hash='catalog';return;}
     setModal(modalPicker,$('openFirstEditor'));
+    pickerHasSearchContext=true;
     pickerSearch.value='';
     updatePickerResults();
     pickerSearch.focus();
