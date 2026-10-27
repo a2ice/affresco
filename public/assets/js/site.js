@@ -216,8 +216,14 @@
       const dimensions=document.createElement('span');
       dimensions.className='catalog-card-dimensions';
       const format=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:2}).format(n);
-      dimensions.textContent=validW&&validH ? format(width)+' × '+format(height)+' см'
+      const approximate=item.dimensions_estimated===true;
+      const formatted=validW&&validH ? format(width)+' × '+format(height)+' см'
         :validW?'Ширина '+format(width)+' см':'Высота '+format(height)+' см';
+      dimensions.textContent=(approximate?'≈ ':'')+formatted;
+      if(approximate){
+        dimensions.title='Ориентировочный формат; фактические размеры не подтверждены';
+        dimensions.setAttribute('aria-label','Ориентировочный размер: '+formatted);
+      }
       text.append(dimensions);
     }
     if(typeof item.description==='string' && item.description.trim()){
