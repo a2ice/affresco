@@ -13,8 +13,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/css/design-tokens.css">
   <link rel="stylesheet" href="/assets/css/site.css">
-  <link rel="stylesheet" href="/assets/css/editorial.css?v=hero-guide-link-20261027">
-  <script src="/assets/js/site.js?v=gallery-scroll-first-20261027" defer></script>
+  <link rel="stylesheet" href="/assets/css/editorial.css?v=toolbar-fullbleed-20261028">
+  <script src="/assets/js/site.js?v=toolbar-sticky-shadow-20261028" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#content">Перейти к содержимому</a>
@@ -49,7 +49,7 @@
           <h1 id="heroHeading"><span class="hero-title-lead">У каждого пространства</span> <span class="hero-title-tail">— своя история</span></h1>
           <p>Настенные фрески с характером. Выберите рисунок и настройте его композицию под пропорции вашей стены.</p>
           <a href="#catalog" class="button button-primary">Выбрать фреску <span aria-hidden="true">↗</span></a>
-          <a class="hero-guide-link text-link" href="#try">Как выбрать свой кадр <span aria-hidden="true">↗</span></a>
+          <a class="hero-guide-link text-link" href="#try">Как выбрать свой кадр</a>
           <div class="hero-footnote"><span>Каталог художественных фресок</span><span>01 / Выбор рисунка</span></div>
         </div>
         <div class="hero-photo" aria-label="Художественная фреска из коллекции AFFRESCO" role="img">
@@ -73,6 +73,7 @@
           <p>Каждый рисунок — отправная точка. Выберите артикул, откройте редактор и настройте фрагмент под свою стену.</p>
         </div>
         <div class="catalog-toolbar" id="catalogToolbar" aria-label="Управление коллекцией">
+          <div class="catalog-toolbar-inner container">
           <span class="catalog-toolbar-title">Выберите фреску для кадрирования</span>
           <span class="sr-only" id="catalogStatus" role="status" aria-live="polite">Загружаем каталог…</span>
           <div class="catalog-toolbar-actions">
@@ -81,6 +82,7 @@
               <button class="catalog-tool-btn" id="catalogViewCards" type="button" data-catalog-view="cards" aria-label="Карточками" title="Карточками" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></button>
             </div>
             <button class="catalog-tool-btn catalog-refresh" id="retryCatalog" type="button" aria-label="Обновить изображения" title="Обновить изображения"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 11a8 8 0 1 0-2 6"/><path d="M20 4v7h-7"/></svg></button>
+          </div>
           </div>
         </div>
         <p class="catalog-favorites-feedback" id="favoritesFeedback" role="status" aria-live="polite" hidden></p>
