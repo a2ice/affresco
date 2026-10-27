@@ -492,7 +492,7 @@ h2 {line-height:1.02;}
   overscroll-behavior:contain;
 }
 .editor-settings-body .field-group:nth-child(1) {
-  margin-top: 5px;
+  margin-top: 10px;
 }
 .editor-settings-footer{
   flex:0 0 auto;
