@@ -398,7 +398,7 @@
         $('futureSku').textContent=currentItem.sku;
         setModal(modalFuture);
       } else {
-        $('loginFeedback').textContent='Чтобы примерить фреску на стену, потребуется войти в аккаунт. Подключение входа — следующий этап.';
+        $('loginFeedback').textContent='Чтобы примерить фреску на стену, войдите в аккаунт. Сейчас авторизация временно недоступна, но настройки кадра сохранены.';
         setModal(modalLogin);
       }
     } catch(_){
