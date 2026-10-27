@@ -13,7 +13,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/css/design-tokens.css">
   <link rel="stylesheet" href="/assets/css/site.css">
-  <link rel="stylesheet" href="/assets/css/editorial.css?v=crop-20261027-3">
+  <link rel="stylesheet" href="/assets/css/editorial.css?v=crop-20261027-4">
   <script src="/assets/js/site.js?v=crop-20261027-3" defer></script>
 </head>
 <body>
@@ -170,12 +170,17 @@
   <div class="modal" id="editorModal" hidden>
     <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="editorTitle">
       <div class="modal-head">
-        <div><span class="eyebrow" id="selectedSku">АРТИКУЛ</span><h2 class="modal-title" id="editorTitle">Ваш кадр фрески</h2></div>
+        <div class="editor-heading">
+          <div class="editor-heading-meta">
+            <span class="eyebrow" id="selectedSku">АРТИКУЛ</span>
+            <button class="editor-change-art" id="changeSelectedFresco" type="button"><span class="editor-change-art-icon" aria-hidden="true">←</span><span class="editor-change-art-label">Выбрать другую фреску</span></button>
+          </div>
+          <h2 class="modal-title" id="editorTitle">Ваш кадр фрески</h2>
+        </div>
         <button class="modal-close" type="button" aria-label="Закрыть редактор" data-close>×</button>
       </div>
       <div class="editor-layout">
         <div class="editor-preview">
-          <button class="editor-change-art" id="changeSelectedFresco" type="button"><span class="editor-change-art-icon" aria-hidden="true">←</span><span class="editor-change-art-label">Выбрать другую фреску</span></button>
           <div class="crop-shell"><div class="crop-viewport" id="cropViewport" aria-label="Редактор кадра: перетаскивайте изображение внутри рамки"><div class="crop-image-clip"><img class="crop-image" id="cropImage" alt="Выбранная фреска для кадрирования" draggable="false"></div><div class="crop-selection" id="cropSelection" role="group" aria-label="Рамка кадрирования с восемью маркерами"><button class="crop-handle crop-handle-n" data-crop-handle="n" type="button" aria-label="Изменить кадр: верхний край"></button><button class="crop-handle crop-handle-ne" data-crop-handle="ne" type="button" aria-label="Изменить кадр: правый верхний угол"></button><button class="crop-handle crop-handle-e" data-crop-handle="e" type="button" aria-label="Изменить кадр: правый край"></button><button class="crop-handle crop-handle-se" data-crop-handle="se" type="button" aria-label="Изменить кадр: правый нижний угол"></button><button class="crop-handle crop-handle-s" data-crop-handle="s" type="button" aria-label="Изменить кадр: нижний край"></button><button class="crop-handle crop-handle-sw" data-crop-handle="sw" type="button" aria-label="Изменить кадр: левый нижний угол"></button><button class="crop-handle crop-handle-w" data-crop-handle="w" type="button" aria-label="Изменить кадр: левый край"></button><button class="crop-handle crop-handle-nw" data-crop-handle="nw" type="button" aria-label="Изменить кадр: левый верхний угол"></button></div><div class="media-loader" id="cropLoader" role="status" aria-label="Загрузка фрески" hidden><span class="loading-ring" aria-hidden="true"></span></div></div></div>
         </div>
         <div class="editor-settings">
