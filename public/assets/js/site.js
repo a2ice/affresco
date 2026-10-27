@@ -162,8 +162,14 @@
       const heroArt=$('heroArt');
       if (heroArt) {
         heroArt.src=first.image;
-        heroArt.alt='Фреска артикул '+first.sku+' в демонстрационном интерьерном макете';
+        heroArt.alt='Фрагмент фрески, артикул '+first.sku;
         heroArt.onerror=()=>heroArt.removeAttribute('src');
+      }
+      const teaserArt=$('teaserArt');
+      if (teaserArt) {
+        const featured = items.length > 1 ? items[1] : first;
+        teaserArt.src=featured.image;
+        teaserArt.onerror=()=>teaserArt.removeAttribute('src');
       }
       const tryDemo=$('openFirstEditor');
       tryDemo.disabled=false;
