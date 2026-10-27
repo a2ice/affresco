@@ -34,6 +34,7 @@ jobs:
         run: |
           set -euo pipefail
           test -f public/index.html
+          test -f public/.htaccess
           test -f docs/Tasks.md
           if git ls-files | grep -Ei '(^|/)(\.env($|\.)|users\.json|accounts\.json|private/|storage/|runtime/|uploads/|.*\.(sqlite3?|sql|pem|key|p12|pfx)$)'; then
             echo 'Sensitive or runtime file tracked: CI refused' >&2
@@ -86,7 +87,7 @@ jobs:
       && github.ref == 'refs/heads/main'
       && vars.FTP_TARGET_VERIFIED == 'true'
       && (
-        (github.event_name == 'push' && vars.FTP_DEPLOY_ENABLED == 'true')
+        github.event_name == 'push'
         || (github.event_name == 'workflow_dispatch' && needs.preflight.result == 'success')
       )
     runs-on: ubuntu-latest
@@ -140,3 +141,7 @@ jobs:
             **/.git*/**
             **/.DS_Store
             **/node_modules/**
+            Images/**
+            images/**
+            **/Images/**
+            **/images/**
