@@ -95,7 +95,15 @@ function af_public_account(array $row): array {
     ];
 }
 function af_account_state_file(string $id): string {
-    return af_private_root() . '/.affresco-account-state/' . hash('sha256', $id) . '.json';
+    $primary = af_private_root() . '/.affresco-account-state';
+    if (!is_dir($primary)) @mkdir($primary,0700,true);
+    $directory = $primary;
+    if (!is_dir($primary) || !is_writable($primary)) {
+        $directory = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) .
+            '/affresco-account-state-' . substr(hash('sha256', __DIR__), 0, 16);
+        if (!is_dir($directory)) @mkdir($directory,0700,true);
+    }
+    return $directory . '/' . hash('sha256', $id) . '.json';
 }
 function af_state(string $id, ?callable $edit=null): ?array {
     $file=af_account_state_file($id);
