@@ -1054,7 +1054,7 @@
     }
     state.dimensionsSource=customSize?'custom':hasDimensions?'catalog':'fallback';
     const dimensionsNote=$('editorDimensionsNote');
-    dimensionsNote.hidden=!hasDimensions||item.dimensions_estimated!==true;
+    dimensionsNote.hidden=!hasDimensions||item.dimensions_estimated!==true||customSize;
     state.zoom=clamp(state.zoom,1,3);
     state.width=clamp(state.width,30,1000);state.height=clamp(state.height,30,1000);
     state.ratio=state.width/state.height;
