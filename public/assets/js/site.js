@@ -494,14 +494,17 @@
     favoriteMutationQueue=favoriteMutationQueue.then(async()=>{
       const action=favorites.has(sku)?'remove':'add';
       try{
-        const result=await fetch('/api/favorites.php',{
+        const accountMode=Boolean(window.affrescoAccount?.signedIn());
+        const result=await fetch(window.affrescoAccount?.url()||'/api/favorites.php',{
           method:'POST',credentials:'same-origin',cache:'no-store',
           headers:{'Content-Type':'application/json','Accept':'application/json','X-Affresco-Request':'1'},
           body:JSON.stringify({action,sku})
         });
         if(!result.ok)throw Error('HTTP '+result.status);
         const data=await result.json();
-        if(!data||data.scope!=='guest'||!Array.isArray(data.items))throw Error('invalid favorites');
+        if(!data||data.scope!==(accountMode?'account':'guest')||!Array.isArray(data.items))throw Error('invalid favorites');
+        if(accountMode!==Boolean(window.affrescoAccount?.signedIn()))return;
+        if(accountMode)window.affrescoAccount.setCollection(data);
         favorites=new Set(data.items.filter(safeSku));
         showFavoritesError('');
         if(favoritesOnly)resetAndRenderCatalog();
