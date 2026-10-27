@@ -93,6 +93,7 @@
   const normalizeSku = (sku) => typeof sku === 'string' ? sku :
     (typeof sku === 'number' && Number.isSafeInteger(sku) && sku >= 0 ? String(sku) : '');
   function getDraft(sku) {
+    if(window.affrescoAccount?.signedIn())return window.affrescoAccount.getDraft(sku);
     try {
       const obj = JSON.parse(localStorage.getItem(storageKey(sku)) || 'null');
       if (!obj || typeof obj !== 'object') return null;
