@@ -12,6 +12,10 @@
   const favoritesFeedback = $('favoritesFeedback');
   const viewList = $('catalogViewList');
   const viewCards = $('catalogViewCards');
+  const catalogSearch=$('catalogSearch');
+  const catalogSuggestions=$('catalogSuggestions');
+  let catalogSearchQuery='';
+  let catalogSearchTimer=null;
   const mobileGalleryQuery=window.matchMedia('(max-width: 600px)');
   let catalogView = 'cards';
   let favoritesOnly = false;
@@ -307,7 +311,14 @@
     });
   }
   function catalogItems(){
-    return favoritesOnly ? items.filter(item=>favorites.has(item.sku)) : items;
+    const source=favoritesOnly?items.filter(item=>favorites.has(item.sku)):items;
+    if(!catalogSearchQuery)return source;
+    return source.filter(item=>matchesCatalogQuery(item,catalogSearchQuery));
+  }
+  function matchesCatalogQuery(item,query){
+    const q=query.trim().toLocaleLowerCase('ru');
+    return !q||item.sku.toLocaleLowerCase('ru').includes(q)||
+      (typeof item.name==='string'&&item.name.toLocaleLowerCase('ru').includes(q));
   }
   function updateCatalogStatus(){
     const source=catalogItems();
@@ -400,17 +411,27 @@
     catalogGrid.replaceChildren();
     if(catalogItems().length)void renderNextCatalogBatch();
     else{
-      catalogStatus.textContent='В избранном пока нет фресок';
+      catalogStatus.textContent=catalogSearchQuery?'Поиск не дал результатов':
+        'В избранном пока нет фресок';
       const empty=document.createElement('div');
       empty.className='catalog-empty';
       const title=document.createElement('h3');
-      title.textContent='Пока ничего не выбрано';
+      title.textContent=catalogSearchQuery?'Ничего не найдено':
+        'Пока ничего не выбрано';
       const info=document.createElement('p');
-      info.textContent='Нажмите на сердечко у понравившейся фрески.';
+      info.textContent=catalogSearchQuery?'Попробуйте другой артикул или название.':
+        'Нажмите на сердечко у понравившейся фрески.';
       const action=document.createElement('button');
       action.type='button';action.className='text-link';
-      action.textContent='Показать всю коллекцию ↗';
-      action.addEventListener('click',()=>{favoritesOnly=false;refreshFavoritesUI();resetAndRenderCatalog();});
+      action.textContent='Показать всю коллекцию';
+      action.addEventListener('click',()=>{
+        catalogSearch.value='';
+        catalogSearchQuery='';
+        hideCatalogSuggestions();
+        favoritesOnly=false;
+        refreshFavoritesUI();
+        resetAndRenderCatalog();
+      });
       empty.append(title,info,action);catalogGrid.append(empty);
     }
   }
@@ -435,6 +456,69 @@
     }
   }
   setCatalogView(restoreCatalogView(),false);
+  function hideCatalogSuggestions(){
+    catalogSuggestions.hidden=true;
+    catalogSearch.setAttribute('aria-expanded','false');
+  }
+  function catalogSuggestionsFor(query){
+    const source=favoritesOnly?items.filter(item=>favorites.has(item.sku)):items;
+    return source.filter(item=>matchesCatalogQuery(item,query)).slice(0,5);
+  }
+  function renderCatalogSuggestions(){
+    const query=catalogSearch.value.trim();
+    catalogSuggestions.replaceChildren();
+    if(!query){hideCatalogSuggestions();return;}
+    const suggestions=catalogSuggestionsFor(query);
+    if(!suggestions.length){hideCatalogSuggestions();return;}
+    suggestions.forEach((item,i)=>{
+      const option=document.createElement('button');
+      option.type='button';
+      option.className='catalog-search-suggestion';
+      option.id='catalog-suggestion-'+i;
+      option.setAttribute('role','option');
+      option.textContent=(item.name||'Фреска')+' · Арт. '+item.sku;
+      option.addEventListener('click',()=>{
+        hideCatalogSuggestions();
+        openEditor(item,option);
+      });
+      catalogSuggestions.append(option);
+    });
+    catalogSuggestions.hidden=false;
+    catalogSearch.setAttribute('aria-expanded','true');
+  }
+  function applyCatalogSearch(){
+    const next=catalogSearch.value.trim().toLocaleLowerCase('ru');
+    if(next===catalogSearchQuery)return;
+    catalogSearchQuery=next;
+    resetAndRenderCatalog();
+  }
+  catalogSearch.addEventListener('input',()=>{
+    renderCatalogSuggestions();
+    clearTimeout(catalogSearchTimer);
+    catalogSearchTimer=setTimeout(applyCatalogSearch,130);
+  });
+  catalogSearch.addEventListener('keydown',event=>{
+    if(event.key==='Escape'){
+      hideCatalogSuggestions();
+      return;
+    }
+    if(event.key==='Enter'){
+      clearTimeout(catalogSearchTimer);
+      applyCatalogSearch();
+      const item=catalogSuggestionsFor(catalogSearch.value)[0];
+      if(item&&catalogSearch.value.trim()){
+        event.preventDefault();
+        hideCatalogSuggestions();
+        openEditor(item,catalogSearch);
+      }
+    }else if(event.key==='ArrowDown'&&!catalogSuggestions.hidden){
+      event.preventDefault();
+      catalogSuggestions.querySelector('button')?.focus();
+    }
+  });
+  document.addEventListener('pointerdown',event=>{
+    if(!event.target.closest('.catalog-search-wrap'))hideCatalogSuggestions();
+  });
   // Only elevate the full-width bar while its sticky top is active.
   const catalogToolbar=$('catalogToolbar');
   let toolbarScrollFrame=0;
@@ -484,6 +568,7 @@
     if(!favoritesReady){showFavoritesError('Избранное ещё не загрузилось.');return;}
     favoritesOnly=!favoritesOnly;
     refreshFavoritesUI();
+    hideCatalogSuggestions();
     resetAndRenderCatalog();
     document.getElementById('catalog').scrollIntoView({block:'start',behavior:'smooth'});
   });
