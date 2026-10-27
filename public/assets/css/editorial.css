@@ -694,9 +694,9 @@ h2 {line-height:1.02;}
   #catalog .catalog-toolbar{
     position:sticky;top:70px;z-index:35;
     padding:8px 0;min-height:60px;margin:0 0 22px;
-    background:rgba(250,249,246,.97);
-    backdrop-filter:blur(8px);
-    box-shadow:0 5px 8px rgba(25,22,18,.055);
+    background:#faf9f6;
+    backdrop-filter:none;
+    box-shadow:none;
   }
   .catalog-view-switch{display:flex;}
   #catalog .catalog-tool-btn{width:39px;min-width:39px;height:39px;padding:8px;}
@@ -750,8 +750,9 @@ h2 {line-height:1.02;}
 #catalog .catalog-toolbar{
   position:sticky;top:82px;z-index:35;
   justify-content:flex-end;
-  background:rgba(250,249,246,.96);
-  backdrop-filter:blur(8px);
+  background:#faf9f6;
+  backdrop-filter:none;
+  box-shadow:none;
 }
 #catalog .catalog-toolbar-actions{margin-left:auto;}
 #catalog .catalog-view-switch{display:flex;}
