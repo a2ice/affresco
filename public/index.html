@@ -13,6 +13,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/css/design-tokens.css">
   <link rel="stylesheet" href="/assets/css/site.css">
+  <link rel="stylesheet" href="/assets/css/editorial.css">
   <script src="/assets/js/site.js" defer></script>
 </head>
 <body>
@@ -27,7 +28,6 @@
         <a href="#about">О проекте</a>
       </nav>
       <div class="header-actions">
-        <button class="header-link" type="button" id="retryCatalog" title="Обновить каталог">Обновить ↗</button>
         <a class="header-link" href="#catalog">Выбрать фреску ↗</a>
         <button class="menu-toggle" type="button" id="menuToggle" aria-label="Открыть меню" aria-controls="mobileNav" aria-expanded="false">☰</button>
       </div>
@@ -39,23 +39,23 @@
       <a href="#about">О проекте</a>
     </nav>
   </header>
-  <div class="demo-ribbon">ДЕМОНСТРАЦИОННЫЙ ПРОЕКТ · Интерактивный выбор фрески</div>
 
   <main id="content">
     <section class="hero" id="top" aria-labelledby="heroHeading">
       <div class="container hero-grid">
         <div class="hero-copy">
-          <span class="eyebrow">AFFRESCO / ИСКУССТВО В ИНТЕРЬЕРЕ</span>
-          <h1 id="heroHeading">Стены, которые вдохновляют</h1>
-          <p>Художественные фрески для пространства с характером. Выберите рисунок, задайте свой размер и найдите идеальный кадр.</p>
-          <a href="#catalog" class="button button-primary">Смотреть коллекцию <span aria-hidden="true">↗</span></a>
+          <span class="eyebrow">ХУДОЖЕСТВЕННЫЕ ФРЕСКИ / AFFRESCO</span>
+          <h1 id="heroHeading">У каждого пространства — своя история</h1>
+          <p>Настенные фрески с характером. Выберите рисунок и настройте его композицию под пропорции вашей стены.</p>
+          <a href="#catalog" class="button button-primary">Выбрать фреску <span aria-hidden="true">↗</span></a>
+          <div class="hero-footnote"><span>Каталог художественных фресок</span><span>01 / Выбор рисунка</span></div>
         </div>
         <div class="hero-photo" aria-label="Демонстрационная композиция настенной фрески в интерьере" role="img">
           <div class="hero-wall">
             <div class="hero-panel"><img class="hero-art" id="heroArt" alt="" aria-hidden="true"></div>
           </div>
           <div class="hero-floor"></div>
-          <span class="hero-caption">Искусство в деталях / AFFRESCO</span>
+          <span class="hero-caption">Фрагмент коллекции / AFFRESCO</span>
         </div>
       </div>
     </section>
@@ -65,11 +65,11 @@
         <div class="section-intro">
           <div>
             <span class="eyebrow">01 / КОЛЛЕКЦИЯ</span>
-            <h2 id="catalogHeading">Фрески для вашего дома</h2>
+            <h2 id="catalogHeading">Искусство на вашей стене</h2>
           </div>
           <p>Каждый рисунок — отправная точка. Выберите артикул, откройте редактор и настройте фрагмент под свою стену.</p>
         </div>
-        <div class="section-caption"><span class="small muted" id="catalogStatus" role="status" aria-live="polite">Загружаем каталог…</span><a class="text-link" href="#try">Как выбрать свой кадр <span aria-hidden="true">↗</span></a></div>
+        <div class="section-caption"><span class="small muted" id="catalogStatus" role="status" aria-live="polite">Загружаем каталог…</span><button id="retryCatalog" type="button">Обновить изображения ↻</button><a class="text-link" href="#try">Как выбрать свой кадр <span aria-hidden="true">↗</span></a></div>
         <div class="catalog-grid" id="catalogGrid" aria-live="polite" aria-label="Каталог фресок">
           <div class="catalog-empty"><h3>Загружаем коллекцию</h3><p>Получаем список фотографий по артикулам.</p></div>
         </div>
@@ -78,10 +78,10 @@
 
     <section class="section editor-teaser" id="try" aria-labelledby="tryHeading">
       <div class="container teaser-grid">
-        <div class="teaser-canvas" role="img" aria-label="Абстрактная демонстрационная композиция стены с фреской"></div>
+        <div class="teaser-canvas" role="img" aria-label="Фрагмент фрески из каталога"><img class="teaser-art" id="teaserArt" alt="" loading="lazy"></div>
         <div class="teaser-copy">
           <span class="eyebrow">02 / СОЗДАЙТЕ СВОЙ КАДР</span>
-          <h2 id="tryHeading">Идеальные пропорции для вашего пространства</h2>
+          <h2 id="tryHeading">Не просто рисунок. Ваш собственный кадр.</h2>
           <p>У каждой стены свой характер. Укажите размеры, увеличьте изображение, передвиньте фрагмент и сохраните выбранный кадр. Для начала достаточно выбрать любую фреску из каталога.</p>
           <button class="button button-primary" id="openFirstEditor" type="button" disabled>Открыть редактор <span aria-hidden="true">↗</span></button>
         </div>
@@ -91,7 +91,7 @@
     <section class="section" id="how" aria-labelledby="howHeading">
       <div class="container">
         <span class="eyebrow">03 / КАК ЭТО РАБОТАЕТ</span>
-        <h2 id="howHeading" style="margin-top:12px">От идеи до своего кадра</h2>
+        <h2 id="howHeading" style="margin-top:12px">От рисунка до вашей стены</h2>
         <div class="steps">
           <article class="step">
             <span class="step-index">01 — ВЫБОР</span>
