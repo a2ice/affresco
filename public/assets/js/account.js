@@ -26,6 +26,7 @@
   function getDraft(sku){return signedIn()?drafts[sku]||null:null;}
   function updateHeader(){
     const toggle=$('accountToggle'),mobile=$('mobileLogin');
+    document.querySelector('.site-header')?.classList.toggle('has-account',Boolean(user));
     if(toggle){
       toggle.hidden=false;
       toggle.textContent=user?user.login:'Войти';
