@@ -1260,3 +1260,23 @@ h2 {line-height:1.02;}
   #emailModal .email-modal-panel,
   #emailSuccessModal .email-modal-panel{width:95vw;max-width:95vw;}
 }
+
+/* Recoverable guest/account favorites API errors — no permanent disabled UI. */
+#catalog .catalog-favorites-alert{
+  display:flex;align-items:center;flex-wrap:wrap;gap:8px;
+}
+#catalog .catalog-favorites-alert .catalog-favorites-feedback:not([hidden]){
+  margin:0 0 12px;
+}
+#catalog .catalog-favorites-retry:not([hidden]){
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:36px;margin:0 0 12px;padding:7px 11px;
+  border:1px solid #baa99b;background:#fff;
+  color:#4d3931;font:600 12px/1.3 var(--font-ui);
+  cursor:pointer;
+}
+#catalog .catalog-favorites-retry[hidden]{display:none!important;}
+#catalog .catalog-favorites-retry:disabled{opacity:.65;cursor:wait;}
+#catalog .catalog-favorites-retry:focus-visible{
+  outline:2px solid #685a49;outline-offset:2px;
+}
