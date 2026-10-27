@@ -188,13 +188,41 @@
     flag.className='catalog-label';
     flag.textContent='Выбрать фреску';
     figure.append(photo,flag);
-    const meta = document.createElement('span');
+    const meta = document.createElement('div');
     meta.className='catalog-meta';
+    const text=document.createElement('div');
+    text.className='catalog-card-details';
     const title = document.createElement('strong');
+    title.className='catalog-card-sku';
     title.textContent='Арт. ' + item.sku;
+    text.append(title);
+    if(typeof item.name==='string' && item.name.trim()){
+      const artworkName=document.createElement('span');
+      artworkName.className='catalog-card-name';
+      artworkName.textContent=item.name.trim();
+      text.append(artworkName);
+    }
+    const width=Number(item.width_cm),height=Number(item.height_cm);
+    const validW=item.width_cm!==null && item.width_cm!==undefined && Number.isFinite(width) && width>0;
+    const validH=item.height_cm!==null && item.height_cm!==undefined && Number.isFinite(height) && height>0;
+    if(validW || validH){
+      const dimensions=document.createElement('span');
+      dimensions.className='catalog-card-dimensions';
+      const format=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:2}).format(n);
+      dimensions.textContent=validW&&validH ? format(width)+' × '+format(height)+' см'
+        :validW?'Ширина '+format(width)+' см':'Высота '+format(height)+' см';
+      text.append(dimensions);
+    }
+    if(typeof item.description==='string' && item.description.trim()){
+      const description=document.createElement('p');
+      description.className='catalog-card-description';
+      description.textContent=item.description.trim();
+      text.append(description);
+    }
     const arrow = document.createElement('span');
+    arrow.className='catalog-card-open-label';
     arrow.textContent='Кадрировать ↗';
-    meta.append(title,arrow);
+    meta.append(text,arrow);
     open.append(figure,meta);
     open.addEventListener('click', () => openEditor(item,open));
     const favoriteButton = document.createElement('button');
