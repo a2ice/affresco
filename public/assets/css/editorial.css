@@ -483,16 +483,6 @@ h2 {line-height:1.02;}
   min-height:0;
   overflow:hidden;
 }
-.editor-settings-header{
-  flex:0 0 auto;
-  padding:clamp(20px,2.1vw,30px) clamp(18px,2.5vw,35px) 17px;
-  border-bottom:1px solid #e2dbd0;
-}
-.editor-settings-header h3{
-  font-size:clamp(25px,2.5vw,33px);
-  line-height:1.15;
-  margin:0;
-}
 .editor-settings-body{
   flex:1 1 0;
   min-height:0;
@@ -579,7 +569,6 @@ h2 {line-height:1.02;}
   #editorModal .editor-preview{overflow:visible;padding:21px 20px;}
   #editorModal .editor-settings{overflow:visible;max-height:none;}
   .editor-settings-body{flex:auto;overflow:visible;}
-  .editor-settings-header{padding:22px 20px 15px;}
   .editor-settings-footer{position:sticky;bottom:0;z-index:5;padding:12px 18px;}
 }
 @media(max-width:480px){
@@ -589,7 +578,6 @@ h2 {line-height:1.02;}
   .editor-settings-footer .editor-action{min-height:44px;font-size:0;padding:7px;}
   .editor-settings-footer .editor-action-text{display:none;}
   .editor-settings-footer .editor-action-icon{font-size:19px;}
-  .editor-settings-header{padding:20px 17px 12px;}
   .editor-settings-body{padding:6px 17px 20px;}
 }
 
@@ -1199,3 +1187,27 @@ h2 {line-height:1.02;}
 }
 
 #loginModal .field-group input{display:block;width:100%;min-height:46px;padding:9px 11px;border:1px solid #b7ada1;border-radius:2px;background:#fff;color:var(--color-text);}
+
+/* One heading for crop editor; remove the redundant settings title. */
+#editorModal #editorTitle{
+  font-size:32px;
+  line-height:1.12;
+  letter-spacing:-.02em;
+  margin:8px 0 0;
+}
+#editorModal .editor-heading-subtitle{
+  margin:8px 0 0;
+  color:#6b6156;
+  font:500 14px/1.45 var(--font-ui);
+}
+#editorModal .editor-settings-body{
+  padding-top:clamp(20px,2.1vw,30px);
+}
+@media(max-width:800px){
+  #editorModal .editor-settings-body{padding-top:20px;}
+}
+@media(max-width:480px){
+  #editorModal #editorTitle{font-size:32px;}
+  #editorModal .editor-heading-subtitle{font-size:13px;}
+  #editorModal .editor-settings-body{padding-top:16px;}
+}
