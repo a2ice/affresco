@@ -909,6 +909,7 @@
     state.width=clamp(Math.round(startWidthCm*(after.w/before.w)),30,1000);
     state.height=clamp(Math.round(startHeightCm*(after.h/before.h)),30,1000);
     state.ratio=state.width/state.height;
+    state.dimensionsSource='custom';
     widthInput.value=state.width;
     heightInput.value=state.height;
   }
@@ -916,6 +917,7 @@
     const width=Number(widthInput.value),height=Number(heightInput.value);
     if(!Number.isFinite(width)||!Number.isFinite(height)||width<30||height<30||width>1000||height>1000)return false;
     state.width=width;state.height=height;state.ratio=width/height;
+    state.dimensionsSource='custom';
     fitSelectionToRatio(state.ratio);
     updateCrop(true);
     return true;
@@ -925,6 +927,7 @@
     state.height=Math.round(state.width/value);
     if(state.height<30||state.height>1000){state.width=300;state.height=Math.round(300/value);}
     state.ratio=state.width/state.height;
+    state.dimensionsSource='custom';
     state.lockRatio=true;ratioLock.checked=true;
     widthInput.value=state.width;heightInput.value=state.height;
     fitSelectionToRatio(state.ratio);
@@ -1021,20 +1024,35 @@
     const width=height*ratio;
     return {x:centerX-width/2,y:hasN?fixedY-height:fixedY,w:width,h:height};
   }
+  function catalogDimensions(item){
+    if(!item)return null;
+    const width=Number(item.width_cm),height=Number(item.height_cm);
+    return item.width_cm!=null && item.height_cm!=null &&
+      Number.isFinite(width)&&Number.isFinite(height)&&
+      width>=30&&width<=1000&&height>=30&&height<=1000
+      ?{width,height}:null;
+  }
   function openEditor(item,trigger){
     if(!item||!safeSku(item.sku))return;
     pickerHasSearchContext=openDialog===modalPicker;
     currentItem=item;
     const draft=getDraft(item.sku);
-    // The first crop adopts the selected SKU's catalogue dimensions.
-    // An existing per-SKU saved crop always wins over the catalogue defaults.
-    const catalogWidth=Number(item.width_cm),catalogHeight=Number(item.height_cm);
-    const hasDimensions=Number.isFinite(catalogWidth)&&Number.isFinite(catalogHeight)&&
-      catalogWidth>=30&&catalogWidth<=1000&&catalogHeight>=30&&catalogHeight<=1000;
-    const startingWidth=hasDimensions?catalogWidth:300;
-    const startingHeight=hasDimensions?catalogHeight:225;
+    // Earlier releases saved 300cm image-based defaults as crop drafts.
+    // Only dimensions explicitly changed by the user override catalog JSON.
+    const size=catalogDimensions(item);
+    const hasDimensions=Boolean(size);
+    const startingWidth=hasDimensions?size.width:300;
+    const startingHeight=hasDimensions?size.height:225;
+    const customSize=draft?.dimensionsSource==='custom';
     state={zoom:1,dx:0,dy:0,ratio:startingWidth/startingHeight,
       width:startingWidth,height:startingHeight,lockRatio:true,selection:null,...(draft||{})};
+    if(hasDimensions && !customSize){
+      // Keep saved crop geometry, zoom and position while migrating old drafts.
+      state.width=startingWidth;
+      state.height=startingHeight;
+      state.ratio=startingWidth/startingHeight;
+    }
+    state.dimensionsSource=customSize?'custom':hasDimensions?'catalog':'fallback';
     const dimensionsNote=$('editorDimensionsNote');
     dimensionsNote.hidden=!hasDimensions||item.dimensions_estimated!==true;
     state.zoom=clamp(state.zoom,1,3);
@@ -1153,8 +1171,11 @@
   $('resetCrop').addEventListener('click',()=>{
     if(!imageLoaded)return;
     const aspect=cropImage.naturalWidth/cropImage.naturalHeight;
+    const initial=catalogDimensions(currentItem);
     state.zoom=1;state.dx=0;state.dy=0;
-    state.width=300;state.height=clamp(Math.round(300/aspect),30,1000);
+    state.width=initial?initial.width:300;
+    state.height=initial?initial.height:clamp(Math.round(300/aspect),30,1000);
+    state.dimensionsSource=initial?'catalog':'fallback';
     state.ratio=state.width/state.height;state.lockRatio=true;ratioLock.checked=true;
     state.selection={x:0,y:0,w:1,h:1};
     widthInput.value=state.width;heightInput.value=state.height;
