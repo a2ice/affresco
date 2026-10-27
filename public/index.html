@@ -85,12 +85,27 @@
 
     <section class="section editor-teaser" id="try" aria-labelledby="tryHeading">
       <div class="container teaser-grid">
-        <div class="teaser-canvas" role="img" aria-label="Фрагмент фрески из каталога"><img class="teaser-art" id="teaserArt" alt="" loading="lazy"></div>
+        <div class="teaser-media">
+          <div class="teaser-canvas">
+            <img class="teaser-art" id="teaserArt" alt="" loading="eager" hidden>
+            <div class="teaser-placeholder" id="teaserPlaceholder">
+              <span class="eyebrow">AFFRESCO / КОЛЛЕКЦИЯ</span>
+              <span>Выберите фреску<br>по артикулу</span>
+            </div>
+          </div>
+          <div class="teaser-picker">
+            <label for="teaserSku">Артикул фрески <span aria-hidden="true">*</span></label>
+            <select id="teaserSku" name="teaserSku" required disabled aria-describedby="teaserFeedback">
+              <option value="">Загружаем артикулы…</option>
+            </select>
+            <p id="teaserFeedback" role="status" aria-live="polite">Выберите фреску, чтобы открыть редактор.</p>
+          </div>
+        </div>
         <div class="teaser-copy">
           <span class="eyebrow">02 / СОЗДАЙТЕ СВОЙ КАДР</span>
           <h2 id="tryHeading">Не просто рисунок. Ваш собственный кадр.</h2>
-          <p>У каждой стены свой характер. Укажите размеры, увеличьте изображение, передвиньте фрагмент и сохраните выбранный кадр. Для начала достаточно выбрать любую фреску из каталога.</p>
-          <button class="button button-primary" id="openFirstEditor" type="button" disabled>Открыть редактор <span aria-hidden="true">↗</span></button>
+          <p>У каждой стены свой характер. Укажите размеры, увеличьте изображение, передвиньте фрагмент и сохраните выбранный кадр. Выберите артикул слева — появится изображение выбранной фрески, после чего можно открыть редактор.</p>
+          <button class="button button-primary" id="openSelectedEditor" type="button" disabled>Открыть редактор <span aria-hidden="true">↗</span></button>
         </div>
       </div>
     </section>
