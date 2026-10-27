@@ -64,8 +64,9 @@
   const modalPicker = $('pickerModal');
   const modalEditor = $('editorModal');
   const modalLogin = $('loginModal');
+  const modalAccount = $('accountModal');
   const modalFuture = $('futureModal');
-  const modals = [modalPicker, modalEditor, modalLogin, modalFuture];
+  const modals = [modalPicker, modalEditor, modalLogin, modalAccount, modalFuture];
   let previousFocus = null;
   let openDialog = null;
   let items = [];
