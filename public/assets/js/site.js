@@ -848,8 +848,17 @@
     pickerHasSearchContext=openDialog===modalPicker;
     currentItem=item;
     const draft=getDraft(item.sku);
-    // Without a saved crop, open the whole image (no implicit 90% selection).
-    state={zoom:1,dx:0,dy:0,ratio:4/3,width:300,height:225,lockRatio:true,selection:null,...(draft||{})};
+    // The first crop adopts the selected SKU's catalogue dimensions.
+    // An existing per-SKU saved crop always wins over the catalogue defaults.
+    const catalogWidth=Number(item.width_cm),catalogHeight=Number(item.height_cm);
+    const hasDimensions=Number.isFinite(catalogWidth)&&Number.isFinite(catalogHeight)&&
+      catalogWidth>=30&&catalogWidth<=1000&&catalogHeight>=30&&catalogHeight<=1000;
+    const startingWidth=hasDimensions?catalogWidth:300;
+    const startingHeight=hasDimensions?catalogHeight:225;
+    state={zoom:1,dx:0,dy:0,ratio:startingWidth/startingHeight,
+      width:startingWidth,height:startingHeight,lockRatio:true,selection:null,...(draft||{})};
+    const dimensionsNote=$('editorDimensionsNote');
+    dimensionsNote.hidden=!hasDimensions||item.dimensions_estimated!==true;
     state.zoom=clamp(state.zoom,1,3);
     state.width=clamp(state.width,30,1000);state.height=clamp(state.height,30,1000);
     state.ratio=state.width/state.height;
@@ -872,10 +881,13 @@
       cropViewport.style.aspectRatio=String(aspect);
       cropViewport.style.maxWidth=Math.round(450*aspect)+'px';
       if(!validSelection(state.selection)){
-        // Legacy drafts without selection and new visits both start with the full photo.
+        // Image fitting never overwrites physical dimensions from the SKU.
+        // Older saved drafts without a selection also retain their dimensions.
         state.selection={x:0,y:0,w:1,h:1};
-        state.width=300;
-        state.height=clamp(Math.round(300/aspect),30,1000);
+        if(!draft && !hasDimensions){
+          state.width=300;
+          state.height=clamp(Math.round(300/aspect),30,1000);
+        }
         state.ratio=state.width/state.height;
         widthInput.value=state.width;
         heightInput.value=state.height;
