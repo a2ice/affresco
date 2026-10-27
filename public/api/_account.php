@@ -87,7 +87,11 @@ function af_public_account(array $row): array {
         'login'=>$row['login'],
         'generations_limit'=>max(0,(int)($row['generations_limit'] ?? 0)),
         'generations_used'=>max(0,(int)($row['generations_used'] ?? 0)),
-        'generations_failed'=>max(0,(int)($row['generations_failed'] ?? 0))
+        'generations_failed'=>max(0,(int)($row['generations_failed'] ?? 0)),
+        'last_login'=>is_string($row['last_login']??null)?$row['last_login']:null,
+        'login_count'=>max(0,(int)($row['login_count']??0)),
+        'last_update'=>is_string($row['last_update']??null)?$row['last_update']:null,
+        'updates_count'=>max(0,(int)($row['updates_count']??0))
     ];
 }
 function af_account_state_file(string $id): string {
