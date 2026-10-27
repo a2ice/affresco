@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require __DIR__ . '/_account.php';
+require __DIR__ . '/_usage.php';
 af_session();
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 if ($method === 'GET') {
@@ -46,4 +47,5 @@ if (!$verified) {
 session_regenerate_id(true);
 $_SESSION['affresco_login_attempts'] = [];
 $_SESSION['afreska_user_id'] = (string)$row['id'];
+af_track_usage((string)$row['id'], 'login');
 af_response(200, ['authenticated'=>true,'account'=>af_public_account($row)]);
