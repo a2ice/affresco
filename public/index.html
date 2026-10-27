@@ -13,10 +13,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/css/design-tokens.css">
   <link rel="stylesheet" href="/assets/css/site.css">
-  <link rel="stylesheet" href="/assets/css/editorial.css?v=favorites-finish-20261028-2">
+  <link rel="stylesheet" href="/assets/css/editorial.css?v=favorites-popup-20261028">
   <link rel="stylesheet" href="/assets/css/account.css?v=favorites-finish-20261028-2">
   <script src="/assets/js/account.js?v=favorites-finish-20261028-2" defer></script>
-  <script src="/assets/js/site.js?v=mail-crop-visible-20261028" defer></script>
+  <script src="/assets/js/site.js?v=favorites-popup-mailfix-20261028" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#content">Перейти к содержимому</a>
@@ -31,7 +31,7 @@
       </nav>
       <div class="header-actions">
         <a class="header-link" href="#catalog">Выбрать фреску ↗</a>
-        <button class="header-favorites" id="favoritesToggle" type="button" aria-label="Показать избранное, 0 фресок" aria-pressed="false" title="Показать избранное"><svg class="heart-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"/></svg><span class="header-favorites-count" id="favoritesCount">0</span></button>
+        <button class="header-favorites" id="favoritesToggle" type="button" aria-label="Открыть избранное, 0 фресок" aria-haspopup="dialog" aria-controls="favoritesModal" title="Открыть избранное"><svg class="heart-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"/></svg><span class="header-favorites-count" id="favoritesCount">0</span></button>
         <button class="header-account" id="accountToggle" type="button" hidden aria-label="Личный кабинет"></button>
         <button class="menu-toggle" type="button" id="menuToggle" aria-label="Открыть меню" aria-controls="mobileNav" aria-expanded="false">☰</button>
       </div>
@@ -168,6 +168,23 @@
   </footer>
 
   <div class="catalog-toast" id="catalogToast" role="status" aria-live="polite" aria-atomic="true" hidden></div>
+
+  <div class="modal" id="favoritesModal" hidden>
+    <div class="modal-panel modal-small favorites-modal-panel" role="dialog" aria-modal="true" aria-labelledby="favoritesTitle">
+      <button class="modal-close" type="button" aria-label="Закрыть избранное" data-close>×</button>
+      <span class="eyebrow">ВАША КОЛЛЕКЦИЯ</span>
+      <h2 id="favoritesTitle">Избранное</h2>
+      <p class="favorites-modal-summary" id="favoritesModalSummary" role="status" aria-live="polite">Загружаем сохранённые фрески…</p>
+      <div class="favorites-modal-items" id="favoritesModalItems" aria-label="Сохранённые фрески"></div>
+      <p class="favorites-modal-message" id="favoritesModalMessage" role="status" aria-live="polite" hidden></p>
+      <div class="favorites-modal-actions">
+        <button class="button button-primary button-wide" id="favoritesBrowse" type="button">Перейти к коллекции</button>
+        <button class="button button-secondary button-wide" id="favoritesLogin" type="button">Авторизоваться</button>
+        <button class="button button-secondary button-wide" id="favoritesReload" type="button" hidden>Повторить загрузку</button>
+      </div>
+      <p class="favorites-modal-note" id="favoritesModalNote">Войдите, чтобы сохранять избранное отдельно в своём аккаунте. Гостевые фрески автоматически не переносятся.</p>
+    </div>
+  </div>
 
   <div class="modal" id="pickerModal" hidden>
     <div class="modal-panel picker-modal-panel" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
