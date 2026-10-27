@@ -447,3 +447,139 @@ h2 {line-height:1.02;}
   .crop-handle{width:14px;height:14px;min-width:14px;min-height:14px;}
 }
 @media(prefers-reduced-motion:reduce){.editor-change-art-icon{transition:none;}}
+
+/* Crop editor v0.3: image determines dialog height; controls scroll independently. */
+#editorModal .modal-panel{
+  display:flex;
+  flex-direction:column;
+  max-height:min(94dvh,940px);
+  overflow:hidden;
+}
+#editorModal .modal-head{flex:0 0 auto;}
+#editorModal .editor-layout{
+  grid-template-columns:minmax(0,1.15fr) minmax(305px,.85fr);
+  align-items:stretch;
+  min-height:0;
+  overflow:hidden;
+}
+#editorModal .editor-preview{
+  overflow-y:auto;
+  min-height:0;
+  padding:clamp(60px,5.2vw,68px) clamp(16px,2.1vw,28px) 22px;
+}
+#editorModal .editor-settings{
+  display:flex;
+  flex-direction:column;
+  padding:0;
+  min-height:0;
+  overflow:hidden;
+}
+.editor-settings-header{
+  flex:0 0 auto;
+  padding:clamp(20px,2.1vw,30px) clamp(18px,2.5vw,35px) 17px;
+  border-bottom:1px solid #e2dbd0;
+}
+.editor-settings-header h3{
+  font-size:clamp(25px,2.5vw,33px);
+  line-height:1.15;
+  margin:0;
+}
+.editor-settings-body{
+  flex:1 1 0;
+  min-height:0;
+  overflow-y:auto;
+  padding:8px clamp(18px,2.5vw,35px) 24px;
+  scrollbar-width:thin;
+  overscroll-behavior:contain;
+}
+.editor-settings-footer{
+  flex:0 0 auto;
+  background:#faf9f6;
+  border-top:1px solid #d9d2c8;
+  padding:13px clamp(12px,1.5vw,24px);
+}
+.editor-settings-footer .feedback{margin:0;}
+.editor-settings-footer .feedback:empty{display:none;}
+.editor-settings-footer .editor-actions{
+  display:flex;
+  flex-wrap:nowrap;
+  gap:7px;
+  margin:0;
+  align-items:stretch;
+}
+.editor-settings-footer .editor-action{
+  flex:1 1 0;
+  min-width:0;
+  min-height:46px;
+  display:inline-flex;
+  justify-content:center;
+  align-items:center;
+  gap:5px;
+  padding:9px 7px;
+  white-space:nowrap;
+  font:600 10px/1.3 var(--font-ui);
+  letter-spacing:.025em;
+}
+.editor-settings-footer .editor-action-primary{flex:1.12 1 0;}
+.editor-action-icon{font:500 16px/1 var(--font-ui);}
+.editor-action-text{overflow:hidden;text-overflow:ellipsis;}
+/* The image alone is clipped. Crop handles live above that layer, with
+   a surrounding inset so edge and corner handles are never cut in half. */
+#editorModal .crop-shell{
+  min-height:0;
+  padding:12px;
+  box-sizing:border-box;
+  overflow:visible;
+  flex:0 0 auto;
+}
+#editorModal .crop-viewport{
+  max-height:none;
+  overflow:visible;
+  isolation:isolate;
+  box-sizing:border-box;
+  border:1px solid #9f9281;
+}
+#editorModal .crop-image-clip{
+  position:absolute;
+  inset:0;
+  overflow:hidden;
+  background:#c4b9ab;
+  z-index:0;
+}
+#editorModal .crop-selection{
+  box-shadow:inset 0 0 0 1px rgba(25,20,18,.3),0 0 0 1px rgba(40,34,28,.25);
+}
+#editorModal .crop-handle{z-index:5;}
+#editorModal .crop-hint{margin:0;line-height:1.55;}
+@media(max-width:900px) and (min-width:801px){
+  .editor-settings-footer .editor-action{
+    min-height:46px;
+    font-size:0;
+    padding:8px;
+  }
+  .editor-settings-footer .editor-action-text{display:none;}
+  .editor-settings-footer .editor-action-icon{font-size:19px;}
+}
+@media(max-width:800px){
+  #editorModal .modal-panel{overflow-y:auto;max-height:96dvh;}
+  #editorModal .editor-layout{
+    display:grid;
+    grid-template-columns:1fr;
+    overflow:visible;
+    flex:0 0 auto;
+  }
+  #editorModal .editor-preview{overflow:visible;padding:62px 20px 21px;}
+  #editorModal .editor-settings{overflow:visible;max-height:none;}
+  .editor-settings-body{flex:auto;overflow:visible;}
+  .editor-settings-header{padding:22px 20px 15px;}
+  .editor-settings-footer{position:sticky;bottom:0;z-index:5;padding:12px 18px;}
+}
+@media(max-width:480px){
+  #editorModal .editor-preview{padding:57px 15px 18px;}
+  #editorModal .editor-change-art{left:15px;top:10px;}
+  .editor-settings-footer .editor-action{min-height:44px;font-size:0;padding:7px;}
+  .editor-settings-footer .editor-action-text{display:none;}
+  .editor-settings-footer .editor-action-icon{font-size:19px;}
+  .editor-settings-header{padding:20px 17px 12px;}
+  .editor-settings-body{padding:6px 17px 20px;}
+}
