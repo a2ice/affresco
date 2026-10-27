@@ -365,6 +365,23 @@
     }
   }
   setCatalogView(restoreCatalogView(),false);
+  // Only elevate the full-width bar while its sticky top is active.
+  const catalogToolbar=$('catalogToolbar');
+  let toolbarScrollFrame=0;
+  function updateToolbarStuck(){
+    toolbarScrollFrame=0;
+    const headerHeight=document.querySelector('.site-header')?.getBoundingClientRect().height || 0;
+    const toolbarTop=catalogToolbar.getBoundingClientRect().top;
+    const stuck=window.scrollY>0 && Math.abs(toolbarTop-headerHeight)<=2;
+    catalogToolbar.classList.toggle('is-stuck',stuck);
+  }
+  function scheduleToolbarStuck(){
+    if(toolbarScrollFrame)return;
+    toolbarScrollFrame=requestAnimationFrame(updateToolbarStuck);
+  }
+  window.addEventListener('scroll',scheduleToolbarStuck,{passive:true});
+  window.addEventListener('resize',scheduleToolbarStuck);
+  scheduleToolbarStuck();
   function scrollToFirstCatalogCard(){
     // Measure after the grid has switched layout so the first card is not
     // hidden behind the sticky site header and the catalogue toolbar.
