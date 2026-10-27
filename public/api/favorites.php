@@ -100,7 +100,10 @@ $stored = is_array($parsed) && isset($parsed['items']) ? $parsed['items'] : [];
 $stored = is_array($stored) ? $stored : [];
 $items = [];
 foreach ($stored as $sku) {
-    if (is_string($sku) && preg_match('/^[\p{L}\p{N}][\p{L}\p{N}._-]{0,99}$/uD', $sku)) {
+    // PHP casts numeric SKU array keys to int, and previous releases
+    // persisted those ints; accept them but always return strings.
+    if (is_int($sku) && $sku >= 0) $sku=(string)$sku;
+    if (is_string($sku) && preg_match('/^[\\p{L}\\p{N}][\\p{L}\\p{N}._-]{0,99}$/uD', $sku)) {
         $items[$sku] = true;
     }
 }
@@ -125,7 +128,7 @@ if ($method === 'POST') {
     } else {
         unset($items[$sku]);
     }
-    $json = json_encode(['version' => 1, 'items' => array_keys($items)],
+    $json = json_encode(['version' => 1, 'items' => array_map('strval', array_keys($items))],
         JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     if ($json === false || !rewind($handle) || !ftruncate($handle, 0) ||
         fwrite($handle, $json) !== strlen($json) || !fflush($handle)) {
@@ -136,4 +139,4 @@ if ($method === 'POST') {
 }
 flock($handle, LOCK_UN);
 fclose($handle);
-respond(200, ['items' => array_keys($items), 'count' => count($items), 'scope' => 'guest']);
+respond(200, ['items' => array_map('strval', array_keys($items)), 'count' => count($items), 'scope' => 'guest']);
