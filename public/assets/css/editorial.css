@@ -1185,3 +1185,15 @@ h2 {line-height:1.02;}
 @media(max-width:600px){
   .site-footer .footer-credit{gap:6px;}
 }
+
+
+/* One focus boundary for every boxed form field across picker, catalog,
+   editor and login. Retain the native keyboard focus cue for non-boxed
+   controls (checkboxes, radio buttons and range sliders). */
+:is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),textarea,select):focus,
+:is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),textarea,select):focus-visible{
+  border-color:#685a49;
+  outline:none!important;
+  outline-offset:0;
+  box-shadow:none;
+}
