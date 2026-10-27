@@ -13,8 +13,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/css/design-tokens.css">
   <link rel="stylesheet" href="/assets/css/site.css">
-  <link rel="stylesheet" href="/assets/css/editorial.css?v=toolbar-fullbleed-20261028">
-  <script src="/assets/js/site.js?v=catalog-drafts-20261028" defer></script>
+  <link rel="stylesheet" href="/assets/css/editorial.css?v=catalog-search-copy-20261028">
+  <script src="/assets/js/site.js?v=catalog-search-copy-20261028" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#content">Перейти к содержимому</a>
@@ -74,7 +74,12 @@
         </div>
         <div class="catalog-toolbar" id="catalogToolbar" aria-label="Управление коллекцией">
           <div class="catalog-toolbar-inner container">
-          <span class="catalog-toolbar-title">Выберите фреску для кадрирования</span>
+          <div class="catalog-search-wrap">
+            <label class="sr-only" for="catalogSearch">Поиск по названию или артикулу</label>
+            <input id="catalogSearch" type="search" placeholder="Название или артикул" autocomplete="off"
+                   role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="catalogSuggestions">
+            <div class="catalog-search-suggestions" id="catalogSuggestions" role="listbox" hidden></div>
+          </div>
           <span class="sr-only" id="catalogStatus" role="status" aria-live="polite">Загружаем каталог…</span>
           <div class="catalog-toolbar-actions">
             <div class="catalog-view-switch" role="group" aria-label="Режим отображения коллекции">
@@ -152,6 +157,8 @@
     </div>
   </footer>
 
+  <div class="catalog-toast" id="catalogToast" role="status" aria-live="polite" aria-atomic="true" hidden></div>
+
   <div class="modal" id="pickerModal" hidden>
     <div class="modal-panel picker-modal-panel" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
       <div class="modal-head">
@@ -216,6 +223,7 @@
             <div class="field-group field-row">
               <div><label for="wallWidth">Ширина, см</label><input id="wallWidth" type="number" min="30" max="1000" value="300" inputmode="numeric"></div>
               <div><label for="wallHeight">Высота, см</label><input id="wallHeight" type="number" min="30" max="1000" value="225" inputmode="numeric"></div>
+              <p class="editor-dimensions-note" id="editorDimensionsNote" hidden>Начальные размеры взяты из каталога и являются ориентировочными. Их можно изменить.</p>
             </div>
             <div class="field-group">
               <label for="cropZoom">Масштаб изображения: <output id="zoomValue" for="cropZoom">100%</output></label>
