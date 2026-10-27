@@ -9,6 +9,8 @@
   let favorites=[];
   let callback=null;
   let latestStateRequest=0;
+  let collectionRevision=0;
+  let catalogTitles=new Map();
   let draftQueue=Promise.resolve();
   async function request(url,method='GET',body){
     const options={method,credentials:'same-origin',cache:'no-store',headers:{'Accept':'application/json'}};
@@ -35,6 +37,29 @@
     }
     if(mobile)mobile.textContent=user?'Личный кабинет · '+user.login:'Войти в личный кабинет';
   }
+  function renderSkuList(id,skus,emptyText){
+    const target=$(id);
+    if(!target)return;
+    target.replaceChildren();
+    if(!skus.length){
+      target.textContent=emptyText;
+      return;
+    }
+    const fragment=document.createDocumentFragment();
+    for(const sku of skus){
+      const button=document.createElement('button');
+      button.type='button';
+      button.className='account-sku-link';
+      const title=catalogTitles.get(sku);
+      button.textContent=(title||'Фреска')+' · Арт. '+sku;
+      button.setAttribute('aria-label','Открыть редактор фрески, артикул '+sku);
+      button.addEventListener('click',()=>{
+        window.dispatchEvent(new CustomEvent('affresco:open-fresco',{detail:{sku}}));
+      });
+      fragment.append(button);
+    }
+    target.append(fragment);
+  }
   function renderDashboard(){
     if(!user)return;
     $('accountName').textContent=user.login;
@@ -50,17 +75,18 @@
       ' · Неудачных попыток: '+String(user.generations_failed||0);
     $('accountActivity').textContent='Входов: '+String(user.login_count||0)+
       ' · Сохранений кадра: '+String(user.updates_count||0);
-    $('accountFavoriteList').textContent=favorites.length?'Артикулы: '+favorites.join(', '):
-      'Пока нет избранных фресок.';
+    renderSkuList('accountFavoriteList',favorites,'Пока нет избранных фресок.');
+    $('accountShowFavorites').hidden=favorites.length===0;
     const skus=Object.keys(drafts);
-    $('accountDraftList').textContent=skus.length?'Артикулы: '+skus.join(', '):
-      'Пока нет сохранённых кадров.';
+    renderSkuList('accountDraftList',skus,'Пока нет сохранённых кадров.');
   }
   async function refreshState(){
     if(!signedIn())return;
     const requestNumber=++latestStateRequest;
+    const revisionAtStart=collectionRevision;
     const data=await request(stateEndpoint);
-    if(requestNumber!==latestStateRequest||!signedIn())return;
+    // A slow GET must not undo a more recent heart click or crop save.
+    if(requestNumber!==latestStateRequest||revisionAtStart!==collectionRevision||!signedIn())return;
     favorites=Array.isArray(data.items)?data.items:[];
     drafts=data.drafts&&typeof data.drafts==='object'?data.drafts:{};
     renderDashboard();
@@ -74,6 +100,7 @@
       const data=await request(stateEndpoint,'POST',{action:'save_draft',sku,draft:payload});
       if(!signedIn()||String(user.id)!==userId)return;
       drafts=data.drafts&&typeof data.drafts==='object'?data.drafts:drafts;
+      collectionRevision++;
       renderDashboard();
     });
     return draftQueue;
@@ -81,7 +108,14 @@
   function setCollection(data){
     if(!signedIn()||!data)return;
     favorites=Array.isArray(data.items)?data.items:[];
-    if(data.drafts&&typeof data.drafts==='object')drafts=data.drafts;
+    // Favorites responses must not overwrite a crop draft being saved.
+    collectionRevision++;
+    renderDashboard();
+  }
+  function setCatalogItems(items){
+    catalogTitles=new Map(Array.isArray(items)?items.map(item=>[
+      String(item.sku),typeof item.name==='string'&&item.name.trim()?item.name.trim():null
+    ]):[]);
     renderDashboard();
   }
   function openWindow(which){
@@ -98,6 +132,9 @@
     updateHeader();
     renderDashboard();
   })();
+  $('accountShowFavorites')?.addEventListener('click',()=>{
+    window.dispatchEvent(new CustomEvent('affresco:show-favorites'));
+  });
   $('accountToggle')?.addEventListener('click',()=>{
     if(signedIn()){void refreshState().finally(()=>openWindow('account'));}
     else openWindow('login');
@@ -160,7 +197,7 @@
     }
   });
   window.affrescoAccount={
-    ready, signedIn, getDraft, saveDraft, setCollection, refreshState,
+    ready, signedIn, getDraft, saveDraft, setCollection, setCatalogItems, refreshState,
     current:()=>user,
     savedEmail:()=>signedIn() && typeof user.email==='string'?user.email:'',
     setEmailFromSend:email=>{
