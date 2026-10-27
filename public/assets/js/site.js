@@ -116,6 +116,94 @@
     feedback.classList.toggle('error', error);
   }
 
+  // Section scrollspy: menu state and URL reflect the section in view.
+  // history.replaceState changes the address without a native anchor jump
+  // or adding hundreds of browser history entries while scrolling.
+  const sectionIds=['top','catalog','try','how','about'];
+  const trackedSections=sectionIds.map(id=>({id,element:$(id)}))
+    .filter(entry=>entry.element);
+  const sectionMenuLinks=[...document.querySelectorAll(
+    '.desktop-nav a[href^="#"],.mobile-nav a[href^="#"]')];
+  function markActiveSection(id){
+    sectionMenuLinks.forEach(link=>{
+      if(link.getAttribute('href')==='#'+id){
+        link.setAttribute('aria-current','location');
+      }else{
+        link.removeAttribute('aria-current');
+      }
+    });
+  }
+  let scrollSpyReady=document.readyState==='complete';
+  let scrollSpyFrame=0;
+  let regularAnchorNavigation=false;
+  let regularAnchorTimer=0;
+  function currentViewportSection(){
+    const headerHeight=document.querySelector('.site-header')
+      ?.getBoundingClientRect().height || 0;
+    const marker=headerHeight+Math.min(120,window.innerHeight*.18);
+    let current='top';
+    trackedSections.forEach(section=>{
+      if(section.element.getBoundingClientRect().top<=marker){
+        current=section.id;
+      }
+    });
+    return current;
+  }
+  function updateScrollSpy(){
+    scrollSpyFrame=0;
+    if(!scrollSpyReady || openDialog || guideNavigationTarget ||
+      regularAnchorNavigation)return;
+    const id=currentViewportSection();
+    markActiveSection(id);
+    const hash='#'+id;
+    if(location.hash!==hash){
+      history.replaceState(history.state,'',
+        location.pathname+location.search+hash);
+    }
+  }
+  function scheduleScrollSpy(){
+    if(scrollSpyFrame)return;
+    scrollSpyFrame=requestAnimationFrame(updateScrollSpy);
+  }
+  // During an ordinary #top / #catalog smooth click, don't rewrite its hash
+  // while the viewport travels past intermediate sections.
+  function finishRegularAnchor(){
+    regularAnchorNavigation=false;
+    clearTimeout(regularAnchorTimer);
+    scheduleScrollSpy();
+  }
+  document.querySelectorAll('a[href="#top"],a[href="#catalog"]').forEach(link=>{
+    link.addEventListener('click',event=>{
+      if(event.defaultPrevented || event.button!==0 || event.metaKey ||
+        event.ctrlKey || event.shiftKey || event.altKey)return;
+      regularAnchorNavigation=true;
+      const targetId=link.getAttribute('href').slice(1);
+      markActiveSection(targetId);
+      clearTimeout(regularAnchorTimer);
+      regularAnchorTimer=setTimeout(finishRegularAnchor,1600);
+    });
+  });
+  window.addEventListener('scrollend',()=>{
+    if(regularAnchorNavigation)finishRegularAnchor();
+  });
+  window.addEventListener('scroll',scheduleScrollSpy,{passive:true});
+  window.addEventListener('resize',scheduleScrollSpy);
+  window.addEventListener('hashchange',()=>{
+    const hashId=location.hash.slice(1);
+    if(sectionIds.includes(hashId))markActiveSection(hashId);
+    // Hash changes can also originate outside our navigation controls.
+    scheduleScrollSpy();
+  });
+  markActiveSection(sectionIds.includes(location.hash.slice(1))
+    ?location.hash.slice(1):'top');
+  if(scrollSpyReady){
+    scheduleScrollSpy();
+  }else{
+    window.addEventListener('load',()=>{
+      scrollSpyReady=true;
+      scheduleScrollSpy();
+    },{once:true});
+  }
   function closeMenu() {
     mobileNav.hidden = true;
     menuToggle.setAttribute('aria-expanded','false');
