@@ -457,14 +457,18 @@
     if(pendingFavoriteSkus.size)return;
     const requestRevision=favoritesRevision;
     try{
-      const result=await fetch('/api/favorites.php',{
+      await window.affrescoAccount?.ready;
+      const accountMode=Boolean(window.affrescoAccount?.signedIn());
+      const result=await fetch(window.affrescoAccount?.url()||'/api/favorites.php',{
         credentials:'same-origin',cache:'no-store',headers:{Accept:'application/json'}
       });
       if(!result.ok)throw Error('HTTP '+result.status);
       const data=await result.json();
       // An in-flight GET must not overwrite a more recent heart click.
       if(requestRevision!==favoritesRevision)return;
-      if(!data||data.scope!=='guest'||!Array.isArray(data.items))throw Error('invalid favorites');
+      if(!data||data.scope!==(accountMode?'account':'guest')||!Array.isArray(data.items))throw Error('invalid favorites');
+      if(accountMode!==Boolean(window.affrescoAccount?.signedIn()))return;
+      if(accountMode)window.affrescoAccount.setCollection(data);
       const previous=favorites;
       favorites=new Set(data.items.filter(safeSku));
       favoritesReady=true;
