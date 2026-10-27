@@ -340,6 +340,11 @@ h2 {line-height:1.02;}
   outline-offset:3px;
 }
 #pickerSearch:focus-visible{border-color:#685a49;outline:2px solid #685a4970;}
+/* iOS Safari auto-zooms focused input text smaller than 16px.
+   Keep programmatic focus and native pinch zoom; increase only touch text size. */
+@media (pointer:coarse) {
+  #pickerSearch{font-size:16px;}
+}
 .picker-suggestions{
   position:absolute;z-index:12;top:calc(100% + 2px);left:0;right:0;
   max-height:235px;overflow-y:auto;padding:5px 0;background:#fff;
