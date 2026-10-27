@@ -576,3 +576,42 @@ h2 {line-height:1.02;}
   .editor-settings-header{padding:20px 17px 12px;}
   .editor-settings-body{padding:6px 17px 20px;}
 }
+
+/* v0.5 — outside the crop is visibly dimmed; the image stays still on drag.
+   The dimming layer is clipped to the photograph, not to the resize handles. */
+#editorModal .crop-dim-layer{
+  position:absolute;
+  inset:0;
+  z-index:1;
+  overflow:hidden;
+  pointer-events:none;
+  --crop-x:0%;
+  --crop-y:0%;
+  --crop-w:100%;
+  --crop-h:100%;
+}
+#editorModal .crop-dim{
+  display:block;
+  position:absolute;
+  background:rgba(20,18,17,.49);
+  pointer-events:none;
+}
+#editorModal .crop-dim-top{
+  left:0;top:0;right:0;height:var(--crop-y);
+}
+#editorModal .crop-dim-bottom{
+  left:0;right:0;top:calc(var(--crop-y) + var(--crop-h));bottom:0;
+}
+#editorModal .crop-dim-left{
+  left:0;top:var(--crop-y);width:var(--crop-x);height:var(--crop-h);
+}
+#editorModal .crop-dim-right{
+  left:calc(var(--crop-x) + var(--crop-w));
+  right:0;top:var(--crop-y);height:var(--crop-h);
+}
+#editorModal .crop-selection{
+  cursor:move;
+  box-shadow:inset 0 0 0 1px rgba(25,20,18,.3),0 0 0 1px rgba(40,34,28,.25);
+}
+#editorModal .crop-selection:active{cursor:move;}
+#editorModal .crop-viewport .media-loader{z-index:6;}
