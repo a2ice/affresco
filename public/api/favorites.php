@@ -17,7 +17,7 @@ session_set_cookie_params([
 ]);
 session_start();
 
-function respond(int $status, array $payload): never
+function respond(int $status, array $payload): void
 {
     http_response_code($status);
     echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
