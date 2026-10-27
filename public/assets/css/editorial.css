@@ -866,5 +866,6 @@ h2 {line-height:1.02;}
 @media(max-width:390px){
   .site-header .header-row .brand{font-size:14px;letter-spacing:.135em;}
   .site-header .header-favorites{min-width:38px;}
+  .site-header .header-favorites-count{font-size:9px;letter-spacing:.04em;}
   #catalog .catalog-grid[data-catalog-view="cards"]{gap:14px 6px;}
 }
