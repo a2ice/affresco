@@ -44,6 +44,8 @@
     $('accountQuota').textContent='Лимит генераций: '+String(user.generations_used||0)+
       ' из '+String(user.generations_limit||0)+
       ' · Неудачных попыток: '+String(user.generations_failed||0);
+    $('accountActivity').textContent='Входов: '+String(user.login_count||0)+
+      ' · Сохранений кадра: '+String(user.updates_count||0);
     $('accountFavoriteList').textContent=favorites.length?'Артикулы: '+favorites.join(', '):
       'Пока нет избранных фресок.';
     const skus=Object.keys(drafts);
