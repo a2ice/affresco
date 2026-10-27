@@ -104,6 +104,11 @@
   function saveDraft() {
     if (!currentItem) return;
     const payload = {...state, sku:currentItem.sku, savedAt:new Date().toISOString(), crop:getCrop()};
+    if(window.affrescoAccount?.signedIn()){
+      void window.affrescoAccount.saveDraft(currentItem.sku,payload)
+        .catch(()=>showFeedback('Не удалось сохранить кадр в аккаунте.',true));
+      return;
+    }
     try {
       localStorage.setItem(storageKey(currentItem.sku), JSON.stringify(payload));
       // Successful saves are silent; errors remain accessible in the footer.
