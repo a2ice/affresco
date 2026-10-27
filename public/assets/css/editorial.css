@@ -1125,3 +1125,38 @@ h2 {line-height:1.02;}
 @media(max-width:700px){
   .picker-card .catalog-card-description{-webkit-line-clamp:2;font-size:10px;}
 }
+
+/* Toolbar refinements, copy icon, and section-aware navigation — 2026-10-28. */
+#catalog .catalog-toolbar{border-top:0;}
+#catalog #catalogSearch:focus,
+#catalog #catalogSearch:focus-visible{
+  outline:none;
+  outline-offset:0;
+  box-shadow:none;
+  border-color:#685a49;
+}
+.catalog-card .catalog-card-sku{
+  display:inline-flex;align-items:center;gap:6px;
+}
+.catalog-card .catalog-card-sku svg{
+  display:block;width:14px;height:14px;flex:none;
+  fill:none;stroke:currentColor;stroke-width:1.6;
+  stroke-linecap:round;stroke-linejoin:round;
+}
+@media(max-width:600px){
+  #catalog .catalog-grid[data-catalog-view="cards"] .catalog-card-sku{gap:3px;}
+  #catalog .catalog-grid[data-catalog-view="cards"] .catalog-card-sku svg{
+    width:12px;height:12px;
+  }
+}
+/* aria-current is set on the desktop/mobile menu links only. */
+.site-header .desktop-nav a[aria-current="location"]{
+  color:var(--color-text);
+  box-shadow:inset 0 -1px 0 currentColor;
+}
+.site-header .mobile-nav a[aria-current="location"]{
+  color:var(--color-text);
+  font-weight:750;
+  border-left:2px solid currentColor;
+  padding-left:12px;
+}
