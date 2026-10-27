@@ -254,7 +254,7 @@
       <span class="eyebrow">ЛИЧНЫЙ КАБИНЕТ</span>
       <h2 id="loginTitle">Войти в аккаунт</h2>
       <p id="loginFeedback" role="status" aria-live="polite">Введите логин и пароль, выданные для демонстрации.</p>
-      <form id="loginForm" autocomplete="on">
+      <form id="loginForm" method="post" action="/api/auth.php" autocomplete="on">
         <div class="field-group"><label for="loginName">Логин</label><input id="loginName" name="username" type="text" autocomplete="username" placeholder="Логин" minlength="1" maxlength="100" required></div>
         <div class="field-group"><label for="loginPassword">Пароль</label><input id="loginPassword" name="password" type="password" autocomplete="current-password" placeholder="Пароль" required></div>
         <button type="submit" class="button button-primary button-wide" id="loginSubmit">Войти</button>
