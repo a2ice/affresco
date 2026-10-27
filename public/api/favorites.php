@@ -103,7 +103,7 @@ foreach ($stored as $sku) {
     // PHP casts numeric SKU array keys to int, and previous releases
     // persisted those ints; accept them but always return strings.
     if (is_int($sku) && $sku >= 0) $sku=(string)$sku;
-    if (is_string($sku) && preg_match('/^[\\p{L}\\p{N}][\\p{L}\\p{N}._-]{0,99}$/uD', $sku)) {
+    if (is_string($sku) && preg_match('/^[\p{L}\p{N}][\p{L}\p{N}._-]{0,99}$/uD', $sku)) {
         $items[$sku] = true;
     }
 }
