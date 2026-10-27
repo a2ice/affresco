@@ -560,12 +560,19 @@
     }catch(_){
       if(requestRevision!==favoritesRevision)return;
       favoritesReady=false;
-      showFavoritesError('Избранное временно недоступно. Попробуйте обновить страницу.');
+      showFavoritesError('Избранное временно недоступно. Нажмите «Повторить загрузку».');
     }
     refreshFavoritesUI();
   }
   function toggleFavorite(sku){
-    if(!favoritesReady||!safeSku(sku)||pendingFavoriteSkus.has(sku))return Promise.resolve();
+    if(!safeSku(sku)||pendingFavoriteSkus.has(sku))return Promise.resolve();
+    if(!favoritesReady){
+      // The card must stay clickable after a recoverable loading failure.
+      return loadFavorites().then(()=>{
+        if(favoritesReady)return toggleFavorite(sku);
+        showCatalogToast('Не удалось подключить избранное. Повторите попытку.');
+      });
+    }
     pendingFavoriteSkus.add(sku);
     ++favoritesRevision;
     refreshFavoritesUI();
@@ -587,9 +594,11 @@
         if(accountMode)window.affrescoAccount.setCollection(data);
         favorites=new Set(data.items.filter(safeSku));
         showFavoritesError('');
+        showCatalogToast(action==='add'?'Фреска добавлена в избранное':'Фреска удалена из избранного');
         if(favoritesOnly)resetAndRenderCatalog();
       }catch(_){
         showFavoritesError('Не получилось сохранить избранное. Попробуйте ещё раз.');
+        showCatalogToast('Избранное не сохранилось. Попробуйте ещё раз.');
       }finally{
         pendingFavoriteSkus.delete(sku);
         refreshFavoritesUI();
@@ -793,12 +802,30 @@
     }
   });
   favoritesToggle.addEventListener('click',()=>{
-    if(!favoritesReady){showFavoritesError('Избранное ещё не загрузилось.');return;}
-    favoritesOnly=!favoritesOnly;
-    refreshFavoritesUI();
+    renderFavoritesModal();
+    setModal(modalFavorites,favoritesToggle);
+    if(!favoritesReady)void loadFavorites();
+  });
+  favoritesLogin.addEventListener('click',()=>setModal(modalLogin));
+  favoritesReload.addEventListener('click',async()=>{
+    favoritesReload.disabled=true;
+    favoritesReload.textContent='Загружаем…';
+    try{await loadFavorites();}
+    finally{
+      favoritesReload.disabled=false;
+      favoritesReload.textContent='Повторить загрузку';
+    }
+  });
+  favoritesBrowse.addEventListener('click',()=>{
+    setModal(null);
+    favoritesOnly=false;
+    catalogSearch.value='';
+    catalogSearchQuery='';
     hideCatalogSuggestions();
+    refreshFavoritesUI();
     resetAndRenderCatalog();
-    document.getElementById('catalog').scrollIntoView({block:'start',behavior:'smooth'});
+    $('catalog').scrollIntoView({block:'start',
+      behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
   });
   void loadFavorites();
   document.addEventListener('visibilitychange',()=>{
@@ -975,6 +1002,7 @@
       }
       // Only six cards/images are mounted at first. Remaining images wait for scrolling.
       resetAndRenderCatalog();
+      renderFavoritesModal();
       const first=items[0];
       const heroArt=$('heroArt');
       if (heroArt) {
