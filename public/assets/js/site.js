@@ -10,6 +10,7 @@
   const favoritesToggle = $('favoritesToggle');
   const favoritesCount = $('favoritesCount');
   const favoritesFeedback = $('favoritesFeedback');
+  const favoritesRetry = $('favoritesRetry');
   const viewList = $('catalogViewList');
   const viewCards = $('catalogViewCards');
   const catalogSearch=$('catalogSearch');
@@ -459,6 +460,7 @@
   function showFavoritesError(message){
     favoritesFeedback.textContent=message;
     favoritesFeedback.hidden=!message;
+    favoritesRetry.hidden=!message;
   }
   async function loadFavorites(){
     // Refresh from the server when returning to a tab; never blindly copy
@@ -684,6 +686,36 @@
     wasMobile=mobileGalleryQuery.matches;
     setCatalogView(restoreCatalogView(),false);
   });
+  favoritesRetry.addEventListener('click',()=>{
+    favoritesRetry.disabled=true;
+    favoritesRetry.textContent='Загружаем…';
+    void loadFavorites().finally(()=>{
+      favoritesRetry.disabled=false;
+      favoritesRetry.textContent='Повторить загрузку';
+    });
+  });
+  window.addEventListener('affresco:show-favorites',()=>{
+    if(!favoritesReady){
+      setModal(null);
+      showFavoritesError('Избранное пока недоступно. Повторите загрузку.');
+      $('catalog').scrollIntoView({block:'start',behavior:'smooth'});
+      return;
+    }
+    setModal(null);
+    favoritesOnly=true;
+    catalogSearch.value='';
+    catalogSearchQuery='';
+    hideCatalogSuggestions();
+    refreshFavoritesUI();
+    resetAndRenderCatalog();
+    $('catalog').scrollIntoView({block:'start',behavior:
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+  });
+  window.addEventListener('affresco:open-fresco',event=>{
+    const sku=event.detail?.sku;
+    const item=items.find(fresco=>fresco.sku===sku);
+    if(item)openEditor(item);
+  });
   favoritesToggle.addEventListener('click',()=>{
     if(!favoritesReady){showFavoritesError('Избранное ещё не загрузилось.');return;}
     favoritesOnly=!favoritesOnly;
@@ -857,6 +889,7 @@
       if (!body || !Array.isArray(body.items)) throw new Error('Неверный формат каталога');
       items=body.items.filter(x => x && typeof x === 'object').map(x => ({...x,sku:normalizeSku(x.sku)}))
         .filter(x => safeSku(x.sku) && typeof x.image==='string' && /^\/(?:Images|images)\//.test(x.image));
+      window.affrescoAccount?.setCatalogItems(items);
       catalogGrid.replaceChildren();
       if (items.length===0) {
         catalogStatus.textContent='Пока нет изображений';
