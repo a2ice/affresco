@@ -55,8 +55,9 @@ function af_accounts(): ?array {
     if (!is_string($raw) || strlen($raw) > 1048576) return null;
     $parsed = json_decode($raw, true);
     if (!is_array($parsed)) return null;
-    $list = array_is_list($parsed) ? $parsed : ($parsed['accounts'] ?? null);
-    return is_array($list) && array_is_list($list) ? $list : null;
+    $list = isset($parsed['accounts']) ? $parsed['accounts'] : $parsed;
+    if (!is_array($list)) return null;
+    return $list===[] || array_keys($list)===range(0,count($list)-1) ? $list : null;
 }
 function af_valid_account($entry): bool {
     return is_array($entry) && isset($entry['id'], $entry['login']) &&
