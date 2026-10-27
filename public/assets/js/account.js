@@ -9,6 +9,7 @@
   let favorites=[];
   let callback=null;
   let latestStateRequest=0;
+  let draftQueue=Promise.resolve();
   async function request(url,method='GET',body){
     const options={method,credentials:'same-origin',cache:'no-store',headers:{'Accept':'application/json'}};
     if(method==='POST'){
@@ -59,13 +60,17 @@
     renderDashboard();
     return data;
   }
-  async function saveDraft(sku,payload){
-    if(!signedIn())return;
-    const data=await request(stateEndpoint,'POST',{action:'save_draft',sku,draft:payload});
-    if(!signedIn())return;
-    drafts=data.drafts&&typeof data.drafts==='object'?data.drafts:drafts;
-    favorites=Array.isArray(data.items)?data.items:favorites;
-    renderDashboard();
+  function saveDraft(sku,payload){
+    if(!signedIn())return Promise.resolve();
+    const userId=String(user.id);
+    draftQueue=draftQueue.catch(()=>{}).then(async()=>{
+      if(!signedIn()||String(user.id)!==userId)return;
+      const data=await request(stateEndpoint,'POST',{action:'save_draft',sku,draft:payload});
+      if(!signedIn()||String(user.id)!==userId)return;
+      drafts=data.drafts&&typeof data.drafts==='object'?data.drafts:drafts;
+      renderDashboard();
+    });
+    return draftQueue;
   }
   function setCollection(data){
     if(!signedIn()||!data)return;
