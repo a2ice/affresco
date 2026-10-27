@@ -42,6 +42,9 @@
   let catalogObserver = null;
   let guideNavigationTarget = null;
   let guideNavigationTimeout = 0;
+  // A deep link skips the collection: do not eagerly load every batch while
+  // jumping over it. Manual "Показать ещё" stays available below the gallery.
+  let catalogManualMode = ['#try','#how','#about'].includes(location.hash);
   const menuToggle = $('menuToggle');
   const mobileNav = $('mobileNav');
   const cropViewport = $('cropViewport');
@@ -446,9 +449,9 @@
   window.addEventListener('pageshow',event=>{
     if(event.persisted && !pendingFavoriteSkus.size)void loadFavorites();
   });
-  // A smooth jump from Hero to #try crosses the catalogue sentinel. Without
-  // pausing lazy-loading, six cards can be inserted above the destination
-  // mid-scroll and move it away from the viewport (especially on iOS Safari).
+  // Deep anchor jumps cross the catalogue sentinel and must not start image
+  // batches that shift the destination. Manual loading remains available below
+  // the gallery until the user scrolls back into the collection.
   function finishGuideNavigation(realign=true){
     if(!guideNavigationTarget)return;
     const target=guideNavigationTarget;
@@ -468,46 +471,78 @@
         root.style.scrollBehavior=previous;
       }
     }
+    // The target remains below the catalogue, so leave its batches paused.
+    // A normal manual scroll back into the gallery switches to auto mode.
+    updateCatalogMoreControls();
     watchCatalogBottom();
   }
   function onGuideScrollEnd(){finishGuideNavigation();}
   function cancelGuideNavigation(){finishGuideNavigation(false);}
-  const guideLink=document.querySelector('.hero-guide-link[href="#try"]');
-  guideLink?.addEventListener('click',event=>{
-    if(event.defaultPrevented || event.button!==0 || event.metaKey ||
-      event.ctrlKey || event.shiftKey || event.altKey)return;
-    guideNavigationTarget=$('try');
-    if(catalogObserver)catalogObserver.disconnect();
-    clearTimeout(guideNavigationTimeout);
-    window.removeEventListener('scrollend',onGuideScrollEnd);
-    window.addEventListener('scrollend',onGuideScrollEnd,{once:true});
-    // Fallback for Safari versions without scrollend; native anchor scrolling
-    // remains responsible for setting the URL and starting the animation.
-    guideNavigationTimeout=setTimeout(onGuideScrollEnd,1400);
+  document.querySelectorAll('a[href="#try"],a[href="#how"],a[href="#about"]').forEach(link=>{
+    link.addEventListener('click',event=>{
+      if(event.defaultPrevented || event.button!==0 || event.metaKey ||
+        event.ctrlKey || event.shiftKey || event.altKey)return;
+      guideNavigationTarget=$(link.getAttribute('href').slice(1));
+      catalogManualMode=true;
+      if(catalogObserver)catalogObserver.disconnect();
+      updateCatalogMoreControls();
+      clearTimeout(guideNavigationTimeout);
+      window.removeEventListener('scrollend',onGuideScrollEnd);
+      window.addEventListener('scrollend',onGuideScrollEnd,{once:true});
+      // Native anchor navigation updates the hash; fallback for older Safari.
+      guideNavigationTimeout=setTimeout(onGuideScrollEnd,1400);
+    });
   });
   // A deliberate user scroll cancels the final snap, avoiding a tug-of-war.
   window.addEventListener('wheel',cancelGuideNavigation,{passive:true});
   window.addEventListener('touchstart',cancelGuideNavigation,{passive:true});
-  function watchCatalogBottom() {
-    if(catalogObserver) catalogObserver.disconnect();
-    if(guideNavigationTarget)return;
-    if(displayedCatalogCount>=catalogItems().length || catalogLoadingBatch) return;
-    if(!catalogLoadMore || !('IntersectionObserver' in window)) return; // Older HTML / manual fallback.
-    if(!catalogObserver) {
+  function catalogCanAutoLoad(){
+    return !catalogManualMode && !guideNavigationTarget &&
+      'IntersectionObserver' in window;
+  }
+  function updateCatalogMoreControls(){
+    if(!catalogLoadMore)return;
+    const hasMore=displayedCatalogCount<catalogItems().length;
+    catalogLoadMore.hidden=!hasMore;
+    // In auto mode the sentinel remains in the document, but no manual
+    // button is shown. It appears after a deliberate deep anchor jump or
+    // when IntersectionObserver is unsupported.
+    if(catalogMoreButton)catalogMoreButton.hidden=
+      !hasMore || catalogLoadingBatch || catalogCanAutoLoad();
+  }
+  function onCatalogScroll(){
+    if(!catalogManualMode || guideNavigationTarget)return;
+    const rect=$('catalog').getBoundingClientRect();
+    const headerHeight=document.querySelector('.site-header')?.getBoundingClientRect().height||0;
+    // Ignore transient passage through the gallery during an anchor jump.
+    // A genuine return into the section restores lazy-loading.
+    if(rect.top<window.innerHeight-40 && rect.bottom>headerHeight+40){
+      catalogManualMode=false;
+      updateCatalogMoreControls();
+      watchCatalogBottom();
+    }
+  }
+  window.addEventListener('scroll',onCatalogScroll,{passive:true});
+  function watchCatalogBottom(){
+    if(catalogObserver)catalogObserver.disconnect();
+    updateCatalogMoreControls();
+    if(!catalogCanAutoLoad() || catalogLoadingBatch ||
+      displayedCatalogCount>=catalogItems().length || !catalogLoadMore)return;
+    if(!catalogObserver){
       catalogObserver=new IntersectionObserver(entries=>{
-        if(!guideNavigationTarget && entries.some(entry=>entry.isIntersecting))
-          void renderNextCatalogBatch();
+        if(catalogCanAutoLoad() && entries.some(entry=>entry.isIntersecting)){
+          void renderNextCatalogBatch(false);
+        }
       },{rootMargin:'0px',threshold:0});
     }
     catalogObserver.observe(catalogLoadMore);
   }
-  async function renderNextCatalogBatch() {
+  async function renderNextCatalogBatch(manual=false){
     if(catalogLoadingBatch || displayedCatalogCount>=catalogItems().length) return;
     const generation=catalogGeneration;
     catalogLoadingBatch=true;
-    if(catalogLoadMore) catalogLoadMore.hidden=false;
     loading(catalogBatchLoader,true);
-    if(catalogMoreButton) catalogMoreButton.hidden=true;
+    updateCatalogMoreControls();
 
     const isAdditionalBatch=displayedCatalogCount>0;
     const started=performance.now();
@@ -531,17 +566,14 @@
     }
     // A refresh may have replaced the catalogue while the old images loaded.
     if(generation!==catalogGeneration) return;
-    // A batch requested just before an anchor jump must not be appended above
-    // the destination after the scroll has started or finished.
-    const trySection=$('try');
-    const settledAtTry=location.hash==='#try' && trySection &&
-      trySection.getBoundingClientRect().top<=window.innerHeight;
-    if(isAdditionalBatch && (guideNavigationTarget || settledAtTry)){
+    // Only auto-initiated batches are cancelled when a deep link crosses
+    // the sentinel. Explicit "Показать ещё" always completes, even if #try
+    // remains in the URL from a previous navigation.
+    if(isAdditionalBatch && !manual && !catalogCanAutoLoad()){
       displayedCatalogCount-=cards.length;
       catalogLoadingBatch=false;
       loading(catalogBatchLoader,false);
-      if(catalogLoadMore)catalogLoadMore.hidden=false;
-      if(catalogMoreButton)catalogMoreButton.hidden=false;
+      watchCatalogBottom();
       return;
     }
     if(isAdditionalBatch) {
@@ -551,8 +583,6 @@
     updateCatalogStatus();
     catalogLoadingBatch=false;
     loading(catalogBatchLoader,false);
-    if(catalogLoadMore) catalogLoadMore.hidden=displayedCatalogCount>=catalogItems().length;
-    if(catalogMoreButton) catalogMoreButton.hidden=!catalogLoadMore || catalogLoadMore.hidden;
     watchCatalogBottom();
   }
   function resetCatalogPagination() {
@@ -560,8 +590,8 @@
     if(catalogObserver) catalogObserver.disconnect();
     displayedCatalogCount=0;
     catalogLoadingBatch=false;
-    if(catalogLoadMore) catalogLoadMore.hidden=true;
-    if(catalogMoreButton) catalogMoreButton.hidden=false;
+    if(catalogLoadMore)catalogLoadMore.hidden=true;
+    if(catalogMoreButton)catalogMoreButton.hidden=true;
     loading(catalogBatchLoader,false);
   }
   async function loadCatalog() {
@@ -1047,7 +1077,7 @@
   pickerMoreButton.addEventListener('click',()=>void loadPickerBatch());
 
   $('retryCatalog').addEventListener('click',loadCatalog);
-  if(catalogMoreButton) catalogMoreButton.addEventListener('click',()=>void renderNextCatalogBatch());
+  if(catalogMoreButton) catalogMoreButton.addEventListener('click',()=>void renderNextCatalogBatch(true));
   $('openFirstEditor').addEventListener('click',()=>{
     if(!items.length) {location.hash='catalog';return;}
     setModal(modalPicker,$('openFirstEditor'));
