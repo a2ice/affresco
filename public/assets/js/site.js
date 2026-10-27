@@ -194,7 +194,7 @@
     if(!catalogObserver) {
       catalogObserver=new IntersectionObserver(entries=>{
         if(entries.some(entry=>entry.isIntersecting)) void renderNextCatalogBatch();
-      },{rootMargin:'250px 0px',threshold:0});
+      },{rootMargin:'0px',threshold:0});
     }
     catalogObserver.observe(catalogLoadMore);
   }
@@ -206,16 +206,27 @@
     loading(catalogBatchLoader,true);
     if(catalogMoreButton) catalogMoreButton.hidden=true;
 
+    const isAdditionalBatch=displayedCatalogCount>0;
+    const started=performance.now();
     const next=items.slice(displayedCatalogCount,displayedCatalogCount+(catalogLoadMore ? CATALOG_BATCH_SIZE : items.length));
     const cards=next.map(buildCard);
     const fragment=document.createDocumentFragment();
-    cards.forEach(card=>fragment.append(card));
+    cards.forEach(card=>{
+      if(isAdditionalBatch) card.classList.add('catalog-card-pending');
+      fragment.append(card);
+    });
     catalogGrid.append(fragment);
     displayedCatalogCount+=cards.length;
-    updateCatalogStatus();
+    // Images download immediately; only the reveal has a short minimum duration.
     await Promise.all(cards.map(awaitCardImage));
+    if(isAdditionalBatch) {
+      const revealDelay=Math.max(0,300-(performance.now()-started));
+      if(revealDelay) await new Promise(resolve=>setTimeout(resolve,revealDelay));
+    }
     // A refresh may have replaced the catalogue while the old images loaded.
     if(generation!==catalogGeneration) return;
+    cards.forEach(card=>card.classList.remove('catalog-card-pending'));
+    updateCatalogStatus();
     catalogLoadingBatch=false;
     loading(catalogBatchLoader,false);
     if(catalogLoadMore) catalogLoadMore.hidden=displayedCatalogCount>=items.length;
