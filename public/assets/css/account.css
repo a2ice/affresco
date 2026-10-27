@@ -23,3 +23,30 @@
   .account-stats strong{font-size:24px;}
   #accountModal .modal-panel{width:95vw;max-width:95vw;}
 }
+
+/* Favorites and saved crop navigation inside the signed-in cabinet. */
+#accountModal .account-sku-list{
+  display:flex;flex-direction:column;align-items:stretch;
+  gap:7px;max-height:230px;overflow-y:auto;overscroll-behavior:contain;
+  color:#726a60;font:500 12px/1.5 Manrope,sans-serif;
+}
+#accountModal .account-sku-link{
+  display:block;text-align:left;width:100%;min-height:42px;
+  padding:9px 11px;border:1px solid #d7cfc4;
+  background:#fcfbf9;color:#25231f;cursor:pointer;
+  font:500 12px/1.45 Manrope,sans-serif;overflow-wrap:anywhere;
+}
+#accountModal .account-sku-link:hover,
+#accountModal .account-sku-link:focus-visible{
+  border-color:#73685d;background:#fff;
+}
+#accountModal .account-sku-link:focus-visible{outline:none;}
+#accountModal .account-view-favorites{
+  display:inline-block;margin-top:13px;
+  text-align:left;font:600 12px/1.5 Manrope,sans-serif;
+}
+#accountModal .account-view-favorites[hidden]{display:none!important;}
+@media(max-width:600px){
+  #accountModal .account-sku-list{max-height:175px;}
+  #accountModal .account-sku-link{min-height:44px;}
+}
