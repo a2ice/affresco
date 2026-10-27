@@ -13,10 +13,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/css/design-tokens.css">
   <link rel="stylesheet" href="/assets/css/site.css">
-  <link rel="stylesheet" href="/assets/css/editorial.css?v=email-demo-modal-20261028">
+  <link rel="stylesheet" href="/assets/css/editorial.css?v=email-live-20261028">
   <link rel="stylesheet" href="/assets/css/account.css?v=account-dashboard-20261028-2">
-  <script src="/assets/js/account.js?v=account-dashboard-20261028-2" defer></script>
-  <script src="/assets/js/site.js?v=email-demo-modal-20261028" defer></script>
+  <script src="/assets/js/account.js?v=account-email-20261028" defer></script>
+  <script src="/assets/js/site.js?v=email-live-20261028" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#content">Перейти к содержимому</a>
@@ -252,7 +252,7 @@
       <button class="modal-close" type="button" aria-label="Закрыть окно отправки" data-close>×</button>
       <span class="eyebrow">ВАШ КАДР</span>
       <h2 id="emailModalTitle">Отправить кадр</h2>
-      <p id="emailModalDescription">Введите электронную почту. Сейчас это демонстрация: реальное письмо отправлено не будет.</p>
+      <p id="emailModalDescription">Мы отправим выбранный кадр фрески на вашу электронную почту во вложении JPEG.</p>
       <form id="emailSendForm">
         <div class="field-group">
           <label for="emailRecipient">Электронная почта</label>
@@ -268,9 +268,9 @@
   <div class="modal" id="emailSuccessModal" hidden>
     <div class="modal-panel modal-small email-modal-panel" role="dialog" aria-modal="true" aria-labelledby="emailSuccessTitle" aria-describedby="emailSuccessDescription">
       <button class="modal-close" type="button" aria-label="Закрыть подтверждение" data-close>×</button>
-      <span class="eyebrow">ДЕМОНСТРАЦИЯ</span>
-      <h2 id="emailSuccessTitle">Готово!</h2>
-      <p id="emailSuccessDescription">Демо-отправка выполнена успешно. Это имитация: настоящее письмо на почту не отправлялось.</p>
+      <span class="eyebrow">AFFRESCO / EMAIL</span>
+      <h2 id="emailSuccessTitle">Письмо отправлено</h2>
+      <p id="emailSuccessDescription">Письмо с вашим кадром принято почтовым сервером. Проверьте входящие и папку «Спам»: доставка может занять некоторое время.</p>
       <button type="button" class="button button-primary button-wide" id="emailSuccessBack">Вернуться к кадру</button>
     </div>
   </div>
@@ -295,6 +295,14 @@
       <span class="eyebrow">ЛИЧНЫЙ КАБИНЕТ</span>
       <h2 id="accountTitle">Ваш аккаунт</h2>
       <p class="account-identity">Логин: <strong id="accountName"></strong></p>
+      <form id="accountEmailForm" class="account-email-form">
+        <div class="field-group">
+          <label for="accountEmail">Электронная почта</label>
+          <input id="accountEmail" type="email" name="email" placeholder="name@example.com" autocomplete="email" inputmode="email" maxlength="254" required>
+        </div>
+        <button type="submit" class="button button-secondary" id="accountEmailSubmit">Сохранить email</button>
+        <p id="accountEmailFeedback" role="status" aria-live="polite"></p>
+      </form>
       <div class="account-stats">
         <div><strong id="accountFavorites">0</strong><span>Избранных фресок</span></div>
         <div><strong id="accountEdits">0</strong><span>Сохранённых кадров</span></div>
