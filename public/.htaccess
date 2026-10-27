@@ -1,0 +1,3 @@
+# AFreska demo — Apache fallback. Nginx requires equivalent host-level configuration.
+DirectoryIndex index.html index.php
+ErrorDocument 404 /404.html
