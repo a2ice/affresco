@@ -10,9 +10,10 @@
   const favoritesToggle = $('favoritesToggle');
   const favoritesCount = $('favoritesCount');
   const favoritesFeedback = $('favoritesFeedback');
-  const viewSingle = $('catalogViewSingle');
-  const viewTriple = $('catalogViewTriple');
-  let catalogView = 'single';
+  const viewList = $('catalogViewList');
+  const viewCards = $('catalogViewCards');
+  const mobileGalleryQuery=window.matchMedia('(max-width: 600px)');
+  let catalogView = 'cards';
   let favoritesOnly = false;
   let favoritesReady = false;
   let favorites = new Set();
@@ -230,8 +231,8 @@
   }
   function updateCatalogStatus(){
     const source=catalogItems();
-    catalogStatus.textContent='Показано '+displayedCatalogCount+' из '+source.length+
-      (favoritesOnly?' избранных':'');
+    catalogStatus.textContent='Загружено '+displayedCatalogCount+' из '+source.length+
+      (favoritesOnly?' избранных фресок':' фресок');
   }
   function updateFavoriteButton(button,sku){
     const saved=favorites.has(sku);
@@ -315,21 +316,36 @@
       empty.append(title,info,action);catalogGrid.append(empty);
     }
   }
-  function setCatalogView(view){
-    if(view!=='single'&&view!=='triple')return;
-    catalogView=view;
-    catalogGrid.dataset.mobileView=view;
-    viewSingle.setAttribute('aria-pressed',String(view==='single'));
-    viewTriple.setAttribute('aria-pressed',String(view==='triple'));
-    try{sessionStorage.setItem('affresco:catalog-view',view);}catch(_){}
+  function galleryViewKey(){
+    return mobileGalleryQuery.matches?'affresco:catalog-view-mobile':'affresco:catalog-view-desktop';
   }
-  try{
-    const storedView=sessionStorage.getItem('affresco:catalog-view');
-    if(storedView==='triple')catalogView='triple';
-  }catch(_){}
-  setCatalogView(catalogView);
-  viewSingle.addEventListener('click',()=>setCatalogView('single'));
-  viewTriple.addEventListener('click',()=>setCatalogView('triple'));
+  function restoreCatalogView(){
+    const fallback=mobileGalleryQuery.matches?'list':'cards';
+    try{
+      const saved=sessionStorage.getItem(galleryViewKey());
+      return saved==='list'||saved==='cards'?saved:fallback;
+    }catch(_){return fallback;}
+  }
+  function setCatalogView(view,remember=true){
+    if(view!=='list'&&view!=='cards')return;
+    catalogView=view;
+    catalogGrid.dataset.catalogView=view;
+    viewList.setAttribute('aria-pressed',String(view==='list'));
+    viewCards.setAttribute('aria-pressed',String(view==='cards'));
+    if(remember){
+      try{sessionStorage.setItem(galleryViewKey(),view);}catch(_){}
+    }
+  }
+  setCatalogView(restoreCatalogView(),false);
+  viewList.addEventListener('click',()=>setCatalogView('list'));
+  viewCards.addEventListener('click',()=>setCatalogView('cards'));
+  // Remember layouts separately for phone and larger screens, and update on resize.
+  let wasMobile=mobileGalleryQuery.matches;
+  window.addEventListener('resize',()=>{
+    if(wasMobile===mobileGalleryQuery.matches)return;
+    wasMobile=mobileGalleryQuery.matches;
+    setCatalogView(restoreCatalogView(),false);
+  });
   favoritesToggle.addEventListener('click',()=>{
     if(!favoritesReady){showFavoritesError('Избранное ещё не загрузилось.');return;}
     favoritesOnly=!favoritesOnly;
