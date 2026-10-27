@@ -91,6 +91,8 @@ $allSkus = array_unique(array_merge(array_keys($original), array_keys($prepared)
 natcasesort($allSkus);
 $items = [];
 foreach ($allSkus as $sku) {
+    // Array keys for filenames like 1234.jpg become integers in PHP.
+    // Always send string article IDs to the browser.
     // Catalog stays usable while the owner gradually uploads prepared photos.
     // As soon as a prepared file with the same SKU appears it takes priority.
     $photo = $prepared[$sku] ?? $original[$sku] ?? null;
@@ -112,7 +114,7 @@ foreach ($allSkus as $sku) {
     }
 
     $items[] = [
-        'sku' => $sku,
+        'sku' => (string) $sku,
         'name' => 'Фреска ' . $sku,
         'image' => $photo,
         'original_image' => $original[$sku] ?? null,
