@@ -1000,3 +1000,111 @@ h2 {line-height:1.02;}
     padding-block:8px;
   }
 }
+
+
+/* Interactive catalogue metadata: names open the crop editor, SKUs copy.
+   Do not nest controls inside the image button. */
+.catalog-card .catalog-card-body{min-width:0;}
+.catalog-card .catalog-card-name,
+.catalog-card .catalog-card-sku,
+.catalog-card .catalog-card-open-label{
+  display:block;max-width:100%;text-align:left;padding:0;border:0;
+  background:transparent;color:inherit;cursor:pointer;
+}
+.catalog-card .catalog-card-name{
+  width:fit-content;font:500 clamp(18px,2.2vw,26px)/1.12 var(--font-display);
+  text-transform:none;letter-spacing:0;color:#312d29;overflow-wrap:anywhere;
+}
+.catalog-card .catalog-card-sku{
+  width:fit-content;color:#766a60;font:600 11px/1.5 var(--font-ui);
+  letter-spacing:.03em;text-transform:none;padding:3px 0;
+}
+.catalog-card .catalog-card-sku:hover{text-decoration:underline;text-underline-offset:3px;}
+.catalog-card .catalog-card-name:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px;}
+.catalog-card .catalog-card-name:focus-visible,
+.catalog-card .catalog-card-sku:focus-visible,
+.catalog-card .catalog-card-open-label:focus-visible{
+  outline:2px solid #685a49;outline-offset:3px;
+}
+.catalog-card .catalog-card-open-label{
+  color:#83766a;font:600 10px/1.5 var(--font-ui);
+  letter-spacing:.07em;text-transform:uppercase;
+}
+.catalog-card .catalog-card-open-label:hover{text-decoration:underline;}
+#catalog .catalog-grid[data-catalog-view="list"] .catalog-card-body{
+  display:grid;grid-template-columns:minmax(0,34%) minmax(0,1fr);
+  gap:clamp(20px,3vw,48px);align-items:stretch;
+}
+#catalog .catalog-grid[data-catalog-view="list"] .catalog-open{
+  display:block;
+}
+#catalog .catalog-grid[data-catalog-view="cards"] .catalog-card-name{
+  font-size:clamp(18px,1.8vw,23px);line-height:1.13;
+}
+.picker-card .catalog-card-name{font-size:21px;}
+.picker-card .catalog-card-sku{font-size:10px;}
+.picker-card .catalog-meta{display:flex;align-items:flex-start;gap:8px;}
+.picker-card .catalog-card-open-label{display:none;}
+
+.catalog-toast{
+  position:fixed;z-index:1000;left:50%;bottom:max(24px,env(safe-area-inset-bottom));
+  transform:translateX(-50%);max-width:calc(100vw - 32px);width:max-content;
+  padding:12px 20px;background:#25231f;color:#fff;
+  font:600 13px/1.5 var(--font-ui);text-align:center;
+  box-shadow:0 12px 35px rgba(27,22,16,.22);pointer-events:none;
+}
+.catalog-toast[hidden]{display:none!important;}
+.editor-dimensions-note{
+  grid-column:1/-1;margin:3px 0 0;
+  color:#796d60;font:400 12px/1.5 var(--font-ui);
+}
+.editor-dimensions-note[hidden]{display:none!important;}
+
+/* Predictive search shares the popup's search interaction, within the
+   full-bleed sticky toolbar while its controls stay container aligned. */
+#catalog .catalog-search-wrap{
+  position:relative;flex:1 1 auto;min-width:0;max-width:460px;
+}
+#catalog #catalogSearch{
+  display:block;box-sizing:border-box;width:100%;min-width:0;height:42px;
+  padding:9px 13px;border:1px solid #d4cdc1;border-radius:0;
+  background:#fff;color:#282521;
+  font:500 14px/1.35 var(--font-ui);outline-offset:2px;
+}
+#catalog #catalogSearch:focus-visible{
+  border-color:#685a49;outline:2px solid rgba(104,90,73,.35);
+}
+#catalog .catalog-search-suggestions{
+  position:absolute;z-index:50;top:calc(100% + 2px);left:0;right:0;
+  max-height:240px;overflow-y:auto;background:#fff;
+  border:1px solid #cfc7bb;box-shadow:0 14px 30px rgba(25,20,14,.15);
+}
+#catalog .catalog-search-suggestions[hidden]{display:none!important;}
+#catalog .catalog-search-suggestion{
+  display:block;width:100%;padding:11px 13px;border:0;
+  border-bottom:1px solid #eee8e0;background:#fff;text-align:left;
+  color:#423b33;font:500 12px/1.4 var(--font-ui);cursor:pointer;
+}
+#catalog .catalog-search-suggestion:hover,
+#catalog .catalog-search-suggestion:focus-visible{background:#f0ebe4;}
+@media(max-width:600px){
+  #catalog .catalog-grid[data-catalog-view="list"] .catalog-card-body{display:block;}
+  #catalog .catalog-grid[data-catalog-view="list"] .catalog-open{display:block;}
+  #catalog .catalog-grid[data-catalog-view="cards"] .catalog-card-name{
+    width:100%;font:500 12px/1.2 var(--font-display);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  #catalog .catalog-grid[data-catalog-view="cards"] .catalog-card-sku{
+    font:600 10px/1.2 var(--font-ui);letter-spacing:0;
+    white-space:nowrap;
+  }
+  #catalog #catalogSearch{height:40px;font-size:16px;padding:8px 9px;}
+  #catalog .catalog-toolbar-inner.container{gap:8px;}
+  #catalog .catalog-search-suggestion{font-size:12px;padding:12px 10px;}
+  .picker-card .catalog-card-name{font-size:18px;}
+  .picker-card .catalog-card-sku{font-size:10px;}
+}
+@media(max-width:390px){
+  #catalog #catalogSearch{padding:8px 7px;}
+  #catalog .catalog-search-wrap{min-width:0;}
+}
