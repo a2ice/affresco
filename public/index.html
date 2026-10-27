@@ -45,7 +45,7 @@
       <div class="container hero-grid">
         <div class="hero-copy">
           <span class="eyebrow">ХУДОЖЕСТВЕННЫЕ ФРЕСКИ / AFFRESCO</span>
-          <h1 id="heroHeading">У каждого пространства — своя история</h1>
+          <h1 id="heroHeading">У каждого пространства — <span class="hero-title-tail">своя история</span></h1>
           <p>Настенные фрески с характером. Выберите рисунок и настройте его композицию под пропорции вашей стены.</p>
           <a href="#catalog" class="button button-primary">Выбрать фреску <span aria-hidden="true">↗</span></a>
           <div class="hero-footnote"><span>Каталог художественных фресок</span><span>01 / Выбор рисунка</span></div>
@@ -55,6 +55,7 @@
             <div class="hero-panel"><img class="hero-art" id="heroArt" alt="" aria-hidden="true"></div>
           </div>
           <div class="hero-floor"></div>
+          <div class="media-loader" id="heroLoader" role="status" aria-label="Загрузка изображения"><span class="loading-ring" aria-hidden="true"></span></div>
           <span class="hero-caption">Фрагмент коллекции / AFFRESCO</span>
         </div>
       </div>
@@ -71,7 +72,7 @@
         </div>
         <div class="section-caption"><span class="small muted" id="catalogStatus" role="status" aria-live="polite">Загружаем каталог…</span><button id="retryCatalog" type="button">Обновить изображения ↻</button><a class="text-link" href="#try">Как выбрать свой кадр <span aria-hidden="true">↗</span></a></div>
         <div class="catalog-grid" id="catalogGrid" aria-live="polite" aria-label="Каталог фресок">
-          <div class="catalog-empty"><h3>Загружаем коллекцию</h3><p>Получаем список фотографий по артикулам.</p></div>
+          <div class="catalog-loading" role="status" aria-label="Загрузка каталога"><span class="loading-ring" aria-hidden="true"></span></div>
         </div>
       </div>
     </section>
@@ -138,7 +139,7 @@
       </div>
       <div class="editor-layout">
         <div class="editor-preview">
-          <div class="crop-shell"><div class="crop-viewport" id="cropViewport" aria-label="Перетащите фреску для выбора кадра"><img class="crop-image" id="cropImage" alt="Выбранная фреска для кадрирования" draggable="false"></div></div>
+          <div class="crop-shell"><div class="crop-viewport" id="cropViewport" aria-label="Перетащите фреску для выбора кадра"><img class="crop-image" id="cropImage" alt="Выбранная фреска для кадрирования" draggable="false"><div class="media-loader" id="cropLoader" role="status" aria-label="Загрузка фрески" hidden><span class="loading-ring" aria-hidden="true"></span></div></div></div>
           <p class="crop-hint">Перетаскивайте изображение мышью или пальцем. Колёсиком мыши можно менять масштаб.</p>
         </div>
         <div class="editor-settings">
