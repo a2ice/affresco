@@ -7,6 +7,16 @@
   const catalogLoadMore = $('catalogLoadMore');
   const catalogBatchLoader = $('catalogBatchLoader');
   const catalogMoreButton = $('catalogMoreButton');
+  const favoritesToggle = $('favoritesToggle');
+  const favoritesCount = $('favoritesCount');
+  const favoritesFeedback = $('favoritesFeedback');
+  const viewSingle = $('catalogViewSingle');
+  const viewTriple = $('catalogViewTriple');
+  let catalogView = 'single';
+  let favoritesOnly = false;
+  let favoritesReady = false;
+  let favorites = new Set();
+  const pendingFavoriteSkus = new Set();
   const pickerSearch = $('pickerSearch');
   const pickerSuggestions = $('pickerSuggestions');
   const pickerGrid = $('pickerGrid');
@@ -151,11 +161,15 @@
     box.append(h,p,action);
     catalogGrid.append(box);
   }
+  const heartSvg = '<svg class="heart-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"/></svg>';
   function buildCard(item) {
-    const card = document.createElement('button');
-    card.type='button';
+    // The card is not a button: its two actions must be independently focusable.
+    const card = document.createElement('article');
     card.className='catalog-card';
-    card.setAttribute('aria-label','Открыть редактор фрески, артикул ' + item.sku);
+    const open = document.createElement('button');
+    open.type='button';
+    open.className='catalog-open';
+    open.setAttribute('aria-label','Открыть редактор фрески, артикул ' + item.sku);
     const figure = document.createElement('div');
     figure.className='catalog-image';
     const photo = document.createElement('img');
@@ -180,8 +194,16 @@
     const arrow = document.createElement('span');
     arrow.textContent='Кадрировать ↗';
     meta.append(title,arrow);
-    card.append(figure,meta);
-    card.addEventListener('click', () => openEditor(item,card));
+    open.append(figure,meta);
+    open.addEventListener('click', () => openEditor(item,open));
+    const favoriteButton = document.createElement('button');
+    favoriteButton.type='button';
+    favoriteButton.className='catalog-fav';
+    favoriteButton.dataset.favoriteSku=item.sku;
+    favoriteButton.innerHTML=heartSvg;
+    favoriteButton.addEventListener('click',()=>void toggleFavorite(item.sku));
+    card.append(open,favoriteButton);
+    updateFavoriteButton(favoriteButton,item.sku);
     return card;
   }
   function awaitCardImage(card) {
@@ -203,12 +225,122 @@
       if(photo.complete) done();
     });
   }
-  function updateCatalogStatus() {
-    catalogStatus.textContent='Показано '+displayedCatalogCount+' из '+items.length+' · Выберите фреску для кадрирования';
+  function catalogItems(){
+    return favoritesOnly ? items.filter(item=>favorites.has(item.sku)) : items;
   }
+  function updateCatalogStatus(){
+    const source=catalogItems();
+    catalogStatus.textContent='Показано '+displayedCatalogCount+' из '+source.length+
+      (favoritesOnly?' избранных':'');
+  }
+  function updateFavoriteButton(button,sku){
+    const saved=favorites.has(sku);
+    button.setAttribute('aria-pressed',String(saved));
+    button.setAttribute('aria-label',(saved?'Убрать из избранного':'Добавить в избранное')+
+      ', артикул '+sku);
+    button.title=saved?'Убрать из избранного':'Добавить в избранное';
+    button.disabled=!favoritesReady||pendingFavoriteSkus.has(sku);
+  }
+  function refreshFavoritesUI(){
+    favoritesCount.textContent=String(favorites.size);
+    favoritesToggle.setAttribute('aria-pressed',String(favoritesOnly));
+    favoritesToggle.setAttribute('aria-label',
+      (favoritesOnly?'Показать всю коллекцию':'Показать избранное')+
+      ', '+favorites.size+' фресок');
+    favoritesToggle.title=favoritesOnly?'Показать всю коллекцию':'Показать избранное';
+    document.querySelectorAll('[data-favorite-sku]').forEach(button=>
+      updateFavoriteButton(button,button.dataset.favoriteSku));
+  }
+  function showFavoritesError(message){
+    favoritesFeedback.textContent=message;
+    favoritesFeedback.hidden=!message;
+  }
+  async function loadFavorites(){
+    try{
+      const result=await fetch('/api/favorites.php',{
+        credentials:'same-origin',cache:'no-store',headers:{Accept:'application/json'}
+      });
+      if(!result.ok)throw Error('HTTP '+result.status);
+      const data=await result.json();
+      if(!data||data.scope!=='guest'||!Array.isArray(data.items))throw Error('invalid favorites');
+      favorites=new Set(data.items.filter(safeSku));
+      favoritesReady=true;
+      showFavoritesError('');
+    }catch(_){
+      favoritesReady=false;
+      showFavoritesError('Избранное временно недоступно. Попробуйте обновить страницу.');
+    }
+    refreshFavoritesUI();
+  }
+  async function toggleFavorite(sku){
+    if(!favoritesReady||!safeSku(sku)||pendingFavoriteSkus.has(sku))return;
+    const action=favorites.has(sku)?'remove':'add';
+    pendingFavoriteSkus.add(sku);
+    refreshFavoritesUI();
+    try{
+      const result=await fetch('/api/favorites.php',{
+        method:'POST',credentials:'same-origin',cache:'no-store',
+        headers:{'Content-Type':'application/json','Accept':'application/json','X-Affresco-Request':'1'},
+        body:JSON.stringify({action,sku})
+      });
+      if(!result.ok)throw Error('HTTP '+result.status);
+      const data=await result.json();
+      if(!data||data.scope!=='guest'||!Array.isArray(data.items))throw Error('invalid favorites');
+      favorites=new Set(data.items.filter(safeSku));
+      showFavoritesError('');
+      if(favoritesOnly)resetAndRenderCatalog();
+    }catch(_){
+      showFavoritesError('Не получилось сохранить избранное. Попробуйте ещё раз.');
+    }finally{
+      pendingFavoriteSkus.delete(sku);
+      refreshFavoritesUI();
+    }
+  }
+  function resetAndRenderCatalog(){
+    resetCatalogPagination();
+    catalogGrid.replaceChildren();
+    if(catalogItems().length)void renderNextCatalogBatch();
+    else{
+      catalogStatus.textContent='В избранном пока нет фресок';
+      const empty=document.createElement('div');
+      empty.className='catalog-empty';
+      const title=document.createElement('h3');
+      title.textContent='Пока ничего не выбрано';
+      const info=document.createElement('p');
+      info.textContent='Нажмите на сердечко у понравившейся фрески.';
+      const action=document.createElement('button');
+      action.type='button';action.className='text-link';
+      action.textContent='Показать всю коллекцию ↗';
+      action.addEventListener('click',()=>{favoritesOnly=false;refreshFavoritesUI();resetAndRenderCatalog();});
+      empty.append(title,info,action);catalogGrid.append(empty);
+    }
+  }
+  function setCatalogView(view){
+    if(view!=='single'&&view!=='triple')return;
+    catalogView=view;
+    catalogGrid.dataset.mobileView=view;
+    viewSingle.setAttribute('aria-pressed',String(view==='single'));
+    viewTriple.setAttribute('aria-pressed',String(view==='triple'));
+    try{sessionStorage.setItem('affresco:catalog-view',view);}catch(_){}
+  }
+  try{
+    const storedView=sessionStorage.getItem('affresco:catalog-view');
+    if(storedView==='triple')catalogView='triple';
+  }catch(_){}
+  setCatalogView(catalogView);
+  viewSingle.addEventListener('click',()=>setCatalogView('single'));
+  viewTriple.addEventListener('click',()=>setCatalogView('triple'));
+  favoritesToggle.addEventListener('click',()=>{
+    if(!favoritesReady){showFavoritesError('Избранное ещё не загрузилось.');return;}
+    favoritesOnly=!favoritesOnly;
+    refreshFavoritesUI();
+    resetAndRenderCatalog();
+    document.getElementById('catalog').scrollIntoView({block:'start',behavior:'smooth'});
+  });
+  void loadFavorites();
   function watchCatalogBottom() {
     if(catalogObserver) catalogObserver.disconnect();
-    if(displayedCatalogCount>=items.length || catalogLoadingBatch) return;
+    if(displayedCatalogCount>=catalogItems().length || catalogLoadingBatch) return;
     if(!catalogLoadMore || !('IntersectionObserver' in window)) return; // Older HTML / manual fallback.
     if(!catalogObserver) {
       catalogObserver=new IntersectionObserver(entries=>{
@@ -218,7 +350,7 @@
     catalogObserver.observe(catalogLoadMore);
   }
   async function renderNextCatalogBatch() {
-    if(catalogLoadingBatch || displayedCatalogCount>=items.length) return;
+    if(catalogLoadingBatch || displayedCatalogCount>=catalogItems().length) return;
     const generation=catalogGeneration;
     catalogLoadingBatch=true;
     if(catalogLoadMore) catalogLoadMore.hidden=false;
@@ -227,7 +359,8 @@
 
     const isAdditionalBatch=displayedCatalogCount>0;
     const started=performance.now();
-    const next=items.slice(displayedCatalogCount,displayedCatalogCount+(catalogLoadMore ? CATALOG_BATCH_SIZE : items.length));
+    const source=catalogItems();
+    const next=source.slice(displayedCatalogCount,displayedCatalogCount+(catalogLoadMore ? CATALOG_BATCH_SIZE : source.length));
     const cards=next.map(buildCard);
     const fragment=document.createDocumentFragment();
     cards.forEach(card=>{
@@ -253,7 +386,7 @@
     updateCatalogStatus();
     catalogLoadingBatch=false;
     loading(catalogBatchLoader,false);
-    if(catalogLoadMore) catalogLoadMore.hidden=displayedCatalogCount>=items.length;
+    if(catalogLoadMore) catalogLoadMore.hidden=displayedCatalogCount>=catalogItems().length;
     if(catalogMoreButton) catalogMoreButton.hidden=!catalogLoadMore || catalogLoadMore.hidden;
     watchCatalogBottom();
   }
@@ -287,7 +420,7 @@
         return;
       }
       // Only six cards/images are mounted at first. Remaining images wait for scrolling.
-      void renderNextCatalogBatch();
+      resetAndRenderCatalog();
       const first=items[0];
       const heroArt=$('heroArt');
       if (heroArt) {
