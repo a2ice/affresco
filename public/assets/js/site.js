@@ -38,6 +38,8 @@
   let catalogLoadingBatch = false;
   let catalogGeneration = 0;
   let catalogObserver = null;
+  let guideNavigationTarget = null;
+  let guideNavigationTimeout = 0;
   const menuToggle = $('menuToggle');
   const mobileNav = $('mobileNav');
   const cropViewport = $('cropViewport');
@@ -418,13 +420,57 @@
     document.getElementById('catalog').scrollIntoView({block:'start',behavior:'smooth'});
   });
   void loadFavorites();
+  // A smooth jump from Hero to #try crosses the catalogue sentinel. Without
+  // pausing lazy-loading, six cards can be inserted above the destination
+  // mid-scroll and move it away from the viewport (especially on iOS Safari).
+  function finishGuideNavigation(realign=true){
+    if(!guideNavigationTarget)return;
+    const target=guideNavigationTarget;
+    guideNavigationTarget=null;
+    clearTimeout(guideNavigationTimeout);
+    window.removeEventListener('scrollend',onGuideScrollEnd);
+    if(realign){
+      const headerHeight=document.querySelector('.site-header')?.getBoundingClientRect().height||0;
+      const delta=target.getBoundingClientRect().top-headerHeight-12;
+      if(Math.abs(delta)>4){
+        // CSS has html{scroll-behavior:smooth}; override it temporarily to
+        // make this final correction without starting another smooth scroll.
+        const root=document.documentElement;
+        const previous=root.style.scrollBehavior;
+        root.style.scrollBehavior='auto';
+        window.scrollTo(0,Math.max(0,window.scrollY+delta));
+        root.style.scrollBehavior=previous;
+      }
+    }
+    watchCatalogBottom();
+  }
+  function onGuideScrollEnd(){finishGuideNavigation();}
+  function cancelGuideNavigation(){finishGuideNavigation(false);}
+  const guideLink=document.querySelector('.hero-guide-link[href="#try"]');
+  guideLink?.addEventListener('click',event=>{
+    if(event.defaultPrevented || event.button!==0 || event.metaKey ||
+      event.ctrlKey || event.shiftKey || event.altKey)return;
+    guideNavigationTarget=$('try');
+    if(catalogObserver)catalogObserver.disconnect();
+    clearTimeout(guideNavigationTimeout);
+    window.removeEventListener('scrollend',onGuideScrollEnd);
+    window.addEventListener('scrollend',onGuideScrollEnd,{once:true});
+    // Fallback for Safari versions without scrollend; native anchor scrolling
+    // remains responsible for setting the URL and starting the animation.
+    guideNavigationTimeout=setTimeout(onGuideScrollEnd,1400);
+  });
+  // A deliberate user scroll cancels the final snap, avoiding a tug-of-war.
+  window.addEventListener('wheel',cancelGuideNavigation,{passive:true});
+  window.addEventListener('touchstart',cancelGuideNavigation,{passive:true});
   function watchCatalogBottom() {
     if(catalogObserver) catalogObserver.disconnect();
+    if(guideNavigationTarget)return;
     if(displayedCatalogCount>=catalogItems().length || catalogLoadingBatch) return;
     if(!catalogLoadMore || !('IntersectionObserver' in window)) return; // Older HTML / manual fallback.
     if(!catalogObserver) {
       catalogObserver=new IntersectionObserver(entries=>{
-        if(entries.some(entry=>entry.isIntersecting)) void renderNextCatalogBatch();
+        if(!guideNavigationTarget && entries.some(entry=>entry.isIntersecting))
+          void renderNextCatalogBatch();
       },{rootMargin:'0px',threshold:0});
     }
     catalogObserver.observe(catalogLoadMore);
