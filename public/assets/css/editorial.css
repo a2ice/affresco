@@ -615,3 +615,108 @@ h2 {line-height:1.02;}
 }
 #editorModal .crop-selection:active{cursor:move;}
 #editorModal .crop-viewport .media-loader{z-index:6;}
+
+
+/* AFFRESCO mobile gallery toolbar & favorites — October 2026. */
+.header-favorites{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;
+  flex:none;min-width:44px;min-height:44px;padding:7px 8px;
+  border:0;background:transparent;color:#25231f;cursor:pointer;
+}
+.heart-icon{display:block;width:23px;height:23px;fill:transparent;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;transition:fill .16s ease,transform .16s ease;}
+.header-favorites:hover .heart-icon{transform:scale(1.07);}
+.header-favorites[aria-pressed="true"] .heart-icon{fill:#25231f;}
+.header-favorites-count{
+  min-width:14px;padding:0 2px;line-height:1;font-size:10px;
+  text-align:center;font-weight:700;align-self:flex-end;margin-left:-2px;margin-bottom:3px;
+}
+.header-favorites:focus-visible,.catalog-fav:focus-visible,.catalog-tool-btn:focus-visible{outline:2px solid #25231f;outline-offset:2px;}
+.catalog-guide{display:flex;align-items:center;justify-content:flex-end;margin:-15px 0 17px;}
+.catalog-guide .text-link{font-size:11px;}
+.catalog-toolbar{
+  position:relative;z-index:2;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  min-height:58px;padding:8px 0;margin:0 0 24px;
+  border-top:1px solid #d5cec3;border-bottom:1px solid #d5cec3;
+  background:#faf9f6;
+}
+.catalog-status{line-height:1.35;min-width:0;font-size:12px;}
+.catalog-toolbar-actions{display:flex;align-items:center;gap:7px;flex:none;}
+.catalog-view-switch{display:none;align-items:center;gap:4px;}
+.catalog-tool-btn{
+  display:inline-flex;justify-content:center;align-items:center;
+  width:42px;height:42px;min-width:42px;padding:9px;
+  border:1px solid #d4cdc1;background:#faf9f6;color:#282521;border-radius:1px;
+  cursor:pointer;
+}
+.catalog-tool-btn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+.catalog-tool-btn[aria-pressed="true"]{background:#25231f;border-color:#25231f;color:#fff;}
+.catalog-tool-btn:hover:not([aria-pressed="true"]){background:#eee9e1;}
+.catalog-favorites-feedback{font-size:12px;margin:0 0 14px;color:#8b4338;}
+.catalog-favorites-feedback[hidden]{display:none!important;}
+.catalog-card{position:relative;min-width:0;}
+.catalog-open{
+  display:block;min-width:0;width:100%;padding:0;border:0;background:transparent;
+  color:inherit;text-align:left;cursor:pointer;
+}
+.catalog-open:focus-visible{outline:2px solid #25231f;outline-offset:3px;}
+.catalog-fav{
+  position:absolute;top:10px;right:10px;z-index:2;
+  display:flex;align-items:center;justify-content:center;
+  width:38px;height:38px;padding:8px;
+  border:1px solid #d8d2c7;background:rgba(251,250,247,.95);
+  color:#25231f;border-radius:0;
+}
+.catalog-fav .heart-icon{width:21px;height:21px;}
+.catalog-fav[aria-pressed="true"] .heart-icon{fill:#25231f;}
+.catalog-fav[disabled]{opacity:.6;cursor:wait;}
+.catalog-fav:hover .heart-icon{transform:scale(1.07);}
+.catalog-card .catalog-meta{display:flex;}
+.catalog-card .catalog-image{display:block;}
+.catalog-empty{grid-column:1/-1;}
+@media(max-width:600px){
+  .site-header{z-index:40;}
+  .header-row{gap:clamp(4px,1.5vw,12px);}
+  .header-actions{gap:clamp(2px,1vw,8px);}
+  .header-favorites{min-width:36px;min-height:42px;padding:7px 3px;}
+  .header-favorites .heart-icon{width:21px;height:21px;}
+  .header-favorites-count{font-size:9px;}
+  .menu-toggle{width:37px;min-width:37px;padding:0;}
+  #catalog .catalog-guide{justify-content:flex-start;margin:0 0 16px;}
+  #catalog .catalog-guide .text-link{font-size:12px;}
+  #catalog .catalog-toolbar{
+    position:sticky;top:70px;z-index:35;
+    padding:8px 0;min-height:60px;margin:0 0 22px;
+    background:rgba(250,249,246,.97);
+    backdrop-filter:blur(8px);
+    box-shadow:0 5px 8px rgba(25,22,18,.055);
+  }
+  .catalog-view-switch{display:flex;}
+  #catalog .catalog-tool-btn{width:39px;min-width:39px;height:39px;padding:8px;}
+  #catalog .catalog-tool-btn svg{width:19px;height:19px;}
+  #catalog .catalog-toolbar-actions{gap:5px;}
+  #catalog .catalog-status{font-size:11px;max-width:145px;}
+  #catalog .catalog-grid[data-mobile-view="single"]{grid-template-columns:minmax(0,1fr);gap:29px 0;}
+  #catalog .catalog-grid[data-mobile-view="triple"]{grid-template-columns:repeat(3,minmax(0,1fr));gap:17px 9px;}
+  #catalog .catalog-grid[data-mobile-view="triple"] .catalog-image{aspect-ratio:3/4;}
+  #catalog .catalog-grid[data-mobile-view="triple"] .catalog-meta{padding-top:6px;margin-top:6px;min-width:0;}
+  #catalog .catalog-grid[data-mobile-view="triple"] .catalog-meta strong{
+    font-size:clamp(13px,3.5vw,18px);white-space:nowrap;letter-spacing:-.035em;
+  }
+  #catalog .catalog-grid[data-mobile-view="triple"] .catalog-meta span{display:none;}
+  #catalog .catalog-grid[data-mobile-view="triple"] .catalog-label{display:none;}
+  #catalog .catalog-grid[data-mobile-view="triple"] .catalog-fav{
+    width:29px;height:29px;top:4px;right:4px;padding:6px;
+  }
+  #catalog .catalog-grid[data-mobile-view="triple"] .heart-icon{width:17px;height:17px;}
+  #catalog .catalog-grid[data-mobile-view="triple"] .catalog-card:hover .catalog-image img{transform:none;}
+}
+@media(max-width:390px){
+  .header-row .brand{font-size:14px;letter-spacing:.135em;}
+  .header-link{font-size:9px;letter-spacing:.04em;}
+  #catalog .catalog-status{max-width:105px;font-size:10px;}
+  #catalog .catalog-toolbar-actions{gap:3px;}
+  #catalog .catalog-tool-btn{width:35px;min-width:35px;height:38px;padding:7px;}
+  #catalog .catalog-grid[data-mobile-view="triple"]{gap:14px 6px;}
+}
+@media(prefers-reduced-motion:reduce){.heart-icon{transition:none;}}
