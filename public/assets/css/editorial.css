@@ -869,3 +869,54 @@ h2 {line-height:1.02;}
   .site-header .header-favorites-count{font-size:9px;letter-spacing:.04em;}
   #catalog .catalog-grid[data-catalog-view="cards"]{gap:14px 6px;}
 }
+
+/* Collection cards: a distinct, light paper surface separates each artwork
+   from the page; hover deepens elevation without shifting the layout. */
+.catalog-card{
+  position:relative;
+  padding:clamp(9px,1.25vw,15px);
+  background:#fcfbf9;
+  border:1px solid rgba(106,94,79,.10);
+  box-shadow:0 2px 12px rgba(48,40,32,.055),0 1px 3px rgba(48,40,32,.028);
+  transition:background-color 200ms ease,box-shadow 200ms ease,opacity 220ms ease,transform 220ms ease;
+}
+.catalog-card:focus-within{
+  background:#fff;
+  box-shadow:0 7px 25px rgba(48,40,32,.095),0 2px 6px rgba(48,40,32,.04);
+}
+@media(hover:hover) and (pointer:fine){
+  .catalog-card:hover{
+    background:#fff;
+    box-shadow:0 10px 30px rgba(48,40,32,.105),0 3px 9px rgba(48,40,32,.045);
+  }
+}
+/* Keep the title/action as part of the same visual card. */
+.catalog-card .catalog-meta{min-width:0;}
+.catalog-card .catalog-fav{top:calc(clamp(9px,1.25vw,15px) + 9px);right:calc(clamp(9px,1.25vw,15px) + 9px);}
+#catalog .catalog-grid[data-catalog-view="list"]{gap:15px;}
+#catalog .catalog-grid[data-catalog-view="list"] .catalog-card{
+  padding:clamp(12px,1.45vw,18px);
+  border:1px solid rgba(106,94,79,.10);
+}
+#catalog .catalog-grid[data-catalog-view="list"] .catalog-fav{
+  top:calc(clamp(12px,1.45vw,18px) + 8px);right:calc(clamp(12px,1.45vw,18px) + 8px);
+}
+@media(max-width:600px){
+  #catalog .catalog-grid[data-catalog-view="list"] .catalog-card{
+    padding:12px;
+    border:1px solid rgba(106,94,79,.10);
+  }
+  #catalog .catalog-grid[data-catalog-view="list"] .catalog-fav{top:21px;right:21px;}
+  #catalog .catalog-grid[data-catalog-view="cards"] .catalog-card{
+    padding:6px;
+  }
+  #catalog .catalog-grid[data-catalog-view="cards"] .catalog-fav{
+    top:9px;right:9px;
+  }
+  #catalog .catalog-grid[data-catalog-view="cards"] .catalog-meta{
+    padding:8px 0 0;margin-top:0;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .catalog-card{transition:none;}
+}
