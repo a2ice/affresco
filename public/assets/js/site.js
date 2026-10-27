@@ -1212,14 +1212,13 @@
     trigger.setAttribute('aria-label','Проверяем вход');
     triggerLabel.textContent='Проверка…';
     try {
-      const response=await fetch('/api/session.php',{cache:'no-store',headers:{Accept:'application/json'}});
-      if(!response.ok)throw new Error('session HTTP '+response.status);
-      const session=await response.json();
-      if(session.authenticated===true){
+      await window.affrescoAccount?.ready;
+      if(window.affrescoAccount?.signedIn()){
         $('futureSku').textContent=currentItem.sku;
         setModal(modalFuture);
       } else {
-        $('loginFeedback').textContent='Чтобы примерить фреску на стену, войдите в аккаунт. Сейчас авторизация временно недоступна, но настройки кадра сохранены.';
+        $('loginFeedback').textContent='Чтобы примерить фреску на стену, войдите в свой аккаунт. Настройки кадра сохранены.';
+        $('backToEditor').hidden=false;
         setModal(modalLogin);
       }
     } catch(_){
