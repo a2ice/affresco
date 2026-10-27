@@ -291,3 +291,13 @@ h2 {line-height:1.02;}
 @media(prefers-reduced-motion:reduce){
   .loading-ring{animation:none;border-top-color:#685a49;}
 }
+
+/* Progressive catalogue: three columns desktop, smaller screens adapt. */
+.catalog-grid{grid-template-columns:repeat(3,minmax(0,1fr));}
+.catalog-more{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:58px;margin-top:32px;}
+.catalog-more[hidden]{display:none!important;}
+.catalog-more .catalog-loading{min-height:40px;width:100%;background:transparent;}
+.catalog-more .text-link{justify-content:center;}
+.catalog-more .text-link[hidden]{display:none!important;}
+@media(max-width:900px){.catalog-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media(max-width:480px){.catalog-grid{grid-template-columns:1fr;}}
