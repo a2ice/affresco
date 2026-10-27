@@ -13,8 +13,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/css/design-tokens.css">
   <link rel="stylesheet" href="/assets/css/site.css">
-  <link rel="stylesheet" href="/assets/css/editorial.css?v=all-fields-focus-20261028">
-  <script src="/assets/js/site.js?v=editor-json-dimensions-20261028" defer></script>
+  <link rel="stylesheet" href="/assets/css/editorial.css?v=account-ui-20261028">
+  <script src="/assets/js/site.js?v=account-auth-20261028" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#content">Перейти к содержимому</a>
@@ -30,6 +30,7 @@
       <div class="header-actions">
         <a class="header-link" href="#catalog">Выбрать фреску ↗</a>
         <button class="header-favorites" id="favoritesToggle" type="button" aria-label="Показать избранное, 0 фресок" aria-pressed="false" title="Показать избранное"><svg class="heart-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"/></svg><span class="header-favorites-count" id="favoritesCount">0</span></button>
+        <button class="header-account" id="accountToggle" type="button" hidden aria-label="Личный кабинет"></button>
         <button class="menu-toggle" type="button" id="menuToggle" aria-label="Открыть меню" aria-controls="mobileNav" aria-expanded="false">☰</button>
       </div>
     </div>
@@ -38,6 +39,7 @@
       <a href="#try">Свой размер</a>
       <a href="#how">Как это работает</a>
       <a href="#about">О проекте</a>
+      <button class="mobile-login" id="mobileLogin" type="button">Войти в личный кабинет</button>
     </nav>
   </header>
 
@@ -250,13 +252,37 @@
     <div class="modal-panel modal-small" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
       <button class="modal-close" type="button" aria-label="Закрыть окно входа" data-close>×</button>
       <span class="eyebrow">ЛИЧНЫЙ КАБИНЕТ</span>
-      <h2 id="loginTitle">Войти, чтобы примерить</h2>
-      <p id="loginFeedback">Для примерки потребуется авторизация.</p>
-      <div class="form-note">Авторизация временно недоступна. Настройки выбранной фрески останутся в этом браузере.</div>
-      <div class="field-group"><label for="loginName">Логин</label><input id="loginName" type="text" autocomplete="username" placeholder="Логин" disabled></div>
-      <div class="field-group"><label for="loginPassword">Пароль</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="Пароль" disabled></div>
-      <button type="button" class="button button-primary button-wide" disabled>Войти</button>
-      <button type="button" id="backToEditor" class="modal-back">← Вернуться к кадрированию</button>
+      <h2 id="loginTitle">Войти в аккаунт</h2>
+      <p id="loginFeedback" role="status" aria-live="polite">Введите логин и пароль, выданные для демонстрации.</p>
+      <form id="loginForm" autocomplete="on">
+        <div class="field-group"><label for="loginName">Логин</label><input id="loginName" name="username" type="text" autocomplete="username" placeholder="Логин" minlength="1" maxlength="100" required></div>
+        <div class="field-group"><label for="loginPassword">Пароль</label><input id="loginPassword" name="password" type="password" autocomplete="current-password" placeholder="Пароль" required></div>
+        <button type="submit" class="button button-primary button-wide" id="loginSubmit">Войти</button>
+      </form>
+      <button type="button" id="backToEditor" class="modal-back" hidden>← Вернуться к кадрированию</button>
+    </div>
+  </div>
+  <div class="modal" id="accountModal" hidden>
+    <div class="modal-panel modal-small" role="dialog" aria-modal="true" aria-labelledby="accountTitle">
+      <button class="modal-close" type="button" aria-label="Закрыть кабинет" data-close>×</button>
+      <span class="eyebrow">ЛИЧНЫЙ КАБИНЕТ</span>
+      <h2 id="accountTitle">Ваш аккаунт</h2>
+      <p class="account-identity">Логин: <strong id="accountName"></strong></p>
+      <div class="account-stats">
+        <div><strong id="accountFavorites">0</strong><span>Избранных фресок</span></div>
+        <div><strong id="accountEdits">0</strong><span>Сохранённых кадров</span></div>
+        <div><strong id="accountGenerations">0</strong><span>Успешных генераций</span></div>
+      </div>
+      <p class="account-quota" id="accountQuota"></p>
+      <p class="account-note">Примерка с AI пока не подключена. Счётчик увеличится только после реальных успешных генераций.</p>
+      <div class="account-collections">
+        <h3>Избранные фрески</h3>
+        <p id="accountFavoriteList">Пока нет избранных.</p>
+        <h3>Отредактированные фрески</h3>
+        <p id="accountDraftList">Пока нет сохранённых кадров.</p>
+      </div>
+      <p id="accountFeedback" class="feedback" role="status" aria-live="polite"></p>
+      <button type="button" class="button button-secondary button-wide" id="logoutButton">Выйти</button>
     </div>
   </div>
   <div class="modal" id="futureModal" hidden>
