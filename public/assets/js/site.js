@@ -167,7 +167,7 @@
       }
       const tryDemo=$('openFirstEditor');
       tryDemo.disabled=false;
-      tryDemo.onclick=()=>openEditor(first,tryDemo);
+      // Click handling is registered once below for all catalog states.
     } catch (error) {
       catalogStatus.textContent='Каталог временно недоступен';
       catalogMessage('Не удалось получить список фотографий с сервера. Проверьте размещение Images/catalog и доступность PHP-обработчика /api/catalog.php.');
