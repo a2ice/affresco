@@ -15,7 +15,16 @@ $locations = [
         ['path' => $root . '/images/catalog', 'url' => '/images/catalog/'],
     ],
     'prepared' => [
+        // Owner's FTP layout: prepared files inside the original catalog.
+        // Directory names are case-sensitive on Linux/hosting.
+        ['path' => $root . '/Images/catalog/Prepared', 'url' => '/Images/catalog/Prepared/'],
+        ['path' => $root . '/Images/каталог/Prepared', 'url' => '/Images/%D0%BA%D0%B0%D1%82%D0%B0%D0%BB%D0%BE%D0%B3/Prepared/'],
+        ['path' => $root . '/Images/catalog/prepared', 'url' => '/Images/catalog/prepared/'],
+        ['path' => $root . '/Images/каталог/prepared', 'url' => '/Images/%D0%BA%D0%B0%D1%82%D0%B0%D0%BB%D0%BE%D0%B3/prepared/'],
+        // Legacy flat layout retained for backwards compatibility.
         ['path' => $root . '/Images/prepared', 'url' => '/Images/prepared/'],
+        ['path' => $root . '/images/catalog/Prepared', 'url' => '/images/catalog/Prepared/'],
+        ['path' => $root . '/images/catalog/prepared', 'url' => '/images/catalog/prepared/'],
         ['path' => $root . '/images/prepared', 'url' => '/images/prepared/'],
     ],
 ];
