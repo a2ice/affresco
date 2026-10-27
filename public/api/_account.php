@@ -48,8 +48,12 @@ function af_guard_post(): void {
 function af_private_root(): string {
     return dirname(__DIR__, 2);
 }
+function af_accounts_path(): string {
+    $private = af_private_root() . '/data/accounts.json';
+    return is_file($private) ? $private : dirname(__DIR__) . '/data/accounts.json';
+}
 function af_accounts(): ?array {
-    $file = is_file(af_private_root() . '/data/accounts.json') ? af_private_root() . '/data/accounts.json' : dirname(__DIR__) . '/data/accounts.json';
+    $file = af_accounts_path();
     if (!is_file($file) || !is_readable($file)) return null;
     $raw = @file_get_contents($file);
     if (!is_string($raw) || strlen($raw) > 1048576) return null;
@@ -85,6 +89,8 @@ function af_public_account(array $row): array {
     return [
         'id'=>(string)$row['id'],
         'login'=>$row['login'],
+        'email'=>is_string($row['email']??null) && filter_var($row['email'],FILTER_VALIDATE_EMAIL)
+            ?$row['email']:'',
         'generations_limit'=>max(0,(int)($row['generations_limit'] ?? 0)),
         'generations_used'=>max(0,(int)($row['generations_used'] ?? 0)),
         'generations_failed'=>max(0,(int)($row['generations_failed'] ?? 0)),
