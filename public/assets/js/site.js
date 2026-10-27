@@ -1251,12 +1251,13 @@
     }
     return output;
   }
-  $('sendCrop').addEventListener('click',()=>{
+  $('sendCrop').addEventListener('click',async()=>{
     if(!currentItem||!imageLoaded){
       showFeedback('Сначала дождитесь загрузки фрески.',true);
       return;
     }
     saveDraft();
+    await window.affrescoAccount?.ready;
     $('emailSendForm').reset();
     $('emailSendFeedback').textContent='';
     emailRecipient.value=window.affrescoAccount?.savedEmail()||'';
