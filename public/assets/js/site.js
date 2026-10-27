@@ -215,9 +215,11 @@
       if(isAdditionalBatch) card.classList.add('catalog-card-pending');
       fragment.append(card);
     });
-    catalogGrid.append(fragment);
+    // Keep the loading ring in view: don't append the next six cards until
+    // their images are ready. The first six are mounted immediately as before.
+    if(!isAdditionalBatch) catalogGrid.append(fragment);
     displayedCatalogCount+=cards.length;
-    // Images download immediately; only the reveal has a short minimum duration.
+    // Detached eager images load while the existing grid remains stable.
     await Promise.all(cards.map(awaitCardImage));
     if(isAdditionalBatch) {
       const revealDelay=Math.max(0,300-(performance.now()-started));
@@ -225,7 +227,10 @@
     }
     // A refresh may have replaced the catalogue while the old images loaded.
     if(generation!==catalogGeneration) return;
-    cards.forEach(card=>card.classList.remove('catalog-card-pending'));
+    if(isAdditionalBatch) {
+      catalogGrid.append(fragment);
+      requestAnimationFrame(()=>cards.forEach(card=>card.classList.remove('catalog-card-pending')));
+    }
     updateCatalogStatus();
     catalogLoadingBatch=false;
     loading(catalogBatchLoader,false);
