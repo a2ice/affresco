@@ -120,6 +120,9 @@ foreach ($allSkus as $sku) {
     $description = $meta['description'] ?? null;
     $description = is_string($description) ? trim($description) : '';
     $description = $description !== '' ? (function_exists('mb_substr') ? mb_substr($description, 0, 500) : $description) : null;
+    // Draft physical sizes: an image file's pixel count does not prove
+    // manufacture dimensions. Carry this flag so UI clearly says ≈.
+    $dimensionsEstimated = ($meta['dimensions_estimated'] ?? false) === true;
 
     $items[] = [
         'sku' => (string) $sku,
@@ -130,6 +133,7 @@ foreach ($allSkus as $sku) {
         'prepared' => isset($prepared[$sku]),
         'width_cm' => $width,
         'height_cm' => $height,
+        'dimensions_estimated' => $dimensionsEstimated,
         'orientation' => $orientation,
     ];
     if (count($items) >= 200) {
