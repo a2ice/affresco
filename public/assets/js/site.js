@@ -1111,7 +1111,7 @@
     if(!validSelection(state.selection))state.selection=null;
     ratioLock.checked=state.lockRatio;
     widthInput.value=state.width;heightInput.value=state.height;
-    editorTitle.textContent='Ваш кадр фрески';
+    editorTitle.textContent='Настройте размер фрески';
     selectedSku.textContent='Артикул '+item.sku;
     imageLoaded=false;activePointer=null;
     clearTimeout(cropTimer);
