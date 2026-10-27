@@ -322,6 +322,7 @@
   // resizable selection rectangle determines the exported normalized crop.
   const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
   const cropSelection=$('cropSelection');
+  const cropDimLayer=$('cropDimLayer');
   const ratioLock=$('cropLockRatio');
   const MIN_CROP_PX=42;
 
@@ -407,6 +408,11 @@
     cropSelection.style.top=(100*box.y)+'%';
     cropSelection.style.width=(100*box.w)+'%';
     cropSelection.style.height=(100*box.h)+'%';
+    // Exactly four panels cover the outside; they never hide the selected area.
+    cropDimLayer.style.setProperty('--crop-x',(100*box.x)+'%');
+    cropDimLayer.style.setProperty('--crop-y',(100*box.y)+'%');
+    cropDimLayer.style.setProperty('--crop-w',(100*box.w)+'%');
+    cropDimLayer.style.setProperty('--crop-h',(100*box.h)+'%');
     document.querySelectorAll('[data-ratio]').forEach(btn=>btn.setAttribute('aria-pressed',
       String(Math.abs(Number(btn.dataset.ratio)-state.width/state.height)<.018)));
     zoom.value=state.zoom;
@@ -420,6 +426,12 @@
   }
   // Pure geometry for 8 handles. Locked corners anchor their opposite corner;
   // locked edges anchor the opposite edge and expand symmetrically cross-axis.
+  function moveSelection(r,deltaX,deltaY,stageW,stageH){
+    // Keep size and aspect ratio; move only the frame within photograph bounds.
+    return {x:clamp(r.x+deltaX,0,Math.max(0,stageW-r.w)),
+      y:clamp(r.y+deltaY,0,Math.max(0,stageH-r.h)),
+      w:r.w,h:r.h};
+  }
   function resizeSelection(r,handle,dx,dy,lock,ratio,stageW,stageH){
     const minW=Math.min(MIN_CROP_PX,stageW*.3),minH=Math.min(MIN_CROP_PX,stageH*.3);
     const hasW=handle.includes('w'),hasE=handle.includes('e'),
@@ -528,7 +540,7 @@
     if(!handle && !e.target.closest('#cropSelection'))return;
     e.preventDefault();
     const box=selectionPixels();
-    activePointer={id:e.pointerId,x:e.clientX,y:e.clientY,dx:state.dx,dy:state.dy,
+    activePointer={id:e.pointerId,x:e.clientX,y:e.clientY,
       handle,box,locked:state.lockRatio,ratio:box.w/box.h,
       startWidthCm:state.width,startHeightCm:state.height};
     cropViewport.setPointerCapture(e.pointerId);
@@ -544,7 +556,9 @@
       syncDimensionsAfterResize(activePointer.box,rect,
         activePointer.startWidthCm,activePointer.startHeightCm);
     }else{
-      state.dx=activePointer.dx+deltaX;state.dy=activePointer.dy+deltaY;
+      const {w,h}=stageSize();
+      applySelectionPx(moveSelection(activePointer.box,deltaX,deltaY,w,h));
+      // Dragging the frame never alters the image transform or wall dimensions.
     }
     updateCrop();
   });
