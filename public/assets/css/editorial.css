@@ -377,3 +377,26 @@ h2 {line-height:1.02;}
   .picker-status{margin:9px 0 12px;}
   .picker-grid{gap:16px 9px;}
 }
+
+/* Editor: return to the artwork picker without closing the workflow. */
+.editor-change-art{
+  align-self:flex-start;
+  display:inline-flex;
+  align-items:center;
+  gap:13px;
+  min-height:44px;
+  padding:7px 0;
+  margin:0 0 10px;
+  border:0;
+  background:transparent;
+  color:#463c32;
+  text-align:left;
+  font:600 12px/1.4 var(--font-ui);
+  letter-spacing:.035em;
+  cursor:pointer;
+}
+.editor-change-art span{font:400 24px/1 var(--font-ui);transition:transform 180ms;}
+.editor-change-art:hover{text-decoration:underline;text-underline-offset:5px;}
+.editor-change-art:hover span{transform:translateX(-3px);}
+.editor-change-art:focus-visible{outline:2px solid #685a49;outline-offset:4px;}
+@media(prefers-reduced-motion:reduce){.editor-change-art span{transition:none;}}
