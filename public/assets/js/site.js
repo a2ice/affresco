@@ -482,7 +482,8 @@
     clearTimeout(cropTimer);
     loading(cropLoader,true);
     cropImage.removeAttribute('src');
-    showFeedback('Перемещайте изображение внутри рамки и тяните её за стороны или углы.');
+    feedback.textContent='';
+    feedback.classList.remove('error');
     setModal(modalEditor,trigger);
     cropImage.onload=()=>{
       imageLoaded=true;stopCropLoading();
