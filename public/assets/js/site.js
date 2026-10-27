@@ -50,6 +50,9 @@
   const esc = (value) => String(value);
   const storageKey = (sku) => 'afreska:crop:v1:' + sku;
   const safeSku = (sku) => typeof sku === 'string' && /^[\p{L}\p{N}._-]{1,100}$/u.test(sku);
+  // Older API versions serialize numeric-only SKUs as JSON numbers.
+  const normalizeSku = (sku) => typeof sku === 'string' ? sku :
+    (typeof sku === 'number' && Number.isSafeInteger(sku) && sku >= 0 ? String(sku) : '');
   function getDraft(sku) {
     try {
       const obj = JSON.parse(localStorage.getItem(storageKey(sku)) || 'null');
@@ -187,7 +190,7 @@
   function watchCatalogBottom() {
     if(catalogObserver) catalogObserver.disconnect();
     if(displayedCatalogCount>=items.length || catalogLoadingBatch) return;
-    if(!('IntersectionObserver' in window)) return; // The visible button works as fallback.
+    if(!catalogLoadMore || !('IntersectionObserver' in window)) return; // Older HTML / manual fallback.
     if(!catalogObserver) {
       catalogObserver=new IntersectionObserver(entries=>{
         if(entries.some(entry=>entry.isIntersecting)) void renderNextCatalogBatch();
@@ -199,11 +202,11 @@
     if(catalogLoadingBatch || displayedCatalogCount>=items.length) return;
     const generation=catalogGeneration;
     catalogLoadingBatch=true;
-    catalogLoadMore.hidden=false;
+    if(catalogLoadMore) catalogLoadMore.hidden=false;
     loading(catalogBatchLoader,true);
-    catalogMoreButton.hidden=true;
+    if(catalogMoreButton) catalogMoreButton.hidden=true;
 
-    const next=items.slice(displayedCatalogCount,displayedCatalogCount+CATALOG_BATCH_SIZE);
+    const next=items.slice(displayedCatalogCount,displayedCatalogCount+(catalogLoadMore ? CATALOG_BATCH_SIZE : items.length));
     const cards=next.map(buildCard);
     const fragment=document.createDocumentFragment();
     cards.forEach(card=>fragment.append(card));
@@ -215,8 +218,8 @@
     if(generation!==catalogGeneration) return;
     catalogLoadingBatch=false;
     loading(catalogBatchLoader,false);
-    catalogLoadMore.hidden=displayedCatalogCount>=items.length;
-    catalogMoreButton.hidden=catalogLoadMore.hidden;
+    if(catalogLoadMore) catalogLoadMore.hidden=displayedCatalogCount>=items.length;
+    if(catalogMoreButton) catalogMoreButton.hidden=!catalogLoadMore || catalogLoadMore.hidden;
     watchCatalogBottom();
   }
   function resetCatalogPagination() {
@@ -224,8 +227,8 @@
     if(catalogObserver) catalogObserver.disconnect();
     displayedCatalogCount=0;
     catalogLoadingBatch=false;
-    catalogLoadMore.hidden=true;
-    catalogMoreButton.hidden=false;
+    if(catalogLoadMore) catalogLoadMore.hidden=true;
+    if(catalogMoreButton) catalogMoreButton.hidden=false;
     loading(catalogBatchLoader,false);
   }
   async function loadCatalog() {
@@ -239,7 +242,8 @@
       const body=await response.json();
       if(requestGeneration!==catalogGeneration) return;
       if (!body || !Array.isArray(body.items)) throw new Error('Неверный формат каталога');
-      items=body.items.filter(x => safeSku(x.sku) && typeof x.image==='string' && /^\/(?:Images|images)\//.test(x.image));
+      items=body.items.filter(x => x && typeof x === 'object').map(x => ({...x,sku:normalizeSku(x.sku)}))
+        .filter(x => safeSku(x.sku) && typeof x.image==='string' && /^\/(?:Images|images)\//.test(x.image));
       catalogGrid.replaceChildren();
       if (items.length===0) {
         catalogStatus.textContent='Пока нет изображений';
@@ -410,7 +414,7 @@
   });
   $('backToEditor').addEventListener('click',()=>setModal(modalEditor));
   $('retryCatalog').addEventListener('click',loadCatalog);
-  catalogMoreButton.addEventListener('click',()=>void renderNextCatalogBatch());
+  if(catalogMoreButton) catalogMoreButton.addEventListener('click',()=>void renderNextCatalogBatch());
   $('openFirstEditor').addEventListener('click',()=>{
     if(items.length)openEditor(items[0],$('openFirstEditor'));
     else location.hash='catalog';
