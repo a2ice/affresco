@@ -550,7 +550,7 @@
       if(accountMode!==Boolean(window.affrescoAccount?.signedIn()))return;
       if(accountMode)window.affrescoAccount.setCollection(data);
       const previous=favorites;
-      favorites=new Set(data.items.filter(safeSku));
+      favorites=new Set(data.items.map(normalizeSku).filter(safeSku));
       favoritesReady=true;
       showFavoritesError('');
       if(favoritesOnly && items.length &&
@@ -592,7 +592,7 @@
         if(!data||data.scope!==(accountMode?'account':'guest')||!Array.isArray(data.items))throw Error('invalid favorites');
         if(accountMode!==Boolean(window.affrescoAccount?.signedIn()))return;
         if(accountMode)window.affrescoAccount.setCollection(data);
-        favorites=new Set(data.items.filter(safeSku));
+        favorites=new Set(data.items.map(normalizeSku).filter(safeSku));
         showFavoritesError('');
         showCatalogToast(action==='add'?'Фреска добавлена в избранное':'Фреска удалена из избранного');
         if(favoritesOnly)resetAndRenderCatalog();
