@@ -13,10 +13,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/css/design-tokens.css">
   <link rel="stylesheet" href="/assets/css/site.css">
-  <link rel="stylesheet" href="/assets/css/editorial.css?v=email-live-20261028">
-  <link rel="stylesheet" href="/assets/css/account.css?v=account-dashboard-20261028-2">
-  <script src="/assets/js/account.js?v=account-email-20261028" defer></script>
-  <script src="/assets/js/site.js?v=email-live-20261028" defer></script>
+  <link rel="stylesheet" href="/assets/css/editorial.css?v=favorites-finish-20261028">
+  <link rel="stylesheet" href="/assets/css/account.css?v=favorites-finish-20261028">
+  <script src="/assets/js/account.js?v=favorites-finish-20261028" defer></script>
+  <script src="/assets/js/site.js?v=favorites-finish-20261028" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#content">Перейти к содержимому</a>
@@ -94,7 +94,10 @@
           </div>
           </div>
         </div>
-        <p class="catalog-favorites-feedback" id="favoritesFeedback" role="status" aria-live="polite" hidden></p>
+        <div class="catalog-favorites-alert" role="group" aria-label="Состояние избранного">
+          <p class="catalog-favorites-feedback" id="favoritesFeedback" role="status" aria-live="polite" hidden></p>
+          <button class="catalog-favorites-retry" id="favoritesRetry" type="button" hidden>Повторить загрузку</button>
+        </div>
         <div class="catalog-grid" id="catalogGrid" data-catalog-view="cards" aria-label="Каталог фресок">
           <div class="catalog-loading" role="status" aria-label="Загрузка каталога"><span class="loading-ring" aria-hidden="true"></span></div>
         </div>
@@ -313,9 +316,10 @@
       <p class="account-note">Примерка с AI пока не подключена. Счётчик увеличится только после реальных успешных генераций.</p>
       <div class="account-collections">
         <h3>Избранные фрески</h3>
-        <p id="accountFavoriteList">Пока нет избранных.</p>
+        <div id="accountFavoriteList" class="account-sku-list">Пока нет избранных.</div>
+        <button id="accountShowFavorites" type="button" class="text-link account-view-favorites" hidden>Посмотреть избранное в каталоге</button>
         <h3>Отредактированные фрески</h3>
-        <p id="accountDraftList">Пока нет сохранённых кадров.</p>
+        <div id="accountDraftList" class="account-sku-list">Пока нет сохранённых кадров.</div>
       </div>
       <p id="accountFeedback" class="feedback" role="status" aria-live="polite"></p>
       <button type="button" class="button button-secondary button-wide" id="logoutButton">Выйти</button>
