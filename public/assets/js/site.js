@@ -231,6 +231,10 @@
       previousFocus = null;
     }
   }
+  window.addEventListener('affresco:open-modal',event=>{
+    const target=event.detail==='account'?modalAccount:event.detail==='login'?modalLogin:null;
+    if(target)setModal(target);
+  });
   modals.forEach(modal => {
     modal.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => setModal(null)));
     modal.addEventListener('pointerdown', e => { if (e.target === modal) setModal(null); });
