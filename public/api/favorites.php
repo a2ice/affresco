@@ -82,6 +82,11 @@ if ($folder === null) {
     respond(503, ['error' => 'private_storage_unavailable']);
 }
 $file = $folder . DIRECTORY_SEPARATOR . $token . '.json';
+// Reading an empty guest list must not create a disk file for every visitor.
+// A private JSON is created only after the first explicit favorite change.
+if ($method === 'GET' && !is_file($file)) {
+    respond(200, ['items' => [], 'count' => 0, 'scope' => 'guest']);
+}
 $handle = @fopen($file, 'c+');
 if ($handle === false || !flock($handle, LOCK_EX)) {
     if (is_resource($handle)) fclose($handle);
