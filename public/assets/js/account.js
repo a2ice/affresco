@@ -38,6 +38,10 @@
   function renderDashboard(){
     if(!user)return;
     $('accountName').textContent=user.login;
+    const emailField=$('accountEmail');
+    if(emailField && document.activeElement!==emailField){
+      emailField.value=typeof user.email==='string'?user.email:'';
+    }
     $('accountFavorites').textContent=String(favorites.length);
     $('accountEdits').textContent=String(Object.keys(drafts).length);
     $('accountGenerations').textContent=String(user.generations_used||0);
@@ -123,6 +127,26 @@
       button.disabled=false;
     }
   });
+  $('accountEmailForm')?.addEventListener('submit',async event=>{
+    event.preventDefault();
+    if(!signedIn())return;
+    const input=$('accountEmail');
+    if(!input.reportValidity())return;
+    const value=input.value.trim();
+    const button=$('accountEmailSubmit'),feedback=$('accountEmailFeedback');
+    button.disabled=true;
+    feedback.textContent='Сохраняем адрес…';
+    try{
+      const data=await request('/api/account-email.php','POST',{email:value});
+      user.email=data.email;
+      feedback.textContent='Электронная почта сохранена.';
+      renderDashboard();
+    }catch(error){
+      const errors={invalid_email:'Проверьте адрес электронной почты.',
+        email_storage_unavailable:'Не удалось записать адрес в accounts.json на сервере.'};
+      feedback.textContent=errors[error.message]||'Не удалось сохранить адрес.';
+    }finally{button.disabled=false;}
+  });
   $('logoutButton')?.addEventListener('click',async()=>{
     const button=$('logoutButton');
     button.disabled=true;
@@ -137,6 +161,14 @@
   });
   window.affrescoAccount={
     ready, signedIn, getDraft, saveDraft, setCollection, refreshState,
-    current:()=>user, url:()=>signedIn()?stateEndpoint:'/api/favorites.php'
+    current:()=>user,
+    savedEmail:()=>signedIn() && typeof user.email==='string'?user.email:'',
+    setEmailFromSend:email=>{
+      if(signedIn()){
+        user.email=email;
+        renderDashboard();
+      }
+    },
+    url:()=>signedIn()?stateEndpoint:'/api/favorites.php'
   };
 })();
