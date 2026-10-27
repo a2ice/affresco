@@ -85,27 +85,12 @@
 
     <section class="section editor-teaser" id="try" aria-labelledby="tryHeading">
       <div class="container teaser-grid">
-        <div class="teaser-media">
-          <div class="teaser-canvas">
-            <img class="teaser-art" id="teaserArt" alt="" loading="eager" hidden>
-            <div class="teaser-placeholder" id="teaserPlaceholder">
-              <span class="eyebrow">AFFRESCO / КОЛЛЕКЦИЯ</span>
-              <span>Выберите фреску<br>по артикулу</span>
-            </div>
-          </div>
-          <div class="teaser-picker">
-            <label for="teaserSku">Артикул фрески <span aria-hidden="true">*</span></label>
-            <select id="teaserSku" name="teaserSku" required disabled aria-describedby="teaserFeedback">
-              <option value="">Загружаем артикулы…</option>
-            </select>
-            <p id="teaserFeedback" role="status" aria-live="polite">Выберите фреску, чтобы открыть редактор.</p>
-          </div>
-        </div>
+        <div class="teaser-canvas" role="img" aria-label="Фрагмент фрески из каталога"><img class="teaser-art" id="teaserArt" alt="" loading="lazy"></div>
         <div class="teaser-copy">
           <span class="eyebrow">02 / СОЗДАЙТЕ СВОЙ КАДР</span>
           <h2 id="tryHeading">Не просто рисунок. Ваш собственный кадр.</h2>
-          <p>У каждой стены свой характер. Укажите размеры, увеличьте изображение, передвиньте фрагмент и сохраните выбранный кадр. Выберите артикул слева — появится изображение выбранной фрески, после чего можно открыть редактор.</p>
-          <button class="button button-primary" id="openSelectedEditor" type="button" disabled>Открыть редактор <span aria-hidden="true">↗</span></button>
+          <p>У каждой стены свой характер. Укажите размеры, увеличьте изображение, передвиньте фрагмент и сохраните выбранный кадр. Сначала выберите фреску по артикулу или названию, затем задайте размеры стены и настройте кадр. Найти рисунок можно прямо в окне выбора.</p>
+          <button class="button button-primary" id="openFirstEditor" type="button" disabled>Открыть редактор <span aria-hidden="true">↗</span></button>
         </div>
       </div>
     </section>
@@ -151,6 +136,36 @@
       <nav class="footer-links" aria-label="Навигация подвала"><a href="#catalog">Каталог</a><a href="#try">Редактор</a><a href="#about">О проекте</a></nav>
     </div>
   </footer>
+
+  <div class="modal" id="pickerModal" hidden>
+    <div class="modal-panel picker-modal-panel" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
+      <div class="modal-head">
+        <div>
+          <span class="eyebrow">AFFRESCO / КОЛЛЕКЦИЯ</span>
+          <h2 class="modal-title" id="pickerTitle">Выберите фреску</h2>
+        </div>
+        <button class="modal-close" type="button" aria-label="Закрыть выбор фрески" data-close>×</button>
+      </div>
+      <div class="picker-body">
+        <label class="picker-label" for="pickerSearch">Поиск по артикулу или названию</label>
+        <div class="picker-search-wrap">
+          <input id="pickerSearch" type="search" placeholder="Введите артикул или название" autocomplete="off"
+                 role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="pickerSuggestions">
+          <div class="picker-suggestions" id="pickerSuggestions" role="listbox" hidden></div>
+        </div>
+        <p class="picker-status" id="pickerStatus" role="status" aria-live="polite">Выберите фреску из коллекции.</p>
+        <div class="picker-scroll" id="pickerScroll">
+          <div class="picker-grid" id="pickerGrid" aria-label="Выбор фрески"></div>
+          <div class="picker-more" id="pickerMore" hidden>
+            <div class="catalog-loading" id="pickerLoader" role="status" aria-label="Загрузка следующих фресок" hidden>
+              <span class="loading-ring" aria-hidden="true"></span>
+            </div>
+            <button type="button" class="text-link" id="pickerMoreButton">Показать ещё ↗</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div class="modal" id="editorModal" hidden>
     <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="editorTitle">
