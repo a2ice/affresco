@@ -11,6 +11,13 @@
   const favoritesCount = $('favoritesCount');
   const favoritesFeedback = $('favoritesFeedback');
   const favoritesRetry = $('favoritesRetry');
+  const favoritesModalSummary = $('favoritesModalSummary');
+  const favoritesModalItems = $('favoritesModalItems');
+  const favoritesModalMessage = $('favoritesModalMessage');
+  const favoritesLogin = $('favoritesLogin');
+  const favoritesReload = $('favoritesReload');
+  const favoritesModalNote = $('favoritesModalNote');
+  const favoritesBrowse = $('favoritesBrowse');
   const viewList = $('catalogViewList');
   const viewCards = $('catalogViewCards');
   const catalogSearch=$('catalogSearch');
@@ -69,12 +76,13 @@
   const modalFuture = $('futureModal');
   const modalEmail = $('emailModal');
   const modalEmailSuccess = $('emailSuccessModal');
+  const modalFavorites = $('favoritesModal');
   const emailRecipient = $('emailRecipient');
   const emailSendSubmit = $('emailSendSubmit');
   let emailSendBusy = false;
   let emailSendRequest = 0;
   let preparedEmailCrop = null;
-  const modals = [modalPicker, modalEditor, modalLogin, modalAccount, modalFuture, modalEmail, modalEmailSuccess];
+  const modals = [modalPicker, modalEditor, modalLogin, modalAccount, modalFuture, modalEmail, modalEmailSuccess, modalFavorites];
   let previousFocus = null;
   let openDialog = null;
   let items = [];
@@ -446,22 +454,82 @@
     button.setAttribute('aria-label',(saved?'Убрать из избранного':'Добавить в избранное')+
       ', артикул '+sku);
     button.title=saved?'Убрать из избранного':'Добавить в избранное';
-    button.disabled=!favoritesReady||pendingFavoriteSkus.has(sku);
+    // Even after a transient GET error the heart remains actionable:
+    // the click retries loading instead of becoming a permanently inert icon.
+    button.disabled=pendingFavoriteSkus.has(sku);
+  }
+  function renderFavoritesModal(){
+    if(!modalFavorites)return;
+    const signedIn=Boolean(window.affrescoAccount?.signedIn());
+    const list=[...favorites];
+    favoritesModalSummary.textContent=!favoritesReady
+      ?'Пока не удалось загрузить избранное.'
+      :list.length===0?'У вас пока нет избранных фресок.'
+      :list.length+' '+(list.length===1?'фреска сохранена':
+        list.length>=2&&list.length<=4?'фрески сохранены':'фресок сохранено');
+    favoritesLogin.hidden=signedIn;
+    favoritesModalNote.hidden=signedIn;
+    favoritesReload.hidden=favoritesReady;
+    favoritesModalItems.replaceChildren();
+    if(!favoritesReady||!list.length)return;
+    for(const sku of list){
+      const item=items.find(entry=>entry.sku===sku);
+      const row=document.createElement('div');
+      row.className='favorites-modal-row';
+      const open=document.createElement('button');
+      open.type='button';
+      open.className='favorites-modal-open';
+      const label=document.createElement('span');
+      label.className='favorites-modal-name';
+      label.textContent=item?.name||'Фреска';
+      const code=document.createElement('span');
+      code.className='favorites-modal-sku';
+      code.textContent='Арт. '+sku;
+      if(item?.image){
+        const img=document.createElement('img');
+        img.className='favorites-modal-thumb';
+        img.src=item.image;
+        img.alt='';
+        img.loading='lazy';
+        open.append(img);
+      }
+      const labels=document.createElement('span');
+      labels.className='favorites-modal-labels';
+      labels.append(label,code);
+      open.append(labels);
+      open.setAttribute('aria-label','Открыть фреску '+sku);
+      open.disabled=!item;
+      open.title=item?'Открыть редактор':'Изображение временно отсутствует в каталоге';
+      if(item)open.addEventListener('click',()=>openEditor(item,open));
+      const remove=document.createElement('button');
+      remove.type='button';
+      remove.className='favorites-modal-remove';
+      remove.setAttribute('aria-label','Убрать из избранного артикул '+sku);
+      remove.title='Убрать из избранного';
+      remove.textContent='×';
+      remove.disabled=pendingFavoriteSkus.has(sku);
+      remove.addEventListener('click',()=>void toggleFavorite(sku));
+      row.append(open,remove);
+      favoritesModalItems.append(row);
+    }
   }
   function refreshFavoritesUI(){
     favoritesCount.textContent=String(favorites.size);
-    favoritesToggle.setAttribute('aria-pressed',String(favoritesOnly));
-    favoritesToggle.setAttribute('aria-label',
-      (favoritesOnly?'Показать всю коллекцию':'Показать избранное')+
-      ', '+favorites.size+' фресок');
-    favoritesToggle.title=favoritesOnly?'Показать всю коллекцию':'Показать избранное';
+    favoritesToggle.setAttribute('aria-label','Открыть избранное, '+favorites.size+' фресок');
+    favoritesToggle.title='Открыть избранное';
+    favoritesToggle.removeAttribute('aria-pressed');
     document.querySelectorAll('[data-favorite-sku]').forEach(button=>
       updateFavoriteButton(button,button.dataset.favoriteSku));
+    renderFavoritesModal();
   }
   function showFavoritesError(message){
     favoritesFeedback.textContent=message;
     favoritesFeedback.hidden=!message;
     favoritesRetry.hidden=!message;
+    favoritesModalMessage.textContent=message;
+    favoritesModalMessage.hidden=!message;
+    if(message)favoritesReload.hidden=false;
+    else favoritesReload.hidden=favoritesReady;
   }
   async function loadFavorites(){
     // Refresh from the server when returning to a tab; never blindly copy
