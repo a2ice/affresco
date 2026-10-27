@@ -1,4 +1,4 @@
-/* AFreska MVP: catalogue from FTP images, client-side crop drafts, auth gate. */
+/* AFFRESCO MVP: catalogue from FTP images, client-side crop drafts, auth gate. */
 (() => {
   'use strict';
   const $ = (id) => document.getElementById(id);
