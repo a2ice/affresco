@@ -1197,3 +1197,5 @@ h2 {line-height:1.02;}
   outline-offset:0;
   box-shadow:none;
 }
+
+#loginModal .field-group input{display:block;width:100%;min-height:46px;padding:9px 11px;border:1px solid #b7ada1;border-radius:2px;background:#fff;color:var(--color-text);}
