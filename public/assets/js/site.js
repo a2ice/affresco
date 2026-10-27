@@ -230,12 +230,14 @@
   }
   async function loadCatalog() {
     resetCatalogPagination();
+    const requestGeneration=catalogGeneration;
     catalogStatus.textContent='Загружаем изображения…';
     showCatalogLoading();
     try {
       const response=await fetch('/api/catalog.php',{cache:'no-store',headers:{'Accept':'application/json'}});
       if (!response.ok) throw new Error('HTTP '+response.status);
       const body=await response.json();
+      if(requestGeneration!==catalogGeneration) return;
       if (!body || !Array.isArray(body.items)) throw new Error('Неверный формат каталога');
       items=body.items.filter(x => safeSku(x.sku) && typeof x.image==='string' && /^\/(?:Images|images)\//.test(x.image));
       catalogGrid.replaceChildren();
@@ -269,6 +271,7 @@
       tryDemo.disabled=false;
       // Click handling is registered once below for all catalog states.
     } catch (error) {
+      if(requestGeneration!==catalogGeneration) return;
       catalogStatus.textContent='Каталог временно недоступен';
       stopHeroLoading();
       catalogMessage('Не удалось получить список фотографий с сервера. Проверьте размещение Images/catalog и доступность PHP-обработчика /api/catalog.php.');
