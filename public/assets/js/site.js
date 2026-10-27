@@ -18,6 +18,7 @@
   let favoritesReady = false;
   let favorites = new Set();
   const pendingFavoriteSkus = new Set();
+  let favoriteMutationQueue=Promise.resolve();
   const pickerSearch = $('pickerSearch');
   const pickerSuggestions = $('pickerSuggestions');
   const pickerGrid = $('pickerGrid');
@@ -287,6 +288,9 @@
     favoritesFeedback.hidden=!message;
   }
   async function loadFavorites(){
+    // Refresh from the server when returning to a tab; never blindly copy
+    // guest data into an account (the API explicitly separates scopes).
+    if(pendingFavoriteSkus.size)return;
     try{
       const result=await fetch('/api/favorites.php',{
         credentials:'same-origin',cache:'no-store',headers:{Accept:'application/json'}
@@ -294,38 +298,48 @@
       if(!result.ok)throw Error('HTTP '+result.status);
       const data=await result.json();
       if(!data||data.scope!=='guest'||!Array.isArray(data.items))throw Error('invalid favorites');
+      const previous=favorites;
       favorites=new Set(data.items.filter(safeSku));
       favoritesReady=true;
       showFavoritesError('');
+      if(favoritesOnly && items.length &&
+        (favorites.size!==previous.size || [...favorites].some(sku=>!previous.has(sku)))){
+        resetAndRenderCatalog();
+      }
     }catch(_){
       favoritesReady=false;
       showFavoritesError('Избранное временно недоступно. Попробуйте обновить страницу.');
     }
     refreshFavoritesUI();
   }
-  async function toggleFavorite(sku){
-    if(!favoritesReady||!safeSku(sku)||pendingFavoriteSkus.has(sku))return;
-    const action=favorites.has(sku)?'remove':'add';
+  function toggleFavorite(sku){
+    if(!favoritesReady||!safeSku(sku)||pendingFavoriteSkus.has(sku))return Promise.resolve();
     pendingFavoriteSkus.add(sku);
     refreshFavoritesUI();
-    try{
-      const result=await fetch('/api/favorites.php',{
-        method:'POST',credentials:'same-origin',cache:'no-store',
-        headers:{'Content-Type':'application/json','Accept':'application/json','X-Affresco-Request':'1'},
-        body:JSON.stringify({action,sku})
-      });
-      if(!result.ok)throw Error('HTTP '+result.status);
-      const data=await result.json();
-      if(!data||data.scope!=='guest'||!Array.isArray(data.items))throw Error('invalid favorites');
-      favorites=new Set(data.items.filter(safeSku));
-      showFavoritesError('');
-      if(favoritesOnly)resetAndRenderCatalog();
-    }catch(_){
-      showFavoritesError('Не получилось сохранить избранное. Попробуйте ещё раз.');
-    }finally{
-      pendingFavoriteSkus.delete(sku);
-      refreshFavoritesUI();
-    }
+    // Serialize writes: an older response must never replace a newer list
+    // when the user taps hearts for two different SKUs in quick succession.
+    favoriteMutationQueue=favoriteMutationQueue.then(async()=>{
+      const action=favorites.has(sku)?'remove':'add';
+      try{
+        const result=await fetch('/api/favorites.php',{
+          method:'POST',credentials:'same-origin',cache:'no-store',
+          headers:{'Content-Type':'application/json','Accept':'application/json','X-Affresco-Request':'1'},
+          body:JSON.stringify({action,sku})
+        });
+        if(!result.ok)throw Error('HTTP '+result.status);
+        const data=await result.json();
+        if(!data||data.scope!=='guest'||!Array.isArray(data.items))throw Error('invalid favorites');
+        favorites=new Set(data.items.filter(safeSku));
+        showFavoritesError('');
+        if(favoritesOnly)resetAndRenderCatalog();
+      }catch(_){
+        showFavoritesError('Не получилось сохранить избранное. Попробуйте ещё раз.');
+      }finally{
+        pendingFavoriteSkus.delete(sku);
+        refreshFavoritesUI();
+      }
+    });
+    return favoriteMutationQueue;
   }
   function resetAndRenderCatalog(){
     resetCatalogPagination();
@@ -420,6 +434,12 @@
     document.getElementById('catalog').scrollIntoView({block:'start',behavior:'smooth'});
   });
   void loadFavorites();
+  document.addEventListener('visibilitychange',()=>{
+    if(!document.hidden && !pendingFavoriteSkus.size)void loadFavorites();
+  });
+  window.addEventListener('pageshow',event=>{
+    if(event.persisted && !pendingFavoriteSkus.size)void loadFavorites();
+  });
   // A smooth jump from Hero to #try crosses the catalogue sentinel. Without
   // pausing lazy-loading, six cards can be inserted above the destination
   // mid-scroll and move it away from the viewport (especially on iOS Safari).
