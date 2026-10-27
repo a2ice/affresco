@@ -316,104 +316,245 @@
     }
   }
 
+  // The photograph is rendered across the full stage; the independently
+  // resizable selection rectangle determines the exported normalized crop.
   const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
-  function ratioFromDimensions() {
-    const width=Number(widthInput.value),height=Number(heightInput.value);
-    if (!Number.isFinite(width)||!Number.isFinite(height)||width<30||height<30||width>1000||height>1000) return false;
-    state.width=width;state.height=height;state.ratio=width/height;
-    return true;
+  const cropSelection=$('cropSelection');
+  const ratioLock=$('cropLockRatio');
+  const MIN_CROP_PX=42;
+
+  function validSelection(box){
+    return Boolean(box && ['x','y','w','h'].every(k=>Number.isFinite(box[k])) &&
+      box.x>=0 && box.y>=0 && box.w>0 && box.h>0 && box.x+box.w<=1.001 && box.y+box.h<=1.001);
   }
-  function setRatio(value) {
-    state.ratio=value;
-    state.height=Math.round(state.width/value);
-    if (state.height<30 || state.height>1000) {state.width=300;state.height=Math.round(300/value);}
+  function stageSize(){
+    return {w:cropViewport.clientWidth,h:cropViewport.clientHeight};
+  }
+  function selectionPixels(){
+    const {w,h}=stageSize();
+    const r=validSelection(state.selection)?state.selection:{x:0,y:0,w:1,h:1};
+    return {x:r.x*w,y:r.y*h,w:r.w*w,h:r.h*h};
+  }
+  function applySelectionPx(r){
+    const {w,h}=stageSize();
+    if(!w||!h)return;
+    state.selection={x:r.x/w,y:r.y/h,w:r.w/w,h:r.h/h};
+  }
+  function fitSelectionToRatio(ratio,padding=.9){
+    const {w,h}=stageSize();
+    if(!w||!h)return;
+    const maxW=w*padding,maxH=h*padding;
+    const boxW=Math.min(maxW,maxH*ratio),boxH=boxW/ratio;
+    applySelectionPx({x:(w-boxW)/2,y:(h-boxH)/2,w:boxW,h:boxH});
+  }
+  function syncDimensionsToSelection(){
+    const {w,h}=selectionPixels();
+    if(!w||!h)return;
+    state.ratio=w/h;
+    let width=state.width;
+    let height=Math.round(width/state.ratio);
+    if(height>1000){height=1000;width=Math.round(height*state.ratio);}
+    if(height<30){height=30;width=Math.round(height*state.ratio);}
+    if(width>1000){width=1000;height=Math.round(width/state.ratio);}
+    if(width<30){width=30;height=Math.round(width/state.ratio);}
+    state.width=clamp(width,30,1000);
+    state.height=clamp(height,30,1000);
     widthInput.value=state.width;
     heightInput.value=state.height;
-    document.querySelectorAll('[data-ratio]').forEach(btn => btn.setAttribute('aria-pressed',String(Math.abs(Number(btn.dataset.ratio)-state.ratio)<.018)));
+  }
+  function ratioFromDimensions(){
+    const width=Number(widthInput.value),height=Number(heightInput.value);
+    if(!Number.isFinite(width)||!Number.isFinite(height)||width<30||height<30||width>1000||height>1000)return false;
+    state.width=width;state.height=height;state.ratio=width/height;
+    fitSelectionToRatio(state.ratio);
     updateCrop(true);
-    saveDraft();
+    return true;
   }
-  function metrics() {
-    const width=cropViewport.clientWidth, height=cropViewport.clientHeight;
-    const nw=cropImage.naturalWidth, nh=cropImage.naturalHeight;
-    if (!imageLoaded||!width||!height||!nw||!nh) return null;
-    const scale=Math.max(width/nw,height/nh)*state.zoom;
-    const drawW=nw*scale, drawH=nh*scale;
-    return {width,height,nw,nh,scale,drawW,drawH,maxX:Math.max(0,(drawW-width)/2),maxY:Math.max(0,(drawH-height)/2)};
+  function setRatio(value){
+    state.width=clamp(state.width,30,1000);
+    state.height=Math.round(state.width/value);
+    if(state.height<30||state.height>1000){state.width=300;state.height=Math.round(300/value);}
+    state.ratio=state.width/state.height;
+    state.lockRatio=true;ratioLock.checked=true;
+    widthInput.value=state.width;heightInput.value=state.height;
+    fitSelectionToRatio(state.ratio);
+    updateCrop(true);saveDraft();
   }
-  function getCrop() {
+  function metrics(){
+    const {w,h}=stageSize();
+    const nw=cropImage.naturalWidth,nh=cropImage.naturalHeight;
+    if(!imageLoaded||!w||!h||!nw||!nh)return null;
+    const scale=Math.max(w/nw,h/nh)*state.zoom;
+    const drawW=nw*scale,drawH=nh*scale;
+    const box=selectionPixels();
+    const minX=box.x+box.w-(w+drawW)/2;
+    const maxX=box.x-(w-drawW)/2;
+    const minY=box.y+box.h-(h+drawH)/2;
+    const maxY=box.y-(h-drawH)/2;
+    return {width:w,height:h,nw,nh,scale,drawW,drawH,box,minX,maxX,minY,maxY};
+  }
+  function getCrop(){
     const m=metrics();if(!m)return null;
-    return {x:clamp((m.drawW-m.width)/2-state.dx,0,m.drawW)/m.scale/m.nw,
-      y:clamp((m.drawH-m.height)/2-state.dy,0,m.drawH)/m.scale/m.nh,
-      width:Math.min(m.width/m.scale/m.nw,1),
-      height:Math.min(m.height/m.scale/m.nh,1)};
+    const imageLeft=(m.width-m.drawW)/2+clamp(state.dx,m.minX,m.maxX);
+    const imageTop=(m.height-m.drawH)/2+clamp(state.dy,m.minY,m.maxY);
+    return {x:clamp((m.box.x-imageLeft)/m.drawW,0,1),
+      y:clamp((m.box.y-imageTop)/m.drawH,0,1),
+      width:Math.min(m.box.w/m.drawW,1),
+      height:Math.min(m.box.h/m.drawH,1)};
   }
-  function updateCrop(resetPosition=false) {
-    if (resetPosition) {state.dx=0;state.dy=0;}
-    cropViewport.style.aspectRatio=String(clamp(state.ratio,.3,3.5));
-    document.querySelectorAll('[data-ratio]').forEach(btn => btn.setAttribute('aria-pressed',String(Math.abs(Number(btn.dataset.ratio)-state.ratio)<.018)));
+  function updateCrop(resetPosition=false){
+    if(resetPosition){state.dx=0;state.dy=0;}
+    const box=validSelection(state.selection)?state.selection:{x:0,y:0,w:1,h:1};
+    cropSelection.style.left=(100*box.x)+'%';
+    cropSelection.style.top=(100*box.y)+'%';
+    cropSelection.style.width=(100*box.w)+'%';
+    cropSelection.style.height=(100*box.h)+'%';
+    document.querySelectorAll('[data-ratio]').forEach(btn=>btn.setAttribute('aria-pressed',
+      String(Math.abs(Number(btn.dataset.ratio)-state.width/state.height)<.018)));
     zoom.value=state.zoom;
     $('zoomValue').textContent=Math.round(state.zoom*100)+'%';
     const m=metrics();if(!m)return;
-    state.dx=clamp(state.dx,-m.maxX,m.maxX);
-    state.dy=clamp(state.dy,-m.maxY,m.maxY);
+    state.dx=clamp(state.dx,m.minX,m.maxX);
+    state.dy=clamp(state.dy,m.minY,m.maxY);
     cropImage.style.width=m.drawW+'px';
     cropImage.style.height=m.drawH+'px';
     cropImage.style.transform='translate(calc(-50% + '+state.dx+'px),calc(-50% + '+state.dy+'px))';
   }
-  function openEditor(item,trigger) {
+  // Pure geometry for 8 handles. Locked corners anchor their opposite corner;
+  // locked edges anchor the opposite edge and expand symmetrically cross-axis.
+  function resizeSelection(r,handle,dx,dy,lock,ratio,stageW,stageH){
+    const minW=Math.min(MIN_CROP_PX,stageW*.3),minH=Math.min(MIN_CROP_PX,stageH*.3);
+    const hasW=handle.includes('w'),hasE=handle.includes('e'),
+      hasN=handle.includes('n'),hasS=handle.includes('s');
+    const left=r.x,top=r.y,right=r.x+r.w,bottom=r.y+r.h;
+    if(!lock){
+      const l=hasW?clamp(left+dx,0,right-minW):left;
+      const t=hasN?clamp(top+dy,0,bottom-minH):top;
+      const rr=hasE?clamp(right+dx,l+minW,stageW):right;
+      const bb=hasS?clamp(bottom+dy,t+minH,stageH):bottom;
+      return {x:l,y:t,w:rr-l,h:bb-t};
+    }
+    if(hasW||hasE){
+      const fixedX=hasW?right:left;
+      let wantedW=hasW?right-(left+dx):(right+dx)-left;
+      const centerY=top+r.h/2;
+      const fixedY=hasN?bottom:top;
+      const allowedX=hasW?fixedX:stageW-fixedX;
+      const allowedH=hasN?fixedY:hasS?stageH-fixedY:2*Math.min(centerY,stageH-centerY);
+      if(hasN||hasS){
+        const wantedH=hasN?bottom-(top+dy):(bottom+dy)-top;
+        if(Math.abs(dy)*ratio>Math.abs(dx))wantedW=wantedH*ratio;
+      }
+      const w=clamp(wantedW,Math.max(minW,minH*ratio),Math.min(allowedX,allowedH*ratio));
+      const h=w/ratio;
+      const x=hasW?fixedX-w:fixedX;
+      const y=hasN?fixedY-h:hasS?fixedY:centerY-h/2;
+      return {x,y,w,h};
+    }
+    // Pure north/south resize: keep the horizontal center fixed.
+    const fixedY=hasN?bottom:top,centerX=left+r.w/2;
+    const allowedH=hasN?fixedY:stageH-fixedY;
+    const allowedW=2*Math.min(centerX,stageW-centerX);
+    const height=clamp(hasN?bottom-(top+dy):(bottom+dy)-top,
+      Math.max(minH,minW/ratio),Math.min(allowedH,allowedW/ratio));
+    const width=height*ratio;
+    return {x:centerX-width/2,y:hasN?fixedY-height:fixedY,w:width,h:height};
+  }
+  function openEditor(item,trigger){
     if(!item||!safeSku(item.sku))return;
-    // Remember whether the selection was made inside the picker or directly in the catalogue.
-    pickerHasSearchContext = openDialog === modalPicker;
+    pickerHasSearchContext=openDialog===modalPicker;
     currentItem=item;
-    state={zoom:1,dx:0,dy:0,ratio:4/3,width:300,height:225,...(getDraft(item.sku)||{})};
+    const draft=getDraft(item.sku);
+    state={zoom:1,dx:0,dy:0,ratio:4/3,width:300,height:225,lockRatio:true,selection:null,...(draft||{})};
     state.zoom=clamp(state.zoom,1,3);
     state.width=clamp(state.width,30,1000);state.height=clamp(state.height,30,1000);
     state.ratio=state.width/state.height;
-    widthInput.value=state.width;
-    heightInput.value=state.height;
+    state.lockRatio=state.lockRatio!==false;
+    if(!validSelection(state.selection))state.selection=null;
+    ratioLock.checked=state.lockRatio;
+    widthInput.value=state.width;heightInput.value=state.height;
     editorTitle.textContent='Ваш кадр фрески';
     selectedSku.textContent='Артикул '+item.sku;
-    imageLoaded=false;
+    imageLoaded=false;activePointer=null;
     clearTimeout(cropTimer);
     loading(cropLoader,true);
     cropImage.removeAttribute('src');
-    showFeedback('Передвигайте изображение пальцем или мышью и меняйте масштаб.');
+    showFeedback('Перемещайте изображение внутри рамки и тяните её за стороны или углы.');
     setModal(modalEditor,trigger);
-    cropImage.onload=()=>{ imageLoaded=true; stopCropLoading();updateCrop(); };
-    cropImage.onerror=()=>{ imageLoaded=false;stopCropLoading();showFeedback('Не удалось загрузить фото фрески. Проверьте путь на FTP.',true); };
+    cropImage.onload=()=>{
+      imageLoaded=true;stopCropLoading();
+      const aspect=cropImage.naturalWidth/cropImage.naturalHeight;
+      cropViewport.style.aspectRatio=String(aspect);
+      cropViewport.style.maxWidth=Math.round(450*aspect)+'px';
+      if(!validSelection(state.selection))fitSelectionToRatio(state.ratio);
+      updateCrop();
+    };
+    cropImage.onerror=()=>{
+      imageLoaded=false;stopCropLoading();
+      showFeedback('Не удалось загрузить фото фрески. Проверьте путь на FTP.',true);
+    };
     cropImage.src=item.image;
-    cropTimer=setTimeout(()=>{if(!imageLoaded){stopCropLoading();showFeedback('Изображение загружается слишком долго. Проверьте файл и повторите попытку.',true);}},12000);
-    updateCrop();
+    cropTimer=setTimeout(()=>{
+      if(!imageLoaded){stopCropLoading();showFeedback('Изображение загружается слишком долго. Повторите попытку.',true);}
+    },12000);
   }
-  document.querySelectorAll('[data-ratio]').forEach(btn => btn.addEventListener('click',()=>setRatio(Number(btn.dataset.ratio))));
-  [widthInput,heightInput].forEach(input => input.addEventListener('change',()=>{
-    if (!ratioFromDimensions()) {
+  document.querySelectorAll('[data-ratio]').forEach(btn=>btn.addEventListener('click',()=>setRatio(Number(btn.dataset.ratio))));
+  [widthInput,heightInput].forEach(input=>input.addEventListener('change',()=>{
+    const oldW=state.width,oldH=state.height;
+    if(!ratioFromDimensions()){
       showFeedback('Введите ширину и высоту от 30 до 1000 см.',true);
-      widthInput.value=state.width;heightInput.value=state.height;
-      return;
+      widthInput.value=oldW;heightInput.value=oldH;return;
     }
-    updateCrop(true);saveDraft();
+    saveDraft();
   }));
+  ratioLock.addEventListener('change',()=>{
+    state.lockRatio=ratioLock.checked;
+    if(state.lockRatio)syncDimensionsToSelection();
+    updateCrop();saveDraft();
+  });
   zoom.addEventListener('input',()=>{state.zoom=clamp(Number(zoom.value),1,3);updateCrop();});
   zoom.addEventListener('change',saveDraft);
-  cropViewport.addEventListener('pointerdown',(e)=>{
-    if(!imageLoaded)return;
-    if(e.button!==0 && e.pointerType==='mouse')return;
-    activePointer={id:e.pointerId,x:e.clientX,y:e.clientY,dx:state.dx,dy:state.dy};
+  cropViewport.addEventListener('pointerdown',e=>{
+    if(!imageLoaded||(e.pointerType==='mouse'&&e.button!==0))return;
+    const handle=e.target.closest('[data-crop-handle]')?.dataset.cropHandle||null;
+    if(!handle && !e.target.closest('#cropSelection'))return;
+    e.preventDefault();
+    activePointer={id:e.pointerId,x:e.clientX,y:e.clientY,dx:state.dx,dy:state.dy,
+      handle,box:selectionPixels(),locked:state.lockRatio,ratio:state.width/state.height};
     cropViewport.setPointerCapture(e.pointerId);
   });
-  cropViewport.addEventListener('pointermove',(e)=>{
-    if(!activePointer || activePointer.id!==e.pointerId)return;
-    state.dx=activePointer.dx+(e.clientX-activePointer.x);
-    state.dy=activePointer.dy+(e.clientY-activePointer.y);
+  cropViewport.addEventListener('pointermove',e=>{
+    if(!activePointer||activePointer.id!==e.pointerId)return;
+    const deltaX=e.clientX-activePointer.x,deltaY=e.clientY-activePointer.y;
+    if(activePointer.handle){
+      const {w,h}=stageSize();
+      const rect=resizeSelection(activePointer.box,activePointer.handle,deltaX,deltaY,
+        activePointer.locked,activePointer.ratio,w,h);
+      applySelectionPx(rect);
+      if(!activePointer.locked)syncDimensionsToSelection();
+    }else{
+      state.dx=activePointer.dx+deltaX;state.dy=activePointer.dy+deltaY;
+    }
     updateCrop();
   });
-  for(const name of ['pointerup','pointercancel'])cropViewport.addEventListener(name,(e)=>{
+  for(const name of ['pointerup','pointercancel'])cropViewport.addEventListener(name,e=>{
     if(activePointer?.id!==e.pointerId)return;
-    activePointer=null;saveDraft();
+    activePointer=null;
+    saveDraft();
   });
-  cropViewport.addEventListener('wheel',(e)=>{
+  cropSelection.querySelectorAll('[data-crop-handle]').forEach(btn=>btn.addEventListener('keydown',e=>{
+    if(!imageLoaded||!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))return;
+    e.preventDefault();
+    const delta=(e.shiftKey?20:8),dx=e.key==='ArrowLeft'?-delta:e.key==='ArrowRight'?delta:0,
+      dy=e.key==='ArrowUp'?-delta:e.key==='ArrowDown'?delta:0;
+    const {w,h}=stageSize();
+    const box=resizeSelection(selectionPixels(),btn.dataset.cropHandle,dx,dy,
+      state.lockRatio,state.width/state.height,w,h);
+    applySelectionPx(box);
+    if(!state.lockRatio)syncDimensionsToSelection();
+    updateCrop();saveDraft();
+  }));
+  cropViewport.addEventListener('wheel',e=>{
     if(!imageLoaded)return;
     e.preventDefault();
     state.zoom=clamp(Math.round((state.zoom+(e.deltaY<0?.1:-.1))*10)/10,1,3);
@@ -421,9 +562,19 @@
   },{passive:false});
   $('saveCrop').addEventListener('click',saveDraft);
   $('resetCrop').addEventListener('click',()=>{
-    state.zoom=1;state.dx=0;state.dy=0;updateCrop();saveDraft();
+    if(!imageLoaded)return;
+    const aspect=cropImage.naturalWidth/cropImage.naturalHeight;
+    state.zoom=1;state.dx=0;state.dy=0;
+    state.width=300;state.height=clamp(Math.round(300/aspect),30,1000);
+    state.ratio=state.width/state.height;state.lockRatio=true;ratioLock.checked=true;
+    state.selection={x:0,y:0,w:1,h:1};
+    widthInput.value=state.width;heightInput.value=state.height;
+    updateCrop();saveDraft();
+    showFeedback('Исходное изображение восстановлено, кадрирование и масштаб сброшены.');
   });
-  window.addEventListener('resize',()=>{if(openDialog===modalEditor) updateCrop();});
+  window.addEventListener('resize',()=>{
+    if(openDialog===modalEditor)updateCrop();
+  });
   $('tryOnWall').addEventListener('click',async()=>{
     if(!currentItem||!imageLoaded){showFeedback('Сначала дождитесь загрузки изображения.',true);return;}
     saveDraft();
