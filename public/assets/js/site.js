@@ -66,7 +66,12 @@
   const modalLogin = $('loginModal');
   const modalAccount = $('accountModal');
   const modalFuture = $('futureModal');
-  const modals = [modalPicker, modalEditor, modalLogin, modalAccount, modalFuture];
+  const modalEmail = $('emailModal');
+  const modalEmailSuccess = $('emailSuccessModal');
+  const emailRecipient = $('emailRecipient');
+  const emailSendSubmit = $('emailSendSubmit');
+  let emailSendTimer = null;
+  const modals = [modalPicker, modalEditor, modalLogin, modalAccount, modalFuture, modalEmail, modalEmailSuccess];
   let previousFocus = null;
   let openDialog = null;
   let items = [];
@@ -224,6 +229,13 @@
   window.addEventListener('resize', () => { if (window.innerWidth > 800) closeMenu(); });
 
   function setModal(modal, trigger=null) {
+    // Leaving the demo email dialog cancels its pending confirmation.
+    if(modal!==modalEmail && emailSendTimer!==null){
+      clearTimeout(emailSendTimer);
+      emailSendTimer=null;
+      emailSendSubmit.disabled=false;
+      emailSendSubmit.textContent='Отправить';
+    }
     if (!openDialog && trigger) previousFocus = trigger;
     if(modal !== modalPicker && pickerObserver) pickerObserver.disconnect();
     modals.forEach(el => el.hidden = el !== modal);
@@ -1218,7 +1230,40 @@
     state.zoom=clamp(Math.round((state.zoom+(e.deltaY<0?.1:-.1))*10)/10,1,3);
     updateCrop();saveDraft();
   },{passive:false});
-  $('saveCrop').addEventListener('click',saveDraft);
+  $('sendCrop').addEventListener('click',()=>{
+    if(!currentItem||!imageLoaded){
+      showFeedback('Сначала дождитесь загрузки фрески.',true);
+      return;
+    }
+    // The crop already autosaves. Save the latest geometry before previewing
+    // the demonstration email workflow; no request is sent to a mail server.
+    saveDraft();
+    $('emailSendForm').reset();
+    $('emailSendFeedback').textContent='';
+    setModal(modalEmail,$('sendCrop'));
+    emailRecipient.focus();
+  });
+  $('emailSendForm').addEventListener('submit',event=>{
+    event.preventDefault();
+    if(openDialog!==modalEmail || emailSendTimer!==null)return;
+    if(!emailRecipient.checkValidity()){
+      emailRecipient.reportValidity();
+      return;
+    }
+    emailSendSubmit.disabled=true;
+    emailSendSubmit.textContent='Имитируем отправку…';
+    $('emailSendFeedback').textContent='Демо-отправка: подготавливаем подтверждение.';
+    emailSendTimer=setTimeout(()=>{
+      emailSendTimer=null;
+      emailSendSubmit.disabled=false;
+      emailSendSubmit.textContent='Отправить';
+      $('emailSendFeedback').textContent='';
+      emailRecipient.value='';
+      if(openDialog===modalEmail)setModal(modalEmailSuccess);
+    },650);
+  });
+  $('emailBackToEditor').addEventListener('click',()=>setModal(modalEditor));
+  $('emailSuccessBack').addEventListener('click',()=>setModal(modalEditor));
   $('resetCrop').addEventListener('click',()=>{
     if(!imageLoaded)return;
     const aspect=cropImage.naturalWidth/cropImage.naturalHeight;
