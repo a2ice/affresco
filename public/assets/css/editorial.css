@@ -942,3 +942,25 @@ h2 {line-height:1.02;}
     transform:translateY(4px);
   }
 }
+
+/* Restore the editorial prompt beside view controls. The image count remains
+   available to screen readers only; it is not part of the visible heading. */
+#catalog .catalog-toolbar-title{
+  display:block;
+  flex:1 1 auto;
+  min-width:0;
+  max-width:460px;
+  color:#655e56;
+  font:500 13px/1.5 var(--font-ui);
+  letter-spacing:0;
+}
+@media(max-width:600px){
+  #catalog .catalog-toolbar-title{
+    max-width:none;
+    font-size:12px;
+    line-height:1.4;
+  }
+}
+@media(max-width:390px){
+  #catalog .catalog-toolbar-title{font-size:11px;}
+}
