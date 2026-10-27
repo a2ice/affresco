@@ -73,6 +73,7 @@
   const emailSendSubmit = $('emailSendSubmit');
   let emailSendBusy = false;
   let emailSendRequest = 0;
+  let preparedEmailCrop = null;
   const modals = [modalPicker, modalEditor, modalLogin, modalAccount, modalFuture, modalEmail, modalEmailSuccess];
   let previousFocus = null;
   let openDialog = null;
@@ -1296,8 +1297,28 @@
       showFeedback('Сначала дождитесь загрузки фрески.',true);
       return;
     }
+    // Capture while the editor is VISIBLE: getCrop() uses the viewport's
+    // clientWidth/clientHeight and returns null once the editor is hidden.
+    // Retain the exact selected JPEG and dimensions for the mail dialog.
+    let attachment;
+    try{
+      attachment=cropEmailJpeg();
+    }catch(error){
+      const messages={
+        crop_unavailable:'Не удалось выделить кадр. Откройте редактор и попробуйте снова.',
+        image_export_failed:'Браузер не смог подготовить изображение. Попробуйте другой браузер.',
+        image_too_large:'Изображение слишком большое для отправки. Уменьшите область кадра.',
+        SecurityError:'Изображение заблокировано для экспорта браузером.'
+      };
+      showFeedback(messages[error?.name]||messages[error?.message]||
+        'Не удалось подготовить выбранный кадр.',true);
+      return;
+    }
+    preparedEmailCrop={image:attachment,sku:currentItem.sku,
+      width_cm:state.width,height_cm:state.height};
     saveDraft();
     await window.affrescoAccount?.ready;
+    if(!preparedEmailCrop || openDialog!==modalEditor)return;
     $('emailSendForm').reset();
     $('emailSendFeedback').textContent='';
     emailRecipient.value=window.affrescoAccount?.savedEmail()||'';
@@ -1315,13 +1336,15 @@
     emailSendSubmit.textContent='Отправляем…';
     $('emailSendFeedback').textContent='Готовим кадр и отправляем письмо.';
     try{
-      const image=cropEmailJpeg();
+      // The editor is hidden now, so never recalculate from its zero-sized DOM.
+      const selection=preparedEmailCrop;
+      if(!selection)throw new Error('crop_unavailable');
       const reply=await fetch('/api/send-crop.php',{
         method:'POST',credentials:'same-origin',cache:'no-store',
         headers:{'Content-Type':'application/json','X-Affresco-Request':'1'},
         body:JSON.stringify({
-          email,sku:currentItem.sku,width_cm:state.width,height_cm:state.height,
-          image
+          email,sku:selection.sku,width_cm:selection.width_cm,
+          height_cm:selection.height_cm,image:selection.image
         })
       });
       let result=null;
@@ -1331,6 +1354,7 @@
       }
       window.affrescoAccount?.setEmailFromSend(email);
       if(openDialog===modalEmail&&requestId===emailSendRequest){
+        preparedEmailCrop=null;
         $('emailSuccessDescription').textContent='Письмо с выбранным кадром принято почтовым сервером для '+email+
           '. Проверьте входящие и папку «Спам»: доставка может занять некоторое время.';
         emailRecipient.value='';
@@ -1356,8 +1380,14 @@
       emailSendSubmit.textContent='Отправить';
     }
   });
-  $('emailBackToEditor').addEventListener('click',()=>setModal(modalEditor));
-  $('emailSuccessBack').addEventListener('click',()=>setModal(modalEditor));
+  $('emailBackToEditor').addEventListener('click',()=>{
+    preparedEmailCrop=null;
+    setModal(modalEditor);
+  });
+  $('emailSuccessBack').addEventListener('click',()=>{
+    preparedEmailCrop=null;
+    setModal(modalEditor);
+  });
   $('resetCrop').addEventListener('click',()=>{
     if(!imageLoaded)return;
     const aspect=cropImage.naturalWidth/cropImage.naturalHeight;
