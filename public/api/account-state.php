@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require __DIR__ . '/_account.php';
+require __DIR__ . '/_usage.php';
 af_session();
 $account=af_current_account();
 if ($account===null) af_response(401,['error'=>'login_required']);
@@ -42,6 +43,7 @@ $mutation=$method==='GET'?null:static function(array $state) use($action,$sku,$d
 };
 $data=af_state((string)$account['id'],$mutation);
 if ($data===null) af_response(503,['error'=>'storage_unavailable']);
+if ($action==='save_draft') af_track_usage((string)$account['id'], 'edit', $sku);
 $items=array_values(array_filter($data['favorites'],static fn($v)=>is_string($v)));
 $drafts=$data['drafts'];
 af_response(200,['scope'=>'account','items'=>$items,'count'=>count($items),
