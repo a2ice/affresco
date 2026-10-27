@@ -19,6 +19,7 @@
   let favorites = new Set();
   const pendingFavoriteSkus = new Set();
   let favoriteMutationQueue=Promise.resolve();
+  let favoritesRevision=0;
   const pickerSearch = $('pickerSearch');
   const pickerSuggestions = $('pickerSuggestions');
   const pickerGrid = $('pickerGrid');
@@ -291,12 +292,15 @@
     // Refresh from the server when returning to a tab; never blindly copy
     // guest data into an account (the API explicitly separates scopes).
     if(pendingFavoriteSkus.size)return;
+    const requestRevision=favoritesRevision;
     try{
       const result=await fetch('/api/favorites.php',{
         credentials:'same-origin',cache:'no-store',headers:{Accept:'application/json'}
       });
       if(!result.ok)throw Error('HTTP '+result.status);
       const data=await result.json();
+      // An in-flight GET must not overwrite a more recent heart click.
+      if(requestRevision!==favoritesRevision)return;
       if(!data||data.scope!=='guest'||!Array.isArray(data.items))throw Error('invalid favorites');
       const previous=favorites;
       favorites=new Set(data.items.filter(safeSku));
@@ -307,6 +311,7 @@
         resetAndRenderCatalog();
       }
     }catch(_){
+      if(requestRevision!==favoritesRevision)return;
       favoritesReady=false;
       showFavoritesError('Избранное временно недоступно. Попробуйте обновить страницу.');
     }
@@ -315,6 +320,7 @@
   function toggleFavorite(sku){
     if(!favoritesReady||!safeSku(sku)||pendingFavoriteSkus.has(sku))return Promise.resolve();
     pendingFavoriteSkus.add(sku);
+    ++favoritesRevision;
     refreshFavoritesUI();
     // Serialize writes: an older response must never replace a newer list
     // when the user taps hearts for two different SKUs in quick succession.
