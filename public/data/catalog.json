@@ -1,5 +1,177 @@
 {
   "version": 1,
   "unit": "cm",
-  "items": {}
+  "items": {
+    "6039": {
+      "name": "Туманная пагода",
+      "description": "Старинная пагода среди скал, спокойная гладь озера и лёгкая дымка. Приглушённые песочные оттенки создают атмосферу восточной живописи.",
+      "width_cm": 320,
+      "height_cm": 220,
+      "orientation": "landscape",
+      "dimensions_estimated": true,
+      "editorial_status": "draft_visual_review"
+    },
+    "6247": {
+      "name": "Лазурная бухта",
+      "description": "Солнечный вид на морскую бухту с каменными башнями, зелёными склонами и парусником. Тёплые природные краски напоминают о средиземноморском отпуске.",
+      "width_cm": 320,
+      "height_cm": 215,
+      "orientation": "landscape",
+      "dimensions_estimated": true,
+      "editorial_status": "draft_visual_review"
+    },
+    "6404": {
+      "name": "Терраса у моря",
+      "description": "Белая балюстрада, цветущая терраса, море и голубое небо. Воздушный пейзаж открывает пространство и наполняет интерьер светом.",
+      "width_cm": 320,
+      "height_cm": 220,
+      "orientation": "landscape",
+      "dimensions_estimated": true,
+      "editorial_status": "draft_visual_review"
+    },
+    "6422": {
+      "name": "Сакура у озера",
+      "description": "Цветущая розовая сакура, восточная беседка и горы у воды. Нежная гамма и живописные детали передают ощущение весеннего сада.",
+      "width_cm": 300,
+      "height_cm": 210,
+      "orientation": "landscape",
+      "dimensions_estimated": true,
+      "editorial_status": "draft_visual_review"
+    },
+    "6446": {
+      "name": "Парусник в голубой гавани",
+      "description": "Парусное судно на бирюзовой воде, чайки и прибрежная набережная. Лёгкий морской сюжет с ярким небом и солнечными бликами.",
+      "width_cm": 320,
+      "height_cm": 210,
+      "orientation": "landscape",
+      "dimensions_estimated": true,
+      "editorial_status": "draft_visual_review"
+    },
+    "6532": {
+      "name": "Арка над побережьем",
+      "description": "Изящная классическая арка открывает вид на море и зелёные берега. Архитектурные детали и мягкий свет придают композиции глубину.",
+      "width_cm": 300,
+      "height_cm": 220,
+      "orientation": "landscape",
+      "dimensions_estimated": true,
+      "editorial_status": "draft_visual_review"
+    },
+    "6879": {
+      "name": "Окно на море",
+      "description": "Светлое окно с панорамой побережья и небом за стеклом. Спокойный морской мотив визуально расширяет пространство.",
+      "width_cm": 280,
+      "height_cm": 210,
+      "orientation": "landscape",
+      "dimensions_estimated": true,
+      "editorial_status": "draft_visual_review"
+    },
+    "6907": {
+      "name": "Сад за старинной аркой",
+      "description": "Живописный зелёный сад, открывающийся сквозь каменную арку. Мягкий свет и природные оттенки создают ощущение уединения.",
+      "width_cm": 300,
+      "height_cm": 220,
+      "orientation": "landscape",
+      "dimensions_estimated": true,
+      "editorial_status": "draft_visual_review"
+    },
+    "9721": {
+      "name": "Сказочный лес",
+      "description": "Солнечные лучи среди деревьев и тихий лесной пейзаж с животными. Тёплая природная палитра добавляет интерьеру уюта.",
+      "width_cm": 300,
+      "height_cm": 215,
+      "orientation": "landscape",
+      "dimensions_estimated": true,
+      "editorial_status": "draft_visual_review"
+    },
+    "135822": {
+      "name": "Утреннее сияние",
+      "description": "Светлая декоративная композиция с мягкими переходами оттенков. Подойдёт для спокойного интерьера, где хочется сохранить ощущение воздуха.",
+      "width_cm": 300,
+      "height_cm": 200,
+      "orientation": null,
+      "dimensions_estimated": true,
+      "editorial_status": "draft_unverified_image"
+    },
+    "136023": {
+      "name": "Тихая гармония",
+      "description": "Сдержанная художественная композиция с плавным ритмом форм и нежной палитрой. Помогает создать расслабленную атмосферу.",
+      "width_cm": 300,
+      "height_cm": 220,
+      "orientation": null,
+      "dimensions_estimated": true,
+      "editorial_status": "draft_unverified_image"
+    },
+    "136025": {
+      "name": "Лёгкость пространства",
+      "description": "Воздушный мотив в мягкой цветовой гамме. Ненавязчивый рисунок станет спокойным фоном для мебели и декора.",
+      "width_cm": 320,
+      "height_cm": 210,
+      "orientation": null,
+      "dimensions_estimated": true,
+      "editorial_status": "draft_unverified_image"
+    },
+    "136260": {
+      "name": "Вдохновение природой",
+      "description": "Декоративный сюжет с природным настроением и деликатными цветовыми переходами. Добавит пространству глубины и тепла.",
+      "width_cm": 300,
+      "height_cm": 210,
+      "orientation": null,
+      "dimensions_estimated": true,
+      "editorial_status": "draft_unverified_image"
+    },
+    "136409": {
+      "name": "Золотое настроение",
+      "description": "Тёплые оттенки и мягкая живописная атмосфера. Такая композиция помогает сделать интерьер более уютным и выразительным.",
+      "width_cm": 300,
+      "height_cm": 200,
+      "orientation": null,
+      "dimensions_estimated": true,
+      "editorial_status": "draft_unverified_image"
+    },
+    "137625": {
+      "name": "Тишина и свет",
+      "description": "Спокойная композиция с ощущением простора и тонкими цветовыми нюансами. Подходит для светлого, ненасыщенного деталями интерьера.",
+      "width_cm": 320,
+      "height_cm": 220,
+      "orientation": null,
+      "dimensions_estimated": true,
+      "editorial_status": "draft_unverified_image"
+    },
+    "138640": {
+      "name": "Солнечная атмосфера",
+      "description": "Нежные сочетания оттенков и лёгкое декоративное настроение. Рисунок добавляет стене выразительность, не перегружая пространство.",
+      "width_cm": 300,
+      "height_cm": 210,
+      "orientation": null,
+      "dimensions_estimated": true,
+      "editorial_status": "draft_unverified_image"
+    },
+    "138643": {
+      "name": "Мягкие горизонты",
+      "description": "Художественный мотив с плавными переходами цвета и ощущением глубины. Хорошо сочетается с природными фактурами.",
+      "width_cm": 320,
+      "height_cm": 210,
+      "orientation": null,
+      "dimensions_estimated": true,
+      "editorial_status": "draft_unverified_image"
+    },
+    "139691": {
+      "name": "Светлый акцент",
+      "description": "Уравновешенная декоративная композиция, в которой мягкая палитра сочетается с выразительными деталями. Для уютных современных интерьеров.",
+      "width_cm": 300,
+      "height_cm": 220,
+      "orientation": null,
+      "dimensions_estimated": true,
+      "editorial_status": "draft_unverified_image"
+    },
+    "139760": {
+      "name": "Атмосфера покоя",
+      "description": "Спокойная художественная композиция с мягким цветовым решением. Создаёт ненавязчивый фон для отдыха и общения.",
+      "width_cm": 300,
+      "height_cm": 200,
+      "orientation": null,
+      "dimensions_estimated": true,
+      "editorial_status": "draft_unverified_image"
+    }
+  }
 }
