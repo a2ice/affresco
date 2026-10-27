@@ -70,7 +70,8 @@
   const modalEmailSuccess = $('emailSuccessModal');
   const emailRecipient = $('emailRecipient');
   const emailSendSubmit = $('emailSendSubmit');
-  let emailSendTimer = null;
+  let emailSendBusy = false;
+  let emailSendRequest = 0;
   const modals = [modalPicker, modalEditor, modalLogin, modalAccount, modalFuture, modalEmail, modalEmailSuccess];
   let previousFocus = null;
   let openDialog = null;
@@ -229,13 +230,9 @@
   window.addEventListener('resize', () => { if (window.innerWidth > 800) closeMenu(); });
 
   function setModal(modal, trigger=null) {
-    // Leaving the demo email dialog cancels its pending confirmation.
-    if(modal!==modalEmail && emailSendTimer!==null){
-      clearTimeout(emailSendTimer);
-      emailSendTimer=null;
-      emailSendSubmit.disabled=false;
-      emailSendSubmit.textContent='Отправить';
-    }
+    // A response from a window that was closed must not reopen the success
+    // dialog unexpectedly (the server may already have accepted the email).
+    if(modal!==modalEmail && openDialog===modalEmail)emailSendRequest++;
     if (!openDialog && trigger) previousFocus = trigger;
     if(modal !== modalPicker && pickerObserver) pickerObserver.disconnect();
     modals.forEach(el => el.hidden = el !== modal);
@@ -1230,37 +1227,93 @@
     state.zoom=clamp(Math.round((state.zoom+(e.deltaY<0?.1:-.1))*10)/10,1,3);
     updateCrop();saveDraft();
   },{passive:false});
+  function cropEmailJpeg(){
+    const crop=getCrop();
+    if(!crop||!imageLoaded||!cropImage.naturalWidth||!cropImage.naturalHeight){
+      throw new Error('crop_unavailable');
+    }
+    const nw=cropImage.naturalWidth,nh=cropImage.naturalHeight;
+    const sx=Math.max(0,Math.floor(crop.x*nw));
+    const sy=Math.max(0,Math.floor(crop.y*nh));
+    const sw=Math.min(nw-sx,Math.max(1,Math.round(crop.width*nw)));
+    const sh=Math.min(nh-sy,Math.max(1,Math.round(crop.height*nh)));
+    if(sw<20||sh<20)throw new Error('crop_unavailable');
+    const scale=Math.min(1,1600/sw,1600/sh);
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(sw*scale));
+    canvas.height=Math.max(1,Math.round(sh*scale));
+    const ctx=canvas.getContext('2d',{alpha:false});
+    if(!ctx)throw new Error('image_export_failed');
+    ctx.drawImage(cropImage,sx,sy,sw,sh,0,0,canvas.width,canvas.height);
+    const output=canvas.toDataURL('image/jpeg',.80);
+    if(!output.startsWith('data:image/jpeg;base64,')||output.length>3300000){
+      throw new Error('image_too_large');
+    }
+    return output;
+  }
   $('sendCrop').addEventListener('click',()=>{
     if(!currentItem||!imageLoaded){
       showFeedback('Сначала дождитесь загрузки фрески.',true);
       return;
     }
-    // The crop already autosaves. Save the latest geometry before previewing
-    // the demonstration email workflow; no request is sent to a mail server.
     saveDraft();
     $('emailSendForm').reset();
     $('emailSendFeedback').textContent='';
+    emailRecipient.value=window.affrescoAccount?.savedEmail()||'';
     setModal(modalEmail,$('sendCrop'));
-    emailRecipient.focus();
+    if(!emailRecipient.value)emailRecipient.focus();
   });
-  $('emailSendForm').addEventListener('submit',event=>{
+  $('emailSendForm').addEventListener('submit',async event=>{
     event.preventDefault();
-    if(openDialog!==modalEmail || emailSendTimer!==null)return;
-    if(!emailRecipient.checkValidity()){
-      emailRecipient.reportValidity();
-      return;
-    }
+    if(openDialog!==modalEmail||emailSendBusy)return;
+    if(!emailRecipient.reportValidity())return;
+    const email=emailRecipient.value.trim();
+    const requestId=++emailSendRequest;
+    emailSendBusy=true;
     emailSendSubmit.disabled=true;
-    emailSendSubmit.textContent='Имитируем отправку…';
-    $('emailSendFeedback').textContent='Демо-отправка: подготавливаем подтверждение.';
-    emailSendTimer=setTimeout(()=>{
-      emailSendTimer=null;
+    emailSendSubmit.textContent='Отправляем…';
+    $('emailSendFeedback').textContent='Готовим кадр и отправляем письмо.';
+    try{
+      const image=cropEmailJpeg();
+      const reply=await fetch('/api/send-crop.php',{
+        method:'POST',credentials:'same-origin',cache:'no-store',
+        headers:{'Content-Type':'application/json','X-Affresco-Request':'1'},
+        body:JSON.stringify({
+          email,sku:currentItem.sku,width_cm:state.width,height_cm:state.height,
+          image
+        })
+      });
+      let result=null;
+      try{result=await reply.json();}catch(_){}
+      if(!reply.ok||result?.accepted!==true){
+        throw new Error(result?.error||'mail_unavailable');
+      }
+      window.affrescoAccount?.setEmailFromSend(email);
+      if(openDialog===modalEmail&&requestId===emailSendRequest){
+        $('emailSuccessDescription').textContent='Письмо с выбранным кадром принято почтовым сервером для '+email+
+          '. Проверьте входящие и папку «Спам»: доставка может занять некоторое время.';
+        emailRecipient.value='';
+        setModal(modalEmailSuccess);
+      }
+    }catch(error){
+      if(openDialog===modalEmail&&requestId===emailSendRequest){
+        const messages={
+          crop_unavailable:'Не удалось получить выбранный фрагмент. Повторите попытку.',
+          image_export_failed:'Браузер не смог подготовить изображение.',
+          image_too_large:'Слишком большой кадр. Попробуйте уменьшить область выделения.',
+          invalid_email:'Проверьте адрес электронной почты.',
+          send_rate_limit:'Достигнут лимит отправок. Попробуйте через час.',
+          email_storage_unavailable:'Не удалось сохранить email в аккаунте на сервере.',
+          mail_unavailable:'Почтовый сервер пока не принимает письма. Попробуйте позже.'
+        };
+        $('emailSendFeedback').textContent=messages[error.message]||
+          'Ошибка отправки. Проверьте соединение и попробуйте ещё раз.';
+      }
+    }finally{
+      emailSendBusy=false;
       emailSendSubmit.disabled=false;
       emailSendSubmit.textContent='Отправить';
-      $('emailSendFeedback').textContent='';
-      emailRecipient.value='';
-      if(openDialog===modalEmail)setModal(modalEmailSuccess);
-    },650);
+    }
   });
   $('emailBackToEditor').addEventListener('click',()=>setModal(modalEditor));
   $('emailSuccessBack').addEventListener('click',()=>setModal(modalEditor));
