@@ -54,12 +54,16 @@ try{
  file_put_contents($dir.'/'.$aiId.'-result.png',str_repeat('A',200));
  $combined=af_ai_export_items('fixture',$ctx);
  ai_check(count($combined)===2,'ZIP must contain AI and manual, not just AI');
+ ai_check(af_ai_delivery_type($combined)['archive']===true,'Two images must use ZIP');
+ ai_check(af_ai_delivery_type($combined)['mime']==='application/zip','ZIP MIME type expected');
  ai_check($combined[0]['type']==='ai'&&$combined[1]['type']==='manual','Chronological merge of mixed source images');
  ai_check($combined[0]['mime']==='image/png'&&$combined[1]['mime']==='image/jpeg','Preserve actual source formats');
  ai_check(count(af_ai_library_items('fixture'))===2,'Cabinet lists both server image types');
  ai_check(count(af_ai_library_items('other'))===0,'Cabinet cannot enumerate other users');
  @unlink($dir.'/manual-'.$mid.'.json');@unlink($dir.'/manual-'.$mid.'.jpg');
  ai_check(count(af_ai_export_items('fixture',$ctx))===1,'Single remaining image must be a direct file');
+ ai_check(af_ai_delivery_type(af_ai_export_items('fixture',$ctx))['archive']===false,'One image must not be zipped');
+ ai_check(af_ai_delivery_type(af_ai_export_items('fixture',$ctx))['mime']==='image/png','One AI image retains PNG MIME');
 
  $expired=af_ai_expire('fixture',$job);
  ai_check($expired['status']==='failed','Timed-out job failed');
