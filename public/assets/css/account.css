@@ -115,3 +115,15 @@
   #accountModal .account-stats .account-tab-count{font-size:10px;}
   #accountModal .account-server-image-list{grid-template-columns:repeat(2,minmax(0,1fr));}
 }
+
+/* Destructive action lives only in the account gallery, top-right on the thumbnail. */
+#accountModal .account-server-image{position:relative;}
+#accountModal .account-server-delete{
+  position:absolute;top:8px;right:8px;
+  display:grid;place-items:center;align-self:auto;
+  width:44px;min-width:44px;height:44px;min-height:44px;padding:0;
+  border:1px solid #b7ada1;border-radius:50%;background:rgba(255,255,255,.96);
+  color:#613c33;font:400 28px/1 Manrope,sans-serif;
+  box-shadow:0 2px 8px rgba(0,0,0,.15);
+}
+#accountModal .account-server-delete:hover:not(:disabled){background:#fff0ed;color:#68271e;}

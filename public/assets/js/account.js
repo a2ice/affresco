@@ -84,7 +84,7 @@
         const date=new Date(Number(item.created)||Date.now());
         title.textContent=(item.type==='ai'?'AI-визуализация':'Ручная примерка')+' · '+date.toLocaleDateString('ru-RU');
         const remove=document.createElement('button');remove.type='button';
-        remove.className='account-server-delete';remove.textContent='Удалить';
+        remove.className='account-server-delete';remove.textContent='×';remove.title='Удалить изображение';
         remove.setAttribute('aria-label','Удалить '+(item.type==='ai'?'AI-визуализацию':'ручную примерку'));
         remove.addEventListener('click',async()=>{
           if(!window.confirm('Вы уверены, что хотите удалить изображение? Восстановить его будет невозможно.'))return;
