@@ -33,7 +33,7 @@ try{
  ai_check(af_ai_write('fixture',$job),'Atomic private job write');
  ai_check(af_ai_read('fixture',$id)['status']==='pending','Read private job');
  $prompt=af_ai_prompt($meta);
- foreach(['ORIGINAL ROOM','FRESCO CROP','MANUAL PLACEMENT GUIDE','BEHIND EVERYTHING','couch','foreground'] as $fragment)
+ foreach(['ORIGINAL ROOM','FRESCO CROP','MANUAL PLACEMENT GUIDE','IN FRONT','couch','FOREGROUND','FIREPLACES','CUSTOM CUTOUT','REFLECTIONS','polished'] as $fragment)
     ai_check(str_contains($prompt,$fragment),'Prompt missing occlusion priority: '.$fragment);
  ai_check(!str_contains($prompt,'SECRET'),'Prompt leaked account secrets');
  $cfg=['public_url'=>'https://affresco.a2ice.ru','callback_secret'=>'test-key'];
@@ -42,11 +42,30 @@ try{
  ai_check(!str_contains($url,'test-key'),'No callback secret in signed URL');
  ai_check(count(af_ai_jobs('fixture',$ctx))===1,'Owner-context isolation');
  ai_check(count(af_ai_jobs('other',$ctx))===0,'Other accounts cannot list jobs');
+ // Unified export: both a browser-synced manual JPEG and an AI image belong
+ // to the same owner/context. Single surviving result must stay unarchived.
+ $mid='123e4567-e89b-42d3-a456-426614174001';
+ $dir=af_ai_user_dir('fixture');
+ file_put_contents($dir.'/manual-'.$mid.'.json',json_encode(['id'=>$mid,'context'=>$ctx,'created'=>time()*1000]));
+ file_put_contents($dir.'/manual-'.$mid.'.jpg',str_repeat('M',200));
+ $aiId=bin2hex(random_bytes(16));
+ ai_check(af_ai_write('fixture',['id'=>$aiId,'context'=>$ctx,'owner'=>'fixture',
+    'status'=>'completed','created'=>time()-10,'metadata'=>$meta]),'Completed AI job saved');
+ file_put_contents($dir.'/'.$aiId.'-result.png',str_repeat('A',200));
+ $combined=af_ai_export_items('fixture',$ctx);
+ ai_check(count($combined)===2,'ZIP must contain AI and manual, not just AI');
+ ai_check($combined[0]['type']==='ai'&&$combined[1]['type']==='manual','Chronological merge of mixed source images');
+ ai_check($combined[0]['mime']==='image/png'&&$combined[1]['mime']==='image/jpeg','Preserve actual source formats');
+ ai_check(count(af_ai_library_items('fixture'))===2,'Cabinet lists both server image types');
+ ai_check(count(af_ai_library_items('other'))===0,'Cabinet cannot enumerate other users');
+ @unlink($dir.'/manual-'.$mid.'.json');@unlink($dir.'/manual-'.$mid.'.jpg');
+ ai_check(count(af_ai_export_items('fixture',$ctx))===1,'Single remaining image must be a direct file');
+
  $expired=af_ai_expire('fixture',$job);
  ai_check($expired['status']==='failed','Timed-out job failed');
  ai_check((int)af_find_account(af_accounts(),'fixture')['generations_used']===0,'Timeout refund');
  ai_check(af_ai_expire('fixture',$expired)['status']==='failed','Terminal state idempotent');
  ai_check((int)af_find_account(af_accounts(),'fixture')['generations_used']===0,'No double refund');
  ai_check(!isset(af_ai_public($job)['metadata']),'Private photo metadata stays out of browser status');
- echo "PASS: authenticated AI quota, timeout refund, HMAC references, isolated private jobs, single occlusion prompt\n";
+ echo "PASS: AI quota, HMAC, fireplace cutouts, reflections, isolated mixed exports and cabinet library\n";
 }finally{ai_rm($root);}
