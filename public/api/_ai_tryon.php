@@ -227,8 +227,11 @@ NON-NEGOTIABLE SCENE PRESERVATION:
 - Do NOT add, invent, furnish, remove, replace or reposition ANY object. Do NOT perform virtual staging, room redesign, decoration, styling, renovation or beautification.
 - An EMPTY ORIGINAL ROOM MUST STAY EMPTY, except for the wall fresco. Existing empty floor and open space must remain empty. Absence of furniture in the original is a hard constraint; NEVER infer or create foreground furniture from text instructions, from typical interior design layouts, or from the fresco's visual content.
 - Preserve the original room's exact camera position, optical perspective, framing, aspect ratio, scene boundaries, window size, architecture, ceiling, floor, wall texture, fixture positions, natural shadows and photographic illumination.
-- Every region OUTSIDE the target fresco footprint should look identical to the ORIGINAL ROOM. In particular, any empty floor area must remain unchanged. Preserve original objects if present; never create extra ones.
+- INVENTORY BEFORE EDITING: Compare all visible scene regions of ORIGINAL ROOM, including the entire floor and the space in front of the target wall. Everything already present remains present in exactly the same position, count, shape, color and scale; this includes any existing bed, bedding, rug, carpet, furniture, curtain or decor. These examples are conditional: NEVER create any item named here if it does not exist in ORIGINAL ROOM.
+- DELETION IS STRICTLY FORBIDDEN: The change is an artwork installation, not clearing a room. Do not remove a bed to expose the wall behind it; do not erase a rug to reveal more floor, remove furnishings, replace objects, or swap the existing room for a more empty or stylish version.
+- Every region OUTSIDE the target fresco footprint must be IDENTICAL to ORIGINAL ROOM. In particular, existing floor furnishings and floor coverings cannot be touched. The server independently enforces this boundary by restoring original pixels outside the mural's projected quadrilateral.
 - If reference images conflict, ORIGINAL ROOM wins for existing objects and scene contents, MANUAL PLACEMENT GUIDE wins ONLY for wall-mounted fresco placement, and FRESCO CROP wins for art content.
+- Any object with only a small part touching the mural remains intact: preserve the complete original object, not just its visible fragments. A photograph containing a bed and carpet MUST still contain that exact bed and carpet after editing, even when the mural is near them.
 
 EXACT WALL ARTWORK GEOMETRY (DO NOT GUESS OR IMPROVE):
 - Copy the artwork accurately without reimagining its details, adding extra patterns, changing its proportions or enlarging it.
@@ -246,7 +249,8 @@ ARCHITECTURAL INTERRUPTIONS:
 
 LIGHT AND REFLECTIONS — ONLY IF PHYSICALLY JUSTIFIED BY ORIGINAL ROOM:
 - Maintain the original natural illumination. Add at most a subtle contact shadow for the thin fresco.
-- Only if ORIGINAL ROOM already contains a visibly reflective horizontal surface in a geometrically valid position, a very faint fresco reflection may appear WITHIN that pre-existing surface's exact boundaries. Never invent a table or polished surface to create a reflection.
+- The delivery pipeline deliberately protects pixels OUTSIDE the fresco quadrilateral; do not attempt any new reflection or lighting change outside that boundary in this protected-editing mode. Preserving the original furniture and room exactly is more important than a decorative reflection.
+- Only consider small optical changes INSIDE the specified mural footprint; do not invent a table or polished surface to create reflections.
 - Do not blur, smear, glow, duplicate or soften the fresco border, distort the fresco for a reflection, or alter a surface elsewhere. Omit uncertain reflections.
 
 FINAL CHECK BEFORE OUTPUT:
