@@ -25,7 +25,7 @@ if(count($complete)>6)af_response(422,['error'=>'invalid_request']);
 $file=tempnam(af_ai_user_dir($owner),'export-');
 if(!is_string($file))af_response(503,['error'=>'zip_unavailable']);
 $zip=new ZipArchive();
-if($zip->open($file,ZipArchive::OVERWRITE)!==true){@unlink($file);af_response(503,['error'=>'zip_unavailable']);}
+if($zip->open($file,ZipArchive::CREATE|ZipArchive::OVERWRITE)!==true){@unlink($file);af_response(503,['error'=>'zip_unavailable']);}
 $size=0;$count=0;
 foreach($complete as $index=>$job){
  $source=af_ai_user_dir($owner).'/'.$job['id'].'-result.png';
