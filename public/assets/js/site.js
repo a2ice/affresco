@@ -1392,7 +1392,7 @@
     // type=email by itself accepts domains without a dot (a2ice@yandex).
     // Match the PHP endpoint's expectation of a complete mail domain.
     return value.length<=254 &&
-      /^[^\\s@]+@(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)+[A-Za-z]{2,63}$/.test(value);
+      /^[^\s@]+@(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$/.test(value);
   }
   emailRecipient.addEventListener('input',()=>{
     emailRecipient.setCustomValidity('');
