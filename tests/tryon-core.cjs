@@ -39,3 +39,18 @@ for(const feature of ['PointerEvent','indexedDB','crypto']){
  const older=compatibility(feature);assert.equal(older.window.affrescoTryonCompat.supported,false);assert.equal(older.elements.get('tryOnWall').disabled,true);assert.equal(older.elements.get('tryonGlobalNotice').hidden,false);assert.equal(older.elements.get('tryonUploadStep').hidden,true);
 }
 console.log('PASS: guest/account history caps and capability-based browser gating');
+
+
+const shortLight=core.makeLight({x:100,y:200},{x:150,y:200},'warm',1000,700);
+const longLight=core.makeLight({x:100,y:200},{x:900,y:200},'cold',1000,700);
+assert.ok(longLight.strength>shortLight.strength);assert.equal(longLight.strength,1);
+assert.equal(longLight.tone,'cold');assert.equal(shortLight.from.x,.1);
+assert.equal(core.makeLight({x:0,y:0},{x:0,y:0},'warm',1000,700).strength,0);
+const stops=[];let clipped=0;
+const lightingContext={canvas:{width:1000,height:700},createLinearGradient(...points){assert.deepEqual(points,[100,200,900,200]);return {addColorStop:(at,color)=>stops.push({at,color})};},save(){},restore(){},beginPath(){},closePath(){},moveTo(){},lineTo(){},clip(){clipped++;},fillRect(){}};
+core.drawLight(lightingContext,moved,longLight);
+assert.equal(clipped,1,'Lighting must be clipped to the fresco');assert.equal(stops.length,3);assert.match(stops[0].color,/178,220,255/);assert.match(stops[2].color,/12,30,52/);
+const controlA=core.controlPoints(moved,.5),controlB=core.controlPoints(moved,2);
+assert.equal(controlA.length,4);assert.equal(controlB.length,4);
+assert.equal(controlA[0].x,50);assert.equal(controlB[0].x,200);
+console.log('PASS: light direction/tone/intensity, fresco-only clipping and CSS-space control coordinates');

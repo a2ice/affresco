@@ -5,9 +5,11 @@ const images=new Map();let member=null,accepted=0;
 class Element{
  constructor(){this.hidden=false;this.disabled=false;this.value='';this.textContent='';this.handlers={};this.classList={add(){},remove(){},toggle(){}};this.width=1000;this.height=700;}
  addEventListener(k,fn){(this.handlers[k]??=[]).push(fn);}
- async fire(k,event={}){for(const fn of this.handlers[k]||[])await fn({preventDefault(){},...event});}
+ async fire(k,event={}){for(const fn of this.handlers[k]||[])await fn({type:k,preventDefault(){},...event});}
+ setAttribute(k,v){this[k]=v;}
+ getBoundingClientRect(){return {width:1000,height:700,left:0,top:0};}
  click(){this.clicks=(this.clicks||0)+1;}focus(){}append(){}replaceChildren(){}setPointerCapture(){}
- getContext(){return {canvas:this,drawImage(){},fillRect(){},save(){},restore(){},beginPath(){},closePath(){},moveTo(){},lineTo(){},clip(){},transform(){},fill(){},stroke(){},setLineDash(){},strokeRect(){}};}
+ getContext(){return {canvas:this,createLinearGradient(){return {addColorStop(){}};},drawImage(){},fillRect(){},save(){},restore(){},beginPath(){},closePath(){},moveTo(){},lineTo(){},clip(){},transform(){},fill(){},stroke(){},setLineDash(){},strokeRect(){}};}
  toDataURL(){return 'data:image/jpeg;base64,TEST';}
 }
 const els=new Map([...html.matchAll(/\bid="([^"]+)"/g)].map(m=>[m[1],new Element()]));
@@ -30,6 +32,17 @@ const delay=()=>new Promise(r=>setTimeout(r,30));
  await $('tryonUploadZone').fire('drop',{dataTransfer:{files:[{type:'text/plain',size:20}]}});assert.match($('tryonFeedback').textContent,/Выберите JPEG/);
  await $('tryonUploadZone').fire('drop',{dataTransfer:{files:[{type:'image/png',size:1000}]}});await delay();
  assert.equal($('tryonWorkspace').hidden,false);await $('tryonBegin').fire('click');
+ assert.equal($('tryonFooter').hidden,false);assert.match($('tryonControls').innerHTML,/width="12" height="12"/);
+ await $('tryonApply').fire('click');assert.equal($('tryonControls').innerHTML,'');
+ await $('tryonCanvas').fire('pointerdown',{clientX:500,clientY:350,pointerId:1});await $('tryonCanvas').fire('pointerup',{pointerId:1});assert.match($('tryonControls').innerHTML,/<rect/);
+ await $('tryonCanvas').fire('pointerdown',{clientX:10,clientY:10,pointerId:1});assert.equal($('tryonControls').innerHTML,'');
+ await $('tryonLightToggle').fire('click');assert.equal($('tryonLightToggle')['aria-pressed'],'true');assert.equal($('tryonLightTone').hidden,false);
+ await $('tryonCanvas').fire('pointerdown',{clientX:200,clientY:300,pointerId:1});await $('tryonCanvas').fire('pointermove',{clientX:700,clientY:300,pointerId:1});await $('tryonCanvas').fire('pointerup',{pointerId:1});
+ assert.equal($('tryonLightCancel').disabled,false);assert.match($('tryonControls').innerHTML,/<path/);
+ $('tryonLightTone').value='cold';await $('tryonLightTone').fire('change');
+ await $('tryonLightToggle').fire('click');assert.equal($('tryonLightTone').hidden,true);assert.equal($('tryonLightCancel').disabled,false);
+ await $('tryonLightCancel').fire('click');assert.equal($('tryonLightCancel').disabled,true);assert.equal($('tryonLightToggle')['aria-pressed'],'false');
+
  for(let i=0;i<4;i++){$('tryonScale').value=40+i;await $('tryonScale').fire('input');await $('tryonSave').fire('click');await delay();}
  assert.equal([...images.values()].filter(r=>r.owner==='guest').length,3);assert.equal(accepted,4);
  await $('tryonSave').fire('click');await delay();assert.equal(accepted,4,'Same result counted twice');
@@ -43,3 +56,4 @@ const delay=()=>new Promise(r=>setTimeout(r,30));
  assert.equal($('tryonUploadStep').hidden,true);assert.match($('tryonCompatibilityMessage').textContent,/не разрешает сохранять/);
  console.log('PASS: clickable upload, rejected multi-file/invalid drops, valid drop decoding, 3/12 retention, account isolation and idempotent save');
 })().catch(error=>{console.error(error);process.exitCode=1;});
+
