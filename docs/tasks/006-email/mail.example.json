@@ -1,0 +1,9 @@
+{
+  "host": "mail.example.com",
+  "port": 587,
+  "security": "starttls",
+  "username": "no-reply@example.com",
+  "password": "SET_ON_FTP_ONLY_DO_NOT_COMMIT",
+  "from": "no-reply@example.com",
+  "from_name": "AFFRESCO"
+}
