@@ -181,6 +181,11 @@ function af_ai_export_items(string $owner,string $context): array {
     usort($items,static fn($a,$b)=>($a['created']<=>$b['created']) ?: strcmp($a['type'],$b['type']));
     return $items;
 }
+/** Delivery contract shared by download and email. */
+function af_ai_delivery_type(array $items): array {
+    if(count($items)===1)return ['archive'=>false,'filename'=>$items[0]['name'],'mime'=>$items[0]['mime']];
+    return ['archive'=>true,'filename'=>'affresco-tryon-results.zip','mime'=>'application/zip'];
+}
 function af_ai_prompt(array $meta): string {
     // Single canonical prompt. User-supplied data is bounded numeric metadata, not arbitrary instructions.
     $location=json_encode([
