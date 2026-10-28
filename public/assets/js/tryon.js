@@ -141,7 +141,7 @@
     if(!room)return;
     checkFit();
     if(placing&&placed&&wallQuad)quad=core.placementQuad(wallQuad,lastWall,placed);
-    core.draw(ctx,room,placing?crop:null,placing?quad:null,false,false,lighting,12);
+    core.draw(ctx,room,placing?crop:null,placing?quad:null,false,false,lighting,12,{quad:wallQuad,size:lastWall});
     layoutScene();renderControls();syncLightTools();
   }
   function syncLightTools(){
@@ -383,7 +383,7 @@
   $('tryonBack').addEventListener('click',()=>window.dispatchEvent(new CustomEvent('affresco:open-modal',{detail:'editor'})));
   function jpeg(){
     const output=document.createElement('canvas');output.width=canvas.width;output.height=canvas.height;
-    core.draw(output.getContext('2d',{alpha:false}),room,crop,quad,checkFit(),false,lighting);
+    core.draw(output.getContext('2d',{alpha:false}),room,crop,quad,checkFit(),false,lighting,24,{quad:wallQuad,size:lastWall});
     let image;
     for(const quality of [.88,.78,.68,.58]){image=output.toDataURL('image/jpeg',quality);if(image.length<2900000)break;}
     if(image.length>=2900000)throw Error('image_export');
