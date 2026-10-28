@@ -92,7 +92,10 @@
           try{
             await request('/api/ai-tryon.php?delete=1','POST',{type:item.type,id:item.id});
             if(identity!==identityRevision)return;
-            if(item.type==='manual')await window.affrescoTryon?.removeSavedRecord?.(item.id);
+            if(item.type==='manual'){
+              try{await window.affrescoTryon?.removeSavedRecord?.(item.id);}catch(_){}
+              // Server deletion is authoritative; local storage may be unavailable.
+            }
             window.dispatchEvent(new CustomEvent('affresco:ai-image-deleted',{detail:{id:item.id,type:item.type}}));
             await renderServerImageLibrary();
           }catch(error){
