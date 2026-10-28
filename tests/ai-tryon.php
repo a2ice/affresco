@@ -39,7 +39,7 @@ try{
     'Never infer or create foreground furniture','Do NOT perform virtual staging',
     'Every region OUTSIDE the target fresco footprint',
     'EXACT WALL ARTWORK GEOMETRY','fresco_width_to_height_cm_ratio',
-    'the exact same four corners','CONDITIONAL OCCLUSION',
+    'four original projected corners','CONDITIONAL OCCLUSION',
     'ONLY FOR OBJECTS THAT ACTUALLY EXIST IN ORIGINAL ROOM',
     'If no such object exists','do NOT invent an occluding object',
     'ARCHITECTURAL INTERRUPTIONS',
