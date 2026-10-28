@@ -53,6 +53,7 @@ jobs:
         run: |
           node tests/cabinet.mjs
           php tests/account-activity.php
+          php tests/mail-quota.php
 
   preflight:
     name: Manual credentials presence check (no secret values)

@@ -52,8 +52,8 @@ function af_mail_quota_open(): array {
     $sessionTimes=$_SESSION['affresco_mail_accepted_v3']??[];
     if (!is_array($sessionTimes)) $sessionTimes=[];
     $sessionTimes=array_values(array_filter($sessionTimes,
-        static fn($t)=>is_int($t)&&$t>$now-3600));
-    if (count($sessionTimes)>=4)af_response(429,['error'=>'send_rate_limit']);
+        static fn($t)=>is_int($t)&&$t>$now-60));
+    if (count($sessionTimes)>=5)af_response(429,['error'=>'send_rate_limit']);
     $directories=[
         dirname(__DIR__,2).'/.affresco-mail-rate',
         rtrim(sys_get_temp_dir(),DIRECTORY_SEPARATOR).'/affresco-mail-rate'
@@ -70,8 +70,8 @@ function af_mail_quota_open(): array {
         $times=json_decode(is_string($raw)?$raw:'[]',true);
         if (!is_array($times))$times=[];
         $times=array_values(array_filter($times,
-            static fn($t)=>is_int($t)&&$t>$now-3600));
-        if (count($times)>=4) {
+            static fn($t)=>is_int($t)&&$t>$now-60));
+        if (count($times)>=5) {
             flock($handle,LOCK_UN);fclose($handle);
             af_response(429,['error'=>'send_rate_limit']);
         }
