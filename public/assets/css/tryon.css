@@ -27,3 +27,13 @@
 
 #tryonModal .tryon-panel{position:relative;}
 #tryonModal .modal-close{position:absolute;top:18px;right:18px;left:auto;width:44px;height:44px;margin:0;display:grid;place-items:center;}
+
+
+#tryonModal .tryon-upload{width:100%;box-sizing:border-box;color:#766453;border-radius:0;appearance:none;-webkit-appearance:none;}
+#tryonModal .tryon-upload-icon{width:52px;height:52px;display:block;flex-shrink:0;transition:transform .15s ease;}
+#tryonModal .tryon-upload:hover,#tryonModal .tryon-upload.is-dragging{border-color:#766453;background:#f0ebe3;}
+#tryonModal .tryon-upload.is-dragging{outline:2px solid #766453;outline-offset:-5px;}
+#tryonModal .tryon-upload.is-dragging .tryon-upload-icon{transform:translateY(-3px);}
+#tryonModal .tryon-upload:focus-visible{outline:2px solid #766453;outline-offset:4px;}
+.tryon-compatibility{padding:14px 16px;border:1px solid #d7cfc4;background:#eee9e1;color:#554c42;font:400 13px/1.6 Manrope,sans-serif;}
+.tryon-compatibility[hidden]{display:none!important;}

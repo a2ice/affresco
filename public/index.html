@@ -15,13 +15,15 @@
   <link rel="stylesheet" href="/assets/css/site.css">
   <link rel="stylesheet" href="/assets/css/editorial.css?v=favorites-popup-20261028">
   <link rel="stylesheet" href="/assets/css/account.css?v=unified-cabinet-20261028">
+  <script src="/assets/js/tryon-compat.js?v=tryon-upload-20261028" defer></script>
   <script src="/assets/js/account.js?v=manual-tryon-20261028" defer></script>
-  <link rel="stylesheet" href="/assets/css/tryon.css?v=manual-tryon-export-20261028">
-  <script src="/assets/js/tryon-core.js?v=manual-tryon-20261028" defer></script>
-  <script src="/assets/js/tryon.js?v=manual-tryon-export-20261028" defer></script>
+  <link rel="stylesheet" href="/assets/css/tryon.css?v=tryon-upload-20261028">
+  <script src="/assets/js/tryon-core.js?v=tryon-upload-20261028" defer></script>
+  <script src="/assets/js/tryon.js?v=tryon-upload-20261028" defer></script>
   <script src="/assets/js/site.js?v=manual-tryon-20261028" defer></script>
 </head>
 <body>
+  <p id="tryonGlobalNotice" class="tryon-compatibility" role="status" hidden></p>
   <a class="skip-link" href="#content">Перейти к содержимому</a>
   <header class="site-header">
     <div class="container header-row">
@@ -263,6 +265,7 @@
               <button type="button" class="button button-secondary editor-action" id="resetCrop" title="Восстановить исходный кадр" aria-label="Восстановить исходный кадр"><span class="editor-action-icon" aria-hidden="true">↺</span><span class="editor-action-text">Восстановить</span></button>
               <button type="button" class="button button-primary editor-action editor-action-primary" id="tryOnWall" title="Примерить на стену" aria-label="Примерить на стену"><span class="editor-action-icon" aria-hidden="true">↗</span><span class="editor-action-text" id="tryOnWallLabel">Примерить</span></button>
             </div>
+            <p id="tryonBrowserNotice" class="tryon-compatibility" role="status" hidden></p>
             <p id="editorFeedback" class="feedback" role="status" aria-live="polite"></p>
           </div>
         </div>
@@ -357,7 +360,7 @@
           <p class="account-quota" id="accountQuota"></p>
           <p class="account-note" id="accountManualQuota"></p>
           <h4>Ваши примерки</h4>
-          <p class="account-note">Сохранённые изображения на этом устройстве.</p>
+          <p class="account-note" id="accountTryonStorageNote">Сохранённые изображения на этом устройстве.</p>
           <div id="accountTryonList" class="account-sku-list"></div>
           <p class="account-note">AI-примерка появится позже.</p>
         </section>
@@ -375,8 +378,14 @@
       <span class="eyebrow">ПРИМЕРКА В ИНТЕРЬЕРЕ</span>
       <h2 id="tryonTitle">Ваша фреска в комнате</h2>
       <p id="tryonSummary" class="tryon-note"></p>
+      <p id="tryonCompatibilityMessage" class="tryon-compatibility" role="status" hidden></p>
+      <p id="tryonStorageNote" class="tryon-note"></p>
       <div id="tryonUploadStep">
-        <label class="tryon-upload" for="tryonRoomFile"><strong>Загрузите фото комнаты</strong><span>JPEG, PNG или WebP · до 15 МБ</span><input type="file" id="tryonRoomFile" accept="image/jpeg,image/png,image/webp"></label>
+        <button type="button" class="tryon-upload" id="tryonUploadZone" aria-describedby="tryonUploadHint">
+          <svg class="tryon-upload-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" focusable="false"><path d="M30 7H9v34h30V20M24 33V17m-6 6 6-6 6 6M36 3v12m-6-6h12"/><path d="M9 33l8-8 7 7"/></svg>
+          <strong>Загрузите фото комнаты</strong><span id="tryonUploadHint">Нажмите на иконку или перетащите фото сюда</span><span>JPEG, PNG или WebP · до 15 МБ</span>
+        </button>
+        <input type="file" id="tryonRoomFile" accept="image/jpeg,image/png,image/webp" hidden>
         <p class="tryon-note">Выберите фото, на котором хорошо видна нужная стена.</p>
       </div>
       <div id="tryonWorkspace" hidden>
@@ -412,3 +421,4 @@
   </div>
 </body>
 </html>
+
