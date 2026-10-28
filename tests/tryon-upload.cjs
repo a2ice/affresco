@@ -42,6 +42,18 @@ const delay=()=>new Promise(r=>setTimeout(r,30));
  await $('tryonZoomIn').fire('click');assert.equal($('tryonZoomValue').textContent,'125%');
  await $('tryonFitWall').fire('click');assert.ok(Number($('tryonZoomValue').textContent.replace('%',''))>0);
  await $('tryonFitPhoto').fire('click');assert.equal($('tryonZoomValue').textContent,'100%');
+ // Pan in workspace never moves the wall; two touches pinch the camera.
+ const x0=parseFloat($('tryonCanvas').style.left);
+ await $('tryonStage').fire('pointerdown',{clientX:10,clientY:10,pointerId:30,pointerType:'touch'});
+ await $('tryonStage').fire('pointermove',{clientX:40,clientY:40,pointerId:30,pointerType:'touch'});
+ assert.ok(parseFloat($('tryonCanvas').style.left)>x0,'Empty space pans the photo');
+ await $('tryonStage').fire('pointerdown',{clientX:300,clientY:300,pointerId:31,pointerType:'touch'});
+ await $('tryonStage').fire('pointermove',{clientX:370,clientY:370,pointerId:31,pointerType:'touch'});
+ assert.notEqual($('tryonZoomValue').textContent,'100%','Pinch changes viewport zoom');
+ await $('tryonStage').fire('pointerup',{pointerId:31,pointerType:'touch'});
+ await $('tryonStage').fire('pointerup',{pointerId:30,pointerType:'touch'});
+ await $('tryonFitPhoto').fire('click');assert.equal($('tryonZoomValue').textContent,'100%');
+
  
  await $('tryonBegin').fire('click');
  assert.equal($('tryonLayerFresco')['aria-pressed'],'true');
@@ -66,6 +78,10 @@ const delay=()=>new Promise(r=>setTimeout(r,30));
  assert.equal([...images.values()].filter(r=>r.owner==='guest').length,3);assert.equal(accepted,4);
  assert.ok([...images.values()].filter(r=>r.owner==='guest').every(r=>r.wall_quad[0].x<0),'Wall point outside photo persists in saved geometry');
  await $('tryonSave').fire('click');await delay();assert.equal(accepted,4,'Same result counted twice');
+ await $('tryonZoomIn').fire('click');await $('tryonSave').fire('click');await delay();
+ assert.equal(accepted,4,'Viewport-only change must not count a new generation');
+ await $('tryonFitPhoto').fire('click');
+
  member={id:'tester'};
  for(let i=0;i<13;i++){$('tryonScale').value=50+i;await $('tryonScale').fire('input');await $('tryonSave').fire('click');await delay();}
  assert.equal([...images.values()].filter(r=>r.owner==='account:tester').length,12);
