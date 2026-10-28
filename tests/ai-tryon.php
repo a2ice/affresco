@@ -44,7 +44,11 @@ try{
     'If no such object exists','do NOT invent an occluding object',
     'ARCHITECTURAL INTERRUPTIONS',
     'LIGHT AND REFLECTIONS','Never invent a table or polished surface',
-    'FINAL CHECK BEFORE OUTPUT','no extra furniture'
+    'FINAL CHECK BEFORE OUTPUT','no extra furniture',
+    'INVENTORY BEFORE EDITING','DELETION IS STRICTLY FORBIDDEN',
+    'existing bed, bedding, rug, carpet',
+    'outside the fresco footprint must be IDENTICAL',
+    'server independently enforces this boundary'
  ] as $fragment)
     ai_check(str_contains(strtolower($prompt),strtolower($fragment)),'Missing preservation contract: '.$fragment);
  ai_check(str_contains($prompt,'"fresco_width_to_height_cm_ratio":1.5'),'Physical mural aspect ratio transmitted');
