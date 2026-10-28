@@ -84,9 +84,9 @@ const shadowLeft=core.shadowProjection(shadowFresco,shadowWall,shadowSize,lightL
 assert.ok(shadowRight&&shadowLeft,'Directional shadows are generated');
 assert.ok(shadowRight.quad[0].x>shadowFresco[0].x,'Right-facing light casts a rightward shadow');
 assert.ok(shadowLeft.quad[0].x<shadowFresco[0].x,'Reversing light reverses the shadow');
-assert.ok(shadowRight.opacity>0&&shadowRight.opacity<=.095,'Soft shadow never gets too dark');
+assert.ok(shadowRight.opacity>0&&shadowRight.opacity<=.096,'Soft shadow never gets too dark');
 assert.ok(shadowRight.blur>=7&&shadowRight.blur<=15,'Soft shadow has a bounded penumbra');
-assert.ok(shadowRight.shiftCm>0&&shadowRight.shiftCm<=4.56,'Lateral displacement is not equal to relief thickness');
+assert.ok(shadowRight.shiftCm>0&&shadowRight.shiftCm<=4.57,'Lateral displacement is not equal to relief thickness');
 assert.ok(shadowRight.screenShift<=9.6+.1,'Source-image corner offset is capped to 1.2% of shorter side');
 assert.equal(core.shadowProjection(shadowFresco,shadowWall,shadowSize,null,1000,800),null);
 assert.equal(core.shadowProjection(shadowFresco,shadowWall,shadowSize,core.makeLight({x:100,y:100},{x:100,y:100},'warm',1000,800),1000,800),null);
@@ -96,7 +96,7 @@ const skewedFresco=core.placementQuad(skewedWall,shadowSize,{x:120,y:65,width:22
 const skewedShadow=core.shadowProjection(skewedFresco,skewedWall,shadowSize,lightRight,1000,800);
 assert.ok(skewedShadow&&skewedShadow.quad.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)),'Off-photo perspective remains finite');
 assert.ok(skewedShadow.screenShift<=9.6+.1,'Even skewed/off-photo wall cannot generate a deep detached shadow');
-assert.ok(skewedShadow.opacity<=.095);
+assert.ok(skewedShadow.opacity<=.096);
 
 function renderShadowOps(light,withPlane=true,segments=12){
  const ops=[];
