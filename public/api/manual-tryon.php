@@ -13,10 +13,11 @@ if (!is_array($data) || !is_string($data['id']??null) ||
     !is_string($data['sku']??null) || preg_match('/^[a-zA-Z0-9_.-]{1,100}$/D',$data['sku'])!==1) af_response(422,['error'=>'invalid_request']);
 foreach (['width_cm','height_cm'] as $field) {
     $value=$data[$field]??null;
-    if (!is_numeric($value) || !is_finite((float)$value) || (float)$value<30 || (float)$value>1000) af_response(422,['error'=>'invalid_request']);
+    if (!is_numeric($value) || !is_finite((float)$value) || (float)$value<0.1 || (float)$value>1000) af_response(422,['error'=>'invalid_request']);
 }
 $account=af_current_account();
 $owner=$account?'account:'.(string)$account['id']:'guest';
 if (($data['owner']??null)!==$owner) af_response(409,['error'=>'identity_changed']);
 if (!af_record_manual_tryon($account,strtolower($data['id']))) af_response(503,['error'=>'tracking_unavailable']);
 af_response(200,['accepted'=>true]);
+

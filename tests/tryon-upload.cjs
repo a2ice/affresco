@@ -31,10 +31,21 @@ const delay=()=>new Promise(r=>setTimeout(r,30));
  await $('tryonUploadZone').fire('drop',{dataTransfer:{files:[{},{}]}});assert.match($('tryonFeedback').textContent,/одно фото/);
  await $('tryonUploadZone').fire('drop',{dataTransfer:{files:[{type:'text/plain',size:20}]}});assert.match($('tryonFeedback').textContent,/Выберите JPEG/);
  await $('tryonUploadZone').fire('drop',{dataTransfer:{files:[{type:'image/png',size:1000}]}});await delay();
- assert.equal($('tryonWorkspace').hidden,false);await $('tryonBegin').fire('click');
+ assert.equal($('tryonWorkspace').hidden,false);
+ assert.equal($('tryonPreset').value,'standard');assert.equal(Number($('tryonWallWidth').value),500);assert.equal(Number($('tryonWallHeight').value),275);
+ assert.equal($('tryonLayerFresco').disabled,true);assert.equal($('tryonFooter').hidden,true,'Cannot place before wall confirmation');
+ assert.match($('tryonControls').innerHTML,/500 см/);
+ await $('tryonBegin').fire('click');
+ assert.equal($('tryonLayerFresco')['aria-pressed'],'true');
+ await $('tryonLayerWall').fire('click');assert.equal($('tryonScale').disabled,true);
+ await $('tryonLayerFresco').fire('click');assert.equal($('tryonScale').disabled,false);
+ $('tryonWallWidth').value=150;await $('tryonWallWidth').fire('input');
+ assert.equal($('tryonPreset').value,'custom');assert.ok(Number($('tryonScale').max)<=75);
+ $('tryonPreset').value='standard';await $('tryonPreset').fire('change');await $('tryonResetPerspective').fire('click');
+
  assert.equal($('tryonFooter').hidden,false);assert.match($('tryonControls').innerHTML,/width="12" height="12"/);
  await $('tryonApply').fire('click');assert.equal($('tryonControls').innerHTML,'');
- await $('tryonCanvas').fire('pointerdown',{clientX:500,clientY:350,pointerId:1});await $('tryonCanvas').fire('pointerup',{pointerId:1});assert.match($('tryonControls').innerHTML,/<rect/);
+ await $('tryonCanvas').fire('pointerdown',{clientX:500,clientY:329,pointerId:1});await $('tryonCanvas').fire('pointerup',{pointerId:1});assert.match($('tryonControls').innerHTML,/<rect/);
  await $('tryonCanvas').fire('pointerdown',{clientX:10,clientY:10,pointerId:1});assert.equal($('tryonControls').innerHTML,'');
  await $('tryonLightToggle').fire('click');assert.equal($('tryonLightToggle')['aria-pressed'],'true');assert.equal($('tryonLightTone').hidden,false);
  await $('tryonCanvas').fire('pointerdown',{clientX:200,clientY:300,pointerId:1});await $('tryonCanvas').fire('pointermove',{clientX:700,clientY:300,pointerId:1});await $('tryonCanvas').fire('pointerup',{pointerId:1});
@@ -56,4 +67,5 @@ const delay=()=>new Promise(r=>setTimeout(r,30));
  assert.equal($('tryonUploadStep').hidden,true);assert.match($('tryonCompatibilityMessage').textContent,/не разрешает сохранять/);
  console.log('PASS: clickable upload, rejected multi-file/invalid drops, valid drop decoding, 3/12 retention, account isolation and idempotent save');
 })().catch(error=>{console.error(error);process.exitCode=1;});
+
 
