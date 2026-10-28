@@ -175,7 +175,7 @@ function af_ai_export_items(string $owner,string $context): array {
         $items[]=[
           'type'=>'ai','id'=>$id,'file'=>$file,
           'name'=>'affresco-ai-'.substr($id,0,8).'.png',
-          'mime'=>'image/png','created'=>(int)($job['created']??0)
+          'mime'=>'image/png','created'=>(int)($job['created']??0)*1000
         ];
     }
     usort($items,static fn($a,$b)=>($a['created']<=>$b['created']) ?: strcmp($a['type'],$b['type']));
