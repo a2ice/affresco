@@ -13,6 +13,28 @@ assert.deepEqual(core.corner(quad,0,{x:600,y:500},1000,800),quad,'Crossed quadri
 for(const [u,v,index] of [[0,0,0],[1,0,1],[1,1,2],[0,1,3]]){
  const p=core.project(moved,u,v);assert.ok(Math.abs(p.x-moved[index].x)<1e-8);assert.ok(Math.abs(p.y-moved[index].y)<1e-8);
 }
+
+const beyond=core.freeCorner(quad,0,{x:-340,y:-210},1000,800);
+assert.equal(beyond[0].x,-340,'Wall corners can extend left of the photo');
+assert.equal(beyond[0].y,-210,'Wall corners can extend above the photo');
+assert.deepEqual(core.freeCorner(beyond,1,{x:NaN,y:1},1000,800),beyond,'Invalid inputs rejected');
+const unbounded=core.freeTranslate(quad,-600,-220,1000,800);
+assert.equal(unbounded[0].x,-500);
+const view={zoom:1,panX:0,panY:0};
+const viewRect=core.viewTransform(1000,800,1000,700,view);
+const anchored={x:230,y:280},anchorPoint={x:(anchored.x-viewRect.x)/viewRect.scale,y:(anchored.y-viewRect.y)/viewRect.scale};
+const newView=core.zoomViewAt(view,2,anchored,1000,700);
+const newRect=core.viewTransform(1000,800,1000,700,newView);
+assert.ok(Math.abs(newRect.x+anchorPoint.x*newRect.scale-anchored.x)<1e-8,'Zoom preserves anchor X');
+assert.ok(Math.abs(newRect.y+anchorPoint.y*newRect.scale-anchored.y)<1e-8,'Zoom preserves anchor Y');
+const fitted=core.fitQuadView(beyond,1000,800,1000,700);
+const fitRect=core.viewTransform(1000,800,1000,700,fitted);
+for(const p of beyond){
+ assert.ok(fitRect.x+p.x*fitRect.scale>=30&&fitRect.x+p.x*fitRect.scale<=970);
+ assert.ok(fitRect.y+p.y*fitRect.scale>=30&&fitRect.y+p.y*fitRect.scale<=670);
+}
+console.log('PASS: unbounded wall geometry, zoom around pointer and fit-to-wall padding');
+
 const translated=core.translate(moved,-500,1000,1000,800);
 assert.ok(translated.every(p=>p.x>=0&&p.y>=0&&p.x<=1000&&p.y<=800));
 const resized=core.resize(moved,100,1000,800);assert.ok(core.convex(resized));assert.ok(resized.every(p=>p.x>=0&&p.y>=0&&p.x<=1000&&p.y<=800));
