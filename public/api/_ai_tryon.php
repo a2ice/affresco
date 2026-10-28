@@ -3,8 +3,18 @@ declare(strict_types=1);
 require_once __DIR__.'/_account.php';
 
 function af_ai_config(): ?array {
-    // Strictly outside the web document root. No browser/JS/GitHub secrets here.
-    $path=af_private_root().'/data/affresco-ai.json';
+    // Prefer private storage; CISHOST also uses public/data with Apache deny.
+    // Never serve this file over HTTP. Release smoke checks the 403/404 rule.
+    $private=af_private_root().'/data/affresco-ai.json';
+    $hosted=dirname(__DIR__).'/data/affresco-ai.json';
+    $path=is_file($private)?$private:$hosted;
+    if($path===$hosted){
+        $denyFile=dirname(__DIR__).'/data/.htaccess';
+        $rules=is_file($denyFile)?@file_get_contents($denyFile):false;
+        // An absent or obsolete deny rule is always a configuration error.
+        if(!is_string($rules)||!str_contains($rules,'catalog')||
+           !str_contains($rules,'Require all denied'))return null;
+    }
     $raw=is_file($path)&&is_readable($path)?@file_get_contents($path):false;
     $cfg=is_string($raw)&&strlen($raw)<8192?json_decode($raw,true):null;
     if(!is_array($cfg))return null;
