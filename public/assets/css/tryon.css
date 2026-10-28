@@ -172,3 +172,5 @@
 #tryonModal .tryon-stage.is-masking{cursor:crosshair;}
 #tryonModal .tryon-stage.is-masking #tryonCanvas{cursor:crosshair;}
 @media(max-width:640px){#tryonModal .tryon-foreground-tools{gap:6px;}#tryonModal .tryon-foreground-tools button{padding:7px 9px;}}
+
+#tryonModal .tryon-foreground-tools[hidden],#tryonModal .tryon-foreground-hint[hidden]{display:none;}
