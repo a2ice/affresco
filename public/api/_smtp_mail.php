@@ -35,7 +35,9 @@ function af_smtp_config(): array {
         strlen($host)>253 || !filter_var($user,FILTER_VALIDATE_EMAIL) ||
         !filter_var($from,FILTER_VALIDATE_EMAIL) ||
         !is_int($port) || !in_array($port,[25,465,587],true) ||
-        !in_array($security,['starttls','ssl'],true) ||
+        !in_array($security,['starttls','ssl','none'],true) ||
+        // Unencrypted AUTH is allowed only to the local CISHOST relay.
+        ($security==='none' && (strtolower($host)!=='localhost' || $port!==25)) ||
         ($port===465 && $security!=='ssl') ||
         ($port===587 && $security!=='starttls') ||
         strlen($config['password'])>512) {
@@ -69,8 +71,9 @@ function af_send_crop_smtp(string $to,string $sku,float $width,float $height,str
         $mailer->Password=$cfg['password'];
         $mailer->SMTPSecure=$cfg['security']==='ssl'
             ?PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS
-            :PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-        $mailer->SMTPAutoTLS=true;
+            :($cfg['security']==='starttls'
+                ?PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS:'');
+        $mailer->SMTPAutoTLS=$cfg['security']!=='none';
         $mailer->SMTPDebug=0;
         $mailer->Timeout=15;
         $mailer->SMTPOptions=['ssl'=>[
