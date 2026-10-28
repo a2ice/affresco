@@ -50,3 +50,43 @@
   #accountModal .account-sku-list{max-height:175px;}
   #accountModal .account-sku-link{min-height:44px;}
 }
+
+
+/* One cabinet for guest and account, with counter tabs. */
+#accountModal [hidden]{display:none!important;}
+#accountModal .account-panel{width:min(640px,calc(100vw - 32px));max-width:640px;box-sizing:border-box;}
+#accountModal .account-access{margin-top:20px;padding-bottom:8px;border-bottom:1px solid #d7cfc4;}
+#accountModal .account-login-fields{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+#accountModal .field-group input{display:block;box-sizing:border-box;width:100%;min-width:0;min-height:46px;padding:10px 12px;border:1px solid #b7ada1;border-radius:0;background:#fff;color:#25231f;font:500 16px/1.4 Manrope,sans-serif;}
+#accountModal .field-group input:focus{outline:2px solid #766453;outline-offset:2px;}
+#accountModal .account-email-control{position:relative;}
+#accountModal #accountEmail{padding-right:54px;}
+#accountModal .account-email-save{position:absolute;right:1px;top:1px;bottom:1px;width:46px;border:0;border-left:1px solid #ded9d2;background:transparent;color:#766453;display:grid;place-items:center;cursor:pointer;}
+#accountModal .account-email-save:hover{background:#eee9e1;color:#25231f;}
+#accountModal .account-email-save svg{width:21px;height:21px;}
+#accountModal .account-email-save:disabled{opacity:.45;cursor:wait;}
+#accountModal .account-stats{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:22px 0;}
+#accountModal .account-stats>button{border:1px solid #d7cfc4;background:transparent;min-width:0;padding:14px 5px;text-align:center;cursor:pointer;color:#25231f;}
+#accountModal .account-stats>button[aria-selected=true]{background:#fff;border-color:#766453;box-shadow:inset 0 -2px #766453;}
+#accountModal .account-stats>button:hover{background:#fff;}
+#accountModal button:focus-visible{outline:2px solid #766453;outline-offset:3px;}
+#accountModal .account-stats span{font-size:11px;line-height:1.4;}
+#accountModal .account-stats strong{font-size:28px;}
+#accountModal .account-collections{min-height:210px;}
+#accountModal .account-collections h3{margin:0 0 14px;font-size:28px;}
+#accountModal .account-activity{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0;margin:16px 0;font:400 12px/1.6 Manrope,sans-serif;}
+#accountModal .account-activity dt,#accountModal .account-activity dd{padding:9px 0;border-bottom:1px solid #e5dfd7;}
+#accountModal .account-activity dt{color:#726a60;}
+#accountModal .account-activity dd{margin:0 0 0 16px;text-align:right;color:#25231f;}
+#accountModal .account-footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-top:20px;}
+#accountModal .account-note:empty,#accountModal .feedback:empty{display:none;}
+@media(max-width:480px){
+  #accountModal .account-panel{width:calc(100vw - 20px);max-width:none;padding:40px 20px 24px;}
+  #accountModal .account-login-fields{grid-template-columns:1fr;gap:0;}
+  #accountModal .account-stats{gap:5px;margin:18px 0;}
+  #accountModal .account-stats>button{padding:12px 3px;}
+  #accountModal .account-stats span{font-size:10px;}
+  #accountModal .account-stats strong{font-size:25px;}
+  #accountModal .account-activity{font-size:11px;}
+  #accountModal .account-collections{min-height:180px;}
+}

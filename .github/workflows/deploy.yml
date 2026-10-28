@@ -49,6 +49,11 @@ jobs:
           while IFS= read -r -d '' file; do node --check "$file"; done < <(find public -type f -name '*.js' -print0)
           echo 'Syntax validation complete'
 
+      - name: Check unified cabinet and account activity
+        run: |
+          node tests/cabinet.mjs
+          php tests/account-activity.php
+
   preflight:
     name: Manual credentials presence check (no secret values)
     needs: validate
@@ -145,3 +150,4 @@ jobs:
             images/**
             **/Images/**
             **/images/**
+

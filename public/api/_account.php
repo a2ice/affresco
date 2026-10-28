@@ -143,3 +143,4 @@ function af_state(string $id, ?callable $edit=null): ?array {
     fclose($handle);
     return $state;
 }
+

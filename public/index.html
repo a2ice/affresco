@@ -14,9 +14,9 @@
   <link rel="stylesheet" href="/assets/css/design-tokens.css">
   <link rel="stylesheet" href="/assets/css/site.css">
   <link rel="stylesheet" href="/assets/css/editorial.css?v=favorites-popup-20261028">
-  <link rel="stylesheet" href="/assets/css/account.css?v=favorites-finish-20261028-2">
-  <script src="/assets/js/account.js?v=favorites-numeric-sku-20261028" defer></script>
-  <script src="/assets/js/site.js?v=smtp-mail-inline-validation-20261028" defer></script>
+  <link rel="stylesheet" href="/assets/css/account.css?v=unified-cabinet-20261028">
+  <script src="/assets/js/account.js?v=unified-cabinet-20261028" defer></script>
+  <script src="/assets/js/site.js?v=unified-cabinet-20261028" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#content">Перейти к содержимому</a>
@@ -295,51 +295,72 @@
     </div>
   </div>
 
-  <div class="modal" id="loginModal" hidden>
-    <div class="modal-panel modal-small" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
-      <button class="modal-close" type="button" aria-label="Закрыть окно входа" data-close>×</button>
-      <span class="eyebrow">ЛИЧНЫЙ КАБИНЕТ</span>
-      <h2 id="loginTitle">Войти в аккаунт</h2>
-      <p id="loginFeedback" role="status" aria-live="polite">Введите логин и пароль, выданные для демонстрации.</p>
-      <form id="loginForm" method="post" action="/api/auth.php" autocomplete="on">
-        <div class="field-group"><label for="loginName">Логин</label><input id="loginName" name="username" type="text" autocomplete="username" placeholder="Логин" minlength="1" maxlength="100" required></div>
-        <div class="field-group"><label for="loginPassword">Пароль</label><input id="loginPassword" name="password" type="password" autocomplete="current-password" placeholder="Пароль" required></div>
-        <button type="submit" class="button button-primary button-wide" id="loginSubmit">Войти</button>
-      </form>
-      <button type="button" id="backToEditor" class="modal-back" hidden>← Вернуться к кадрированию</button>
-    </div>
-  </div>
   <div class="modal" id="accountModal" hidden>
-    <div class="modal-panel modal-small" role="dialog" aria-modal="true" aria-labelledby="accountTitle">
-      <button class="modal-close" type="button" aria-label="Закрыть кабинет" data-close>×</button>
+    <div class="modal-panel modal-small account-panel" role="dialog" aria-modal="true" aria-labelledby="accountTitle">
+      <button class="modal-close" type="button" aria-label="Закрыть личный кабинет" data-close>×</button>
       <span class="eyebrow">ЛИЧНЫЙ КАБИНЕТ</span>
-      <h2 id="accountTitle">Ваш аккаунт</h2>
-      <p class="account-identity">Логин: <strong id="accountName"></strong></p>
-      <form id="accountEmailForm" class="account-email-form">
-        <div class="field-group">
-          <label for="accountEmail">Электронная почта</label>
-          <input id="accountEmail" type="email" name="email" placeholder="name@example.com" autocomplete="email" inputmode="email" maxlength="254" required>
+      <h2 id="accountTitle">Ваше пространство</h2>
+      <div class="account-access">
+        <div id="accountGuestAccess">
+          <form id="loginForm" method="post" action="/api/auth.php" autocomplete="on">
+            <div class="account-login-fields">
+              <div class="field-group"><label for="loginName">Логин</label><input id="loginName" name="username" type="text" autocomplete="username" placeholder="Логин" maxlength="100" required></div>
+              <div class="field-group"><label for="loginPassword">Пароль</label><input id="loginPassword" name="password" type="password" autocomplete="current-password" placeholder="Пароль" maxlength="512" required></div>
+            </div>
+            <button type="submit" class="button button-primary button-wide" id="loginSubmit">Войти</button>
+            <p id="loginFeedback" class="account-note" role="status" aria-live="polite">Войдите, чтобы открыть данные своего аккаунта.</p>
+          </form>
         </div>
-        <button type="submit" class="button button-secondary" id="accountEmailSubmit">Сохранить email</button>
-        <p id="accountEmailFeedback" role="status" aria-live="polite"></p>
-      </form>
-      <div class="account-stats">
-        <div><strong id="accountFavorites">0</strong><span>Избранных фресок</span></div>
-        <div><strong id="accountEdits">0</strong><span>Сохранённых кадров</span></div>
-        <div><strong id="accountGenerations">0</strong><span>Успешных генераций</span></div>
+        <div id="accountMemberAccess" hidden>
+          <form id="accountEmailForm" class="account-email-form">
+            <div class="field-group">
+              <label for="accountEmail">Электронная почта</label>
+              <div class="account-email-control">
+                <input id="accountEmail" type="email" name="email" placeholder="name@example.com" autocomplete="email" inputmode="email" maxlength="254" required>
+                <button type="submit" id="accountEmailSubmit" class="account-email-save" aria-label="Сохранить электронную почту" title="Сохранить электронную почту">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" focusable="false"><path d="M5 3h12l4 4v14H3V3h2Z"/><path d="M7 3v6h10V3M7 21v-8h10v8"/></svg>
+                </button>
+              </div>
+            </div>
+            <p id="accountEmailFeedback" class="account-note" role="status" aria-live="polite"></p>
+          </form>
+        </div>
       </div>
-      <p class="account-quota" id="accountQuota"></p>
-      <p class="account-quota" id="accountActivity"></p>
-      <p class="account-note">Примерка с AI пока не подключена. Счётчик увеличится только после реальных успешных генераций.</p>
+      <div class="account-stats" role="tablist" aria-label="Разделы личного кабинета">
+        <button type="button" id="accountTabInfo" role="tab" aria-controls="accountPanelInfo" aria-selected="true" tabindex="0"><strong aria-hidden="true">i</strong><span>Инфо</span></button>
+        <button type="button" id="accountTabFavorites" role="tab" aria-controls="accountPanelFavorites" aria-selected="false" tabindex="-1"><strong id="accountFavorites">0</strong><span>Избранные</span></button>
+        <button type="button" id="accountTabDrafts" role="tab" aria-controls="accountPanelDrafts" aria-selected="false" tabindex="-1"><strong id="accountEdits">0</strong><span>Сохранённые кадры</span></button>
+        <button type="button" id="accountTabGenerations" role="tab" aria-controls="accountPanelGenerations" aria-selected="false" tabindex="-1"><strong id="accountGenerations">0</strong><span>Генерации</span></button>
+      </div>
       <div class="account-collections">
-        <h3>Избранные фрески</h3>
-        <div id="accountFavoriteList" class="account-sku-list">Пока нет избранных.</div>
-        <button id="accountShowFavorites" type="button" class="text-link account-view-favorites" hidden>Посмотреть избранное в каталоге</button>
-        <h3>Отредактированные фрески</h3>
-        <div id="accountDraftList" class="account-sku-list">Пока нет сохранённых кадров.</div>
+        <section id="accountPanelInfo" role="tabpanel" aria-labelledby="accountTabInfo" tabindex="0">
+          <h3>Общая информация</h3>
+          <p class="account-identity" id="accountIdentity"></p>
+          <p class="account-note" id="accountScope"></p>
+          <dl class="account-activity" id="accountActivity"></dl>
+          <p class="account-note" id="accountMailNote">Учитываются письма, принятые почтовым сервером с момента включения статистики отправок.</p>
+        </section>
+        <section id="accountPanelFavorites" role="tabpanel" aria-labelledby="accountTabFavorites" tabindex="0" hidden>
+          <h3>Избранные фрески</h3>
+          <div id="accountFavoriteList" class="account-sku-list"></div>
+          <button id="accountShowFavorites" type="button" class="text-link account-view-favorites" hidden>Посмотреть избранное в каталоге</button>
+        </section>
+        <section id="accountPanelDrafts" role="tabpanel" aria-labelledby="accountTabDrafts" tabindex="0" hidden>
+          <h3>Сохранённые кадры</h3>
+          <p id="accountDraftScope" class="account-note"></p>
+          <div id="accountDraftList" class="account-sku-list"></div>
+        </section>
+        <section id="accountPanelGenerations" role="tabpanel" aria-labelledby="accountTabGenerations" tabindex="0" hidden>
+          <h3>Генерации</h3>
+          <p class="account-quota" id="accountQuota"></p>
+          <p class="account-note">Примерка с AI пока не подключена. Здесь появятся результаты реальных генераций.</p>
+        </section>
       </div>
       <p id="accountFeedback" class="feedback" role="status" aria-live="polite"></p>
-      <button type="button" class="button button-secondary button-wide" id="logoutButton">Выйти</button>
+      <div class="account-footer">
+        <button type="button" class="text-link" id="logoutButton" hidden>Выйти из аккаунта</button>
+        <button type="button" id="backToEditor" class="modal-back" hidden>← Вернуться к кадрированию</button>
+      </div>
     </div>
   </div>
   <div class="modal" id="futureModal" hidden>

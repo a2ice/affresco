@@ -6,7 +6,7 @@ af_session();
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 if ($method === 'GET') {
     $row = af_current_account();
-    af_response(200, $row ? ['authenticated'=>true,'account'=>af_public_account($row)] : ['authenticated'=>false]);
+    af_response(200, $row ? ['authenticated'=>true,'account'=>af_public_account($row)] : ['authenticated'=>false,'activity'=>af_guest_activity()]);
 }
 if ($method !== 'POST') af_response(405, ['error'=>'method_not_allowed']);
 af_guard_post();
@@ -16,7 +16,7 @@ if (!is_array($data)) af_response(422, ['error'=>'invalid_request']);
 if (($data['action'] ?? '') === 'logout') {
     unset($_SESSION['afreska_user_id']);
     session_regenerate_id(true);
-    af_response(200, ['authenticated'=>false]);
+    af_response(200, ['authenticated'=>false,'activity'=>af_guest_activity()]);
 }
 if (($data['action'] ?? '') !== 'login') af_response(422, ['error'=>'invalid_action']);
 $login = $data['login'] ?? null;
@@ -48,4 +48,6 @@ session_regenerate_id(true);
 $_SESSION['affresco_login_attempts'] = [];
 $_SESSION['afreska_user_id'] = (string)$row['id'];
 af_track_usage((string)$row['id'], 'login');
+$row=af_current_account()??$row;
 af_response(200, ['authenticated'=>true,'account'=>af_public_account($row)]);
+
