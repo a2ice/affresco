@@ -499,6 +499,7 @@
       const job=completed[i],figure=document.createElement('figure'),img=document.createElement('img');
       img.src=job.image_url;img.alt='AI-вариант примерки №'+(i+1);
       img.loading='lazy';
+      img.addEventListener('error',()=>aiError('Готовое AI-изображение не загрузилось с сервера. Обновите страницу и попробуйте снова.'),{once:true});
       const cap=document.createElement('figcaption');
       cap.textContent='AI-вариант №'+(i+1)+' · Сохранено на сервере';
       figure.append(img,cap);target.append(figure);
@@ -507,7 +508,15 @@
     const newest=completed.at(-1);
     if(scrollToNewest&&newest&&!oldIds.has(newest.id)&&!$('tryonModal').hidden){
       const node=target.lastElementChild;
-      if(node)requestAnimationFrame(()=>node.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'}));
+      if(node){
+        const image=node.querySelector('img');
+        const reveal=()=>requestAnimationFrame(()=>node.scrollIntoView({block:'start',behavior:window.matchMedia?.('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'}));
+        if(image){
+          image.loading='eager';
+          if(image.complete&&image.naturalWidth>0)reveal();
+          else image.addEventListener('load',reveal,{once:true});
+        }else reveal();
+      }
       aiLastShown=newest.id;
     }
   }
