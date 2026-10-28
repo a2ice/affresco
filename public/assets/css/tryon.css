@@ -72,3 +72,21 @@
 @media(prefers-reduced-motion:reduce){.tryon-upload-icon{transition:none;}}
 
 @media(min-width:641px){#tryonModal #tryonLightCancel{min-width:96px;}}
+
+
+/* Calibrated wall plane and physical placement. */
+#tryonModal #tryonTitle{font-size:32px;line-height:1.15;margin:10px 0 18px;}
+.tryon-summary-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 18px;}
+.tryon-summary-row .tryon-note{margin:0;}
+.tryon-copy-sku{display:inline-grid;place-items:center;width:32px;height:32px;border:1px solid #d7cfc4;background:transparent;color:#766453;cursor:pointer;}
+.tryon-copy-sku svg{width:17px;height:17px;}
+.tryon-layers{display:flex;gap:8px;margin:18px 0;}
+.tryon-layers button{min-height:42px;min-width:110px;padding:10px 20px;border:1px solid #b7ada1;background:transparent;color:#766453;font:500 13px/1.4 Manrope,sans-serif;cursor:pointer;}
+.tryon-layers button[aria-pressed=true]{background:#766453;color:#fff;}
+.tryon-layers button:disabled{opacity:.45;cursor:not-allowed;}
+#tryonModal .tryon-wall-controls{margin-top:22px;gap:20px;}
+#tryonModal .tryon-note{line-height:1.8;}
+#tryonModal .tryon-fit{margin:16px 0;line-height:1.8;}
+#tryonModal #tryonPlacementActions{margin-top:22px;}
+#tryonModal .tryon-state-row{margin-top:18px;gap:14px 22px;}
+@media(max-width:640px){#tryonModal #tryonTitle{font-size:24px;}#tryonModal .tryon-wall-controls{gap:0;}.tryon-layers button{flex:1;}}

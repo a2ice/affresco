@@ -28,11 +28,12 @@ if ($email==='' || strlen($email)>254 ||
     !preg_match('/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/iD',$domain)) {
     af_response(422,['error'=>'invalid_email']);
 }
+$minimumDimension=$kind==='tryon'?0.1:30;
 if (!is_string($sku) || preg_match('/^[A-Za-z0-9_.-]{1,100}$/D',$sku)!==1 ||
     !is_string($image) || strlen($image)>3300000 ||
     !is_numeric($width) || !is_numeric($height) ||
     !is_finite((float)$width) || !is_finite((float)$height) ||
-    (float)$width<30 || (float)$height<30 || (float)$width>1000 || (float)$height>1000) {
+    (float)$width<$minimumDimension || (float)$height<$minimumDimension || (float)$width>1000 || (float)$height>1000) {
     af_response(422,['error'=>'invalid_request']);
 }
 if (!str_starts_with($image,'data:image/jpeg;base64,'))af_response(422,['error'=>'invalid_image']);
@@ -129,5 +130,6 @@ if ($account!==null) {
 }
 af_response(200,['accepted'=>true,'email'=>$email,'sku'=>$sku,
     'email_saved'=>$account!==null ? $emailSaved : null]);
+
 
 

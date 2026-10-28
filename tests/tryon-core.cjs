@@ -54,3 +54,29 @@ const controlA=core.controlPoints(moved,.5),controlB=core.controlPoints(moved,2)
 assert.equal(controlA.length,4);assert.equal(controlB.length,4);
 assert.equal(controlA[0].x,50);assert.equal(controlB[0].x,200);
 console.log('PASS: light direction/tone/intensity, fresco-only clipping and CSS-space control coordinates');
+
+
+const calibratedWall=[{x:80,y:100},{x:900,y:40},{x:820,y:650},{x:110,y:580}];
+for(const [u,v] of [[0,0],[1,1],[.5,.5],[.15,.85],[.9,.1]]){
+ const p=core.project(calibratedWall,u,v),back=core.unproject(calibratedWall,p);
+ assert.ok(Math.abs(back.x-u)<1e-8&&Math.abs(back.y-v)<1e-8,'Wall coordinate inversion');
+}
+const wall={width:500,height:275},source={width_cm:320,height_cm:210};
+const physical=core.placement(source,wall,100);
+assert.equal(physical.width,320);assert.equal(physical.height,210);
+const over=core.placement(source,wall,500);assert.equal(over.width,320,'Cannot exceed source size');
+const oversized=core.placement(source,{width:200,height:100},100);
+assert.ok(oversized.width<=200&&oversized.height<=100,'Cannot exceed wall');
+const mapped=core.placementQuad(calibratedWall,wall,physical);
+for(let i=0;i<4;i++){
+ const un=core.unproject(calibratedWall,mapped[i]);assert.ok(un.x>=-1e-8&&un.y>=-1e-8&&un.x<=1+1e-8&&un.y<=1+1e-8);
+}
+for(let i=0;i<4;i++){
+ const enlarged=core.resizePlacement(physical,i,{x:i===0||i===3?-1000:1500,y:i===0||i===1?-1000:1500},source,wall);
+ assert.ok(enlarged.width<=320+1e-8&&enlarged.height<=210+1e-8);
+ assert.ok(enlarged.x>=-1e-8&&enlarged.y>=-1e-8&&enlarged.x+enlarged.width<=500+1e-8&&enlarged.y+enlarged.height<=275+1e-8);
+ assert.ok(Math.abs(enlarged.width/enlarged.height-320/210)<1e-8);
+}
+const bounded=core.movePlacement(physical,10000,-10000,wall);
+assert.equal(bounded.y,0);assert.ok(bounded.x+bounded.width<=500);
+console.log('PASS: wall calibration, inverse perspective, physical source/wall caps, aspect ratio and bounded placement');

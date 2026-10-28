@@ -37,15 +37,45 @@
     const next=quad.map(p=>({x:center.x+(p.x-center.x)*scale,y:center.y+(p.y-center.y)*scale}));
     return translate(next,0,0,width,height);
   }
-  function project(quad,u,v){
+  function homography(quad){
     const [a,b,c,d]=quad;
     const dx1=b.x-c.x,dx2=d.x-c.x,dx3=a.x-b.x+c.x-d.x;
     const dy1=b.y-c.y,dy2=d.y-c.y,dy3=a.y-b.y+c.y-d.y;
     const den=dx1*dy2-dx2*dy1;
     let g=0,h=0;
     if(Math.abs(dx3)+Math.abs(dy3)>1e-8&&Math.abs(den)>1e-8){g=(dx3*dy2-dx2*dy3)/den;h=(dx1*dy3-dx3*dy1)/den;}
-    const divisor=g*u+h*v+1;
-    return {x:((b.x-a.x+g*b.x)*u+(d.x-a.x+h*d.x)*v+a.x)/divisor,y:((b.y-a.y+g*b.y)*u+(d.y-a.y+h*d.y)*v+a.y)/divisor};
+    return [b.x-a.x+g*b.x,d.x-a.x+h*d.x,a.x,b.y-a.y+g*b.y,d.y-a.y+h*d.y,a.y,g,h];
+  }
+  function project(quad,u,v){
+    const m=homography(quad),divisor=m[6]*u+m[7]*v+1;
+    return {x:(m[0]*u+m[1]*v+m[2])/divisor,y:(m[3]*u+m[4]*v+m[5])/divisor};
+  }
+  function unproject(quad,point){
+    const m=homography(quad),a=m[0]-point.x*m[6],b=m[1]-point.x*m[7],c=point.x-m[2];
+    const d=m[3]-point.y*m[6],e=m[4]-point.y*m[7],f=point.y-m[5],det=a*e-b*d;
+    if(Math.abs(det)<1e-10)return null;
+    return {x:(c*e-b*f)/det,y:(a*f-c*d)/det};
+  }
+  function maxPlacementPercent(source,wall){return Math.min(100,wall.width/source.width_cm*100,wall.height/source.height_cm*100);}
+  function placement(source,wall,percent=100,previous=null){
+    const number=Number(percent),factor=clamp(Number.isFinite(number)?number:100,1,maxPlacementPercent(source,wall))/100;
+    const width=source.width_cm*factor,height=source.height_cm*factor;
+    const cx=previous?previous.x+previous.width/2:wall.width/2,cy=previous?previous.y+previous.height/2:wall.height/2;
+    return {x:clamp(cx-width/2,0,wall.width-width),y:clamp(cy-height/2,0,wall.height-height),width,height};
+  }
+  function placementQuad(wallQuad,wall,box){
+    return [[box.x,box.y],[box.x+box.width,box.y],[box.x+box.width,box.y+box.height],[box.x,box.y+box.height]].map(([x,y])=>project(wallQuad,x/wall.width,y/wall.height));
+  }
+  function movePlacement(box,dx,dy,wall){return {...box,x:clamp(box.x+dx,0,wall.width-box.width),y:clamp(box.y+dy,0,wall.height-box.height)};}
+  function resizePlacement(box,index,point,source,wall){
+    const left=index===0||index===3,top=index===0||index===1;
+    const anchor={x:left?box.x+box.width:box.x,y:top?box.y+box.height:box.y};
+    if((left&&point.x>=anchor.x)||(!left&&point.x<=anchor.x)||(top&&point.y>=anchor.y)||(!top&&point.y<=anchor.y))return box;
+    const aspect=source.width_cm/source.height_cm;
+    const cap=Math.min(source.width_cm,left?anchor.x:wall.width-anchor.x,(top?anchor.y:wall.height-anchor.y)*aspect);
+    const wanted=Math.max(Math.abs(point.x-anchor.x),Math.abs(point.y-anchor.y)*aspect);
+    const width=clamp(wanted,Math.min(source.width_cm*.01,cap),cap),height=width/aspect;
+    return {x:left?anchor.x-width:anchor.x,y:top?anchor.y-height:anchor.y,width,height};
   }
   function triangle(ctx,image,src,dst){
     const [s0,s1,s2]=src,[d0,d1,d2]=dst;
@@ -104,8 +134,9 @@
     }
   }
   function historyLimit(owner){return typeof owner==='string'&&owner.indexOf('account:')===0?12:3;}
-  const api={makeLight,drawLight,controlPoints,historyLimit,presets,wallValue,fits,frame,move,rectangle,convex,corner,translate,resize,project,inside,warp,draw};
+  const api={homography,unproject,maxPlacementPercent,placement,placementQuad,movePlacement,resizePlacement,makeLight,drawLight,controlPoints,historyLimit,presets,wallValue,fits,frame,move,rectangle,convex,corner,translate,resize,project,inside,warp,draw};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.affrescoTryonCore=api;
 })(typeof window!=='undefined'?window:globalThis);
+
 
 

@@ -17,9 +17,9 @@
   <link rel="stylesheet" href="/assets/css/account.css?v=unified-cabinet-20261028">
   <script src="/assets/js/tryon-compat.js?v=tryon-upload-20261028" defer></script>
   <script src="/assets/js/account.js?v=manual-tryon-20261028" defer></script>
-  <link rel="stylesheet" href="/assets/css/tryon.css?v=tryon-light-footer-20261028">
-  <script src="/assets/js/tryon-core.js?v=tryon-light-20261028" defer></script>
-  <script src="/assets/js/tryon.js?v=tryon-light-20261028" defer></script>
+  <link rel="stylesheet" href="/assets/css/tryon.css?v=wall-calibration-20261028">
+  <script src="/assets/js/tryon-core.js?v=wall-calibration-20261028" defer></script>
+  <script src="/assets/js/tryon.js?v=wall-calibration-20261028" defer></script>
   <script src="/assets/js/site.js?v=manual-tryon-20261028" defer></script>
 </head>
 <body>
@@ -378,7 +378,7 @@
       <div class="tryon-scroll" id="tryonScroll">
       <span class="eyebrow">ПРИМЕРКА В ИНТЕРЬЕРЕ</span>
       <h2 id="tryonTitle">Ваша фреска в комнате</h2>
-      <p id="tryonSummary" class="tryon-note"></p>
+      <div class="tryon-summary-row"><p id="tryonSummary" class="tryon-note"></p><button type="button" id="tryonCopySku" class="tryon-copy-sku" title="Скопировать артикул" aria-label="Скопировать артикул"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="1"/><path d="M16 8V3H3v13h5"/></svg></button><span id="tryonCopyFeedback" class="tryon-note" role="status" aria-live="polite"></span></div>
       <p id="tryonCompatibilityMessage" class="tryon-compatibility" role="status" hidden></p>
       <p id="tryonStorageNote" class="tryon-note"></p>
       <div id="tryonUploadStep">
@@ -392,7 +392,7 @@
       <div id="tryonWorkspace" hidden>
         <div class="tryon-wall-controls">
           <div class="field-group"><label for="tryonPreset">Размер стены</label><select id="tryonPreset">
-            <option value="">Без размеров / свой размер</option>
+            <option value="custom">Свой размер</option>
             <option value="standard">Стандартная комната · 500 × 275 см</option>
             <option value="high">Высокие потолки · 500 × 350 см</option>
             <option value="hall">Большой зал · 800 × 400 см</option>
@@ -400,16 +400,17 @@
             <option value="wide">Широкая стена · 650 × 300 см</option>
           </select></div>
           <div class="tryon-dimensions">
-            <div class="field-group"><label for="tryonWallWidth">Ширина стены, см</label><input id="tryonWallWidth" type="number" inputmode="decimal" min="30" max="5000" step="any" placeholder="Необязательно"></div>
-            <div class="field-group"><label for="tryonWallHeight">Высота стены, см</label><input id="tryonWallHeight" type="number" inputmode="decimal" min="30" max="5000" step="any" placeholder="Необязательно"></div>
+            <div class="field-group"><label for="tryonWallWidth">Ширина стены, см</label><input id="tryonWallWidth" type="number" inputmode="decimal" min="30" max="5000" step="any" required></div>
+            <div class="field-group"><label for="tryonWallHeight">Высота стены, см</label><input id="tryonWallHeight" type="number" inputmode="decimal" min="30" max="5000" step="any" required></div>
           </div>
         </div>
+        <div class="tryon-layers" role="group" aria-label="Активный слой"><button type="button" id="tryonLayerWall" aria-pressed="true">Стена</button><button type="button" id="tryonLayerFresco" aria-pressed="false" disabled>Фреска</button></div>
         <p id="tryonFit" class="tryon-fit" role="status" aria-live="polite"></p>
-        <div class="tryon-stage" id="tryonStage"><canvas id="tryonCanvas" tabindex="0" aria-label="Примерка фрески. Перетаскивайте фреску мышью или пальцем. Для перемещения с клавиатуры используйте стрелки."></canvas><svg id="tryonControls" class="tryon-controls" aria-hidden="true" focusable="false"></svg></div>
-        <div id="tryonSetupActions"><p class="tryon-note">Размеры стены можно не указывать. Их можно будет изменить и на следующем шаге.</p><button type="button" class="button button-primary" id="tryonBegin">Разместить фреску</button></div>
+        <div class="tryon-stage" id="tryonStage"><canvas id="tryonCanvas" tabindex="0" aria-label="Стена и фреска. Перемещайте слой или его углы мышью или пальцем. Стрелки — перемещение; клавиши 1–4 — выбор угла; 0 — слой целиком."></canvas><svg id="tryonControls" class="tryon-controls" aria-hidden="true" focusable="false"></svg></div>
+        <div id="tryonSetupActions"><p class="tryon-note">Отметьте четыре угла одной прямоугольной стены. Ширина — нижняя сторона, высота — левая.</p><button type="button" class="button button-primary" id="tryonBegin">Подтвердить стену</button></div>
         <div id="tryonPlacementActions" hidden>
-          <div class="field-group"><label for="tryonHandle">Управление с клавиатуры</label><select id="tryonHandle"><option value="layer">Перемещение всей фрески</option><option value="0">Левый верхний угол</option><option value="1">Правый верхний угол</option><option value="2">Правый нижний угол</option><option value="3">Левый нижний угол</option></select></div>
-          <div class="field-group"><label for="tryonScale">Масштаб на фото <span id="tryonScaleValue"></span></label><input id="tryonScale" type="range" min="5" max="100" value="50" step="1"></div>
+          <input id="tryonHandle" type="hidden" value="layer">
+          <div class="field-group"><label for="tryonScale">Размер фрески <span id="tryonScaleValue"></span></label><input id="tryonScale" type="range" min="1" max="100" value="100" step="0.1"></div>
           
           
         </div>
@@ -426,5 +427,6 @@
   </div>
 </body>
 </html>
+
 
 
