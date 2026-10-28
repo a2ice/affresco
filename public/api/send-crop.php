@@ -3,6 +3,7 @@ declare(strict_types=1);
 require __DIR__ . '/_account.php';
 require __DIR__ . '/_account_email.php';
 require __DIR__ . '/_smtp_mail.php';
+require __DIR__ . '/_usage.php';
 af_session();
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     header('Allow: POST');
@@ -117,7 +118,13 @@ if (!$accepted) {
 // SMTP success confirms acceptance by the remote SMTP server, not inbox delivery.
 $emailSaved=false;
 if ($account!==null) {
+    af_track_usage((string)$account['id'],'email');
+} else {
+    af_track_guest_email();
+}
+if ($account!==null) {
     $emailSaved=af_save_account_email((string)$account['id'],$email);
 }
 af_response(200,['accepted'=>true,'email'=>$email,'sku'=>$sku,
     'email_saved'=>$account!==null ? $emailSaved : null]);
+

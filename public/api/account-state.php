@@ -52,4 +52,6 @@ $items=array_values(array_filter(array_map(
 ),static fn($v)=>is_string($v) && preg_match('/^[a-zA-Z0-9_.-]{1,100}$/D',$v)===1));
 $drafts=$data['drafts'];
 af_response(200,['scope'=>'account','items'=>$items,'count'=>count($items),
-    'drafts'=>$drafts,'draft_count'=>count($drafts)]);
+    'drafts'=>$drafts,'draft_count'=>count($drafts),
+    'account'=>af_public_account(af_current_account()??$account)]);
+

@@ -19,6 +19,10 @@ function af_track_usage(string $userId, string $event, ?string $sku=null): void 
                 $entry['last_login']=gmdate('c');
                 $entry['login_count']=max(0,(int)($entry['login_count']??0))+1;
                 $changed=true;
+            } elseif ($event==='email'){
+                $entry['last_email']=gmdate('c');
+                $entry['emails_count']=max(0,(int)($entry['emails_count']??0))+1;
+                $changed=true;
             } elseif ($event==='edit' && $sku!==null){
                 $entry['last_update']=gmdate('c');
                 $entry['updates_count']=max(0,(int)($entry['updates_count']??0))+1;
@@ -44,4 +48,21 @@ function af_track_usage(string $userId, string $event, ?string $sku=null): void 
     }
     flock($handle,LOCK_UN);
     fclose($handle);
+}
+
+
+/** Guest mail activity is isolated from account history and retained in session. */
+function af_guest_activity(): array {
+    $activity=$_SESSION['affresco_guest_activity']??[];
+    if (!is_array($activity)) $activity=[];
+    return [
+        'emails_count'=>max(0,(int)($activity['emails_count']??0)),
+        'last_email'=>is_string($activity['last_email']??null)?$activity['last_email']:null
+    ];
+}
+function af_track_guest_email(): void {
+    $activity=af_guest_activity();
+    $activity['emails_count']++;
+    $activity['last_email']=gmdate('c');
+    $_SESSION['affresco_guest_activity']=$activity;
 }

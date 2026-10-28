@@ -71,7 +71,7 @@
   const selectedSku = $('selectedSku');
   const modalPicker = $('pickerModal');
   const modalEditor = $('editorModal');
-  const modalLogin = $('loginModal');
+  const modalLogin = $('accountModal');
   const modalAccount = $('accountModal');
   const modalFuture = $('futureModal');
   const modalEmail = $('emailModal');
@@ -82,7 +82,7 @@
   let emailSendBusy = false;
   let emailSendRequest = 0;
   let preparedEmailCrop = null;
-  const modals = [modalPicker, modalEditor, modalLogin, modalAccount, modalFuture, modalEmail, modalEmailSuccess, modalFavorites];
+  const modals = [modalPicker, modalEditor, modalAccount, modalFuture, modalEmail, modalEmailSuccess, modalFavorites];
   let previousFocus = null;
   let openDialog = null;
   let items = [];
@@ -127,6 +127,7 @@
     }
     try {
       localStorage.setItem(storageKey(currentItem.sku), JSON.stringify(payload));
+      window.affrescoAccount?.recordGuestSave();
       // Successful saves are silent; errors remain accessible in the footer.
       feedback.textContent='';
       feedback.classList.remove('error');
@@ -548,7 +549,7 @@
       if(requestRevision!==favoritesRevision)return;
       if(!data||data.scope!==(accountMode?'account':'guest')||!Array.isArray(data.items))throw Error('invalid favorites');
       if(accountMode!==Boolean(window.affrescoAccount?.signedIn()))return;
-      if(accountMode)window.affrescoAccount.setCollection(data);
+      window.affrescoAccount?.setCollection(data);
       const previous=favorites;
       favorites=new Set(data.items.map(normalizeSku).filter(safeSku));
       favoritesReady=true;
@@ -573,6 +574,7 @@
         showCatalogToast('Не удалось подключить избранное. Повторите попытку.');
       });
     }
+    const identityAtStart=window.affrescoAccount?.identity();
     pendingFavoriteSkus.add(sku);
     ++favoritesRevision;
     refreshFavoritesUI();
@@ -581,6 +583,7 @@
     favoriteMutationQueue=favoriteMutationQueue.then(async()=>{
       const action=favorites.has(sku)?'remove':'add';
       try{
+        if(identityAtStart!==window.affrescoAccount?.identity())return;
         const accountMode=Boolean(window.affrescoAccount?.signedIn());
         const result=await fetch(window.affrescoAccount?.url()||'/api/favorites.php',{
           method:'POST',credentials:'same-origin',cache:'no-store',
@@ -590,8 +593,8 @@
         if(!result.ok)throw Error('HTTP '+result.status);
         const data=await result.json();
         if(!data||data.scope!==(accountMode?'account':'guest')||!Array.isArray(data.items))throw Error('invalid favorites');
-        if(accountMode!==Boolean(window.affrescoAccount?.signedIn()))return;
-        if(accountMode)window.affrescoAccount.setCollection(data);
+        if(accountMode!==Boolean(window.affrescoAccount?.signedIn())||identityAtStart!==window.affrescoAccount?.identity())return;
+        window.affrescoAccount?.setCollection(data);
         favorites=new Set(data.items.map(normalizeSku).filter(safeSku));
         showFavoritesError('');
         showCatalogToast(action==='add'?'Фреска добавлена в избранное':'Фреска удалена из избранного');
@@ -805,6 +808,15 @@
     renderFavoritesModal();
     setModal(modalFavorites,favoritesToggle);
     if(!favoritesReady)void loadFavorites();
+  });
+  window.addEventListener('affresco:auth-changed',()=>{
+    ++favoritesRevision;
+    favorites=new Set();
+    favoritesReady=false;
+    favoritesOnly=false;
+    refreshFavoritesUI();
+    resetAndRenderCatalog();
+    void favoriteMutationQueue.finally(()=>loadFavorites());
   });
   favoritesLogin.addEventListener('click',()=>setModal(modalLogin));
   favoritesReload.addEventListener('click',async()=>{
@@ -1469,6 +1481,7 @@
         throw new Error(result?.error||'mail_unavailable');
       }
       if(result.email_saved===true)window.affrescoAccount?.setEmailFromSend(email);
+      void window.affrescoAccount?.refreshProfile().catch(()=>{});
       if(openDialog===modalEmail&&requestId===emailSendRequest){
         preparedEmailCrop=null;
         $('emailSuccessDescription').textContent='Письмо с выбранным кадром принято SMTP-сервером для '+email+
