@@ -97,7 +97,9 @@ function af_public_account(array $row): array {
         'last_login'=>is_string($row['last_login']??null)?$row['last_login']:null,
         'login_count'=>max(0,(int)($row['login_count']??0)),
         'last_update'=>is_string($row['last_update']??null)?$row['last_update']:null,
-        'updates_count'=>max(0,(int)($row['updates_count']??0))
+        'updates_count'=>max(0,(int)($row['updates_count']??0)),
+        'emails_count'=>max(0,(int)($row['emails_count']??0)),
+        'last_email'=>is_string($row['last_email']??null)?$row['last_email']:null
     ];
 }
 function af_account_state_file(string $id): string {
