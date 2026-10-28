@@ -216,7 +216,7 @@ function af_ai_occlusion_strokes(mixed $value): ?array {
     foreach($value as $item){
         if(!is_array($item)||!is_numeric($item['radius']??null))return null;
         $radius=(float)$item['radius'];
-        if(!is_finite($radius)||$radius<.002||$radius>.15)return null;
+        if(!is_finite($radius)||$radius<.00025||$radius>.15)return null;
         $points=$item['points']??null;
         if(!is_array($points)||!count($points)||count($points)>128)return null;
         $next=[];$total+=count($points);
@@ -244,8 +244,9 @@ function af_ai_prompt(array $meta): string {
     return <<<PROMPT
 ROLE: You are a constrained photograph editor, NOT an interior designer or room generator.
 TASK: Edit the ORIGINAL ROOM photo by installing ONLY the supplied FRESCO CROP in the wall location marked by MANUAL PLACEMENT GUIDE. Preserve the actual photographed scene. Return one edited photograph of the SAME room.
+PRIMARY GOAL: A convincing real-wall installation at the exact prescribed location, with physically correct layering against existing foreground objects. Automatic foreground interpretation is part of the task; no manual mask is required for normal results.
 
-THREE INPUTS (IN ORDER):
+THREE REFERENCE IMAGES (IN ORDER), PLUS OPTIONAL USER MARKS:
 1. ORIGINAL ROOM is the sole authority for what physically EXISTS: room architecture, camera, window, floor, fixtures, furniture (if any), plants (if any), objects, emptiness, natural light, shadows and materials.
 2. FRESCO CROP supplies the unmodified artwork.
 3. MANUAL PLACEMENT GUIDE supplies the exact four-corner mural geometry, wall perspective, position and scale. It is a placement diagram, NOT an instruction to decorate the room.
@@ -267,15 +268,30 @@ EXACT WALL ARTWORK GEOMETRY (DO NOT GUESS OR IMPROVE):
 - Do not stretch, widen, expand onto the rest of the wall, cover a larger area, crop away original artwork or relocate the fresco to an aesthetically convenient position.
 - Preserve the ORIGINAL ROOM's image aspect ratio and framing; never use a different camera shot or make a new interior view.
 
-CONDITIONAL OCCLUSION — ONLY FOR OBJECTS THAT ACTUALLY EXIST IN ORIGINAL ROOM:
-- First inspect ORIGINAL ROOM. If a genuine existing object stands in front of the target wall and overlaps the intended fresco footprint, keep its original silhouette and pixels in the foreground, hiding only the part of the fresco behind that object.
-- If no such object exists, do NOT invent an occluding object. Do NOT add furniture to demonstrate occlusion or to make the space feel lived-in.
-- Overlap in the MANUAL PLACEMENT GUIDE must be resolved by restoring actual foreground objects from ORIGINAL ROOM over the fixed wall artwork, NEVER by moving the artwork up/sideways, changing its size or deleting an existing object.
+AUTOMATIC FOREGROUND OCCLUSION — DEFAULT AND REQUIRED, NO USER BRUSH NEEDED:
+This is a DEPTH COMPOSITING problem, not a request to redesign or clear the room. Determine which original room pixels belong to physical objects closer to the camera than the fresco's back-wall plane. The ORIGINAL ROOM is the evidence for their existence, appearance and edges. In normal operation, infer this automatically; do NOT require a painted mask and do not ignore existing objects merely because the user did not mark them.
+
+Follow these steps internally before editing:
+1. STUDY THE UNALTERED ORIGINAL ROOM FIRST. Identify the back-wall plane, wall-attached architecture and all physical objects occupying the space in front of it. Use their real silhouettes, floor contact, spatial overlap, depth cues, cast shadows and edges. Detect even small or delicate foreground parts. Do not infer any object that is absent from the original.
+2. TREAT THE MANUAL PLACEMENT GUIDE AS AN UNMASKED WALL PROJECTION, not a final photomontage. In the guide, artwork can temporarily cover real objects because manual placement does NOT know scene depth. This is intentional and must NOT be interpreted as proof that those objects have been removed or need to be redesigned.
+3. PLACE THE COMPLETE FRESCO ON THE BACK WALL AT THE GUIDE'S EXACT QUADRILATERAL, PHYSICAL SIZE AND PERSPECTIVE. Keep its hidden underlying geometry fixed. Do NOT move it upward, shift it sideways, scale it down, enlarge it or recrop artwork to find uncovered wall.
+4. FOR EACH ORIGINAL FOREGROUND OBJECT whose camera-space silhouette overlaps that fixed mural projection, bring back its ORIGINAL pixels, edge, shape and appearance IN FRONT OF the mural. Restore the entire overlapping visible portion, including thin details and partially obscured outlines. The fresco is invisible wherever that existing foreground object covers the wall. Surrounding visible wall portions of the fresco remain at the original guide coordinates.
+5. If a foreground object extends beyond the mural quadrilateral, the part outside remains completely untouched and the overlapping part inside MUST visually connect to it WITHOUT A BREAK, a missing top, truncated corner, straight horizontal cut or changed color/texture. Preserve object continuity across the mural border. Do not let the fresco erase the upper part of an object whose lower part remains.
+6. Separate DEPTH OCCLUSION from ARCHITECTURAL CUTOUT: a freestanding object nearer the camera covers the wall decoration, whereas a real built-in opening interrupts the wall itself. Do not confuse the two. In both cases preserve the original real structure.
+
+CRITICAL VALIDATION ON THE SAME CAMERA FRAME:
+Compare every foreground silhouette in ORIGINAL ROOM against the candidate result, including the portions overlying the artwork. Nothing originally visible may disappear, be truncated, shift, shrink, turn into wall texture or be replaced by fresco pixels. In particular, if original furniture partially overlaps the target mural, its overlapping portion MUST still be visible in the final result. If this requires choosing between exact fresco coverage and keeping the actual object, KEEP THE ORIGINAL OBJECT IN FRONT; the hidden fresco area is simply not visible. Keep the mural's underlying quadrilateral fixed.
+If there is no foreground object in ORIGINAL ROOM, there is NOTHING to restore, and no furniture or decoration may be invented.
+
+OPTIONAL USER FOREGROUND MARKS:
+User-marked protection strokes, when present, reinforce specific original foreground pixels and are restored precisely by the delivery pipeline. They are an OPTIONAL correction aid, not a prerequisite for correctly identifying foreground objects. Do not place protected objects behind the fresco, redraw them or change their silhouettes.
 
 ARCHITECTURAL INTERRUPTIONS:
 - If the targeted wall region contains actual fixed architectural openings or built-in elements in ORIGINAL ROOM, keep them in their exact location, contour and depth, as if the thin wall covering were custom-trimmed around them. Never invent openings or features where there are none.
 
 LIGHT AND REFLECTIONS — ONLY IF PHYSICALLY JUSTIFIED BY ORIGINAL ROOM:
+- Use the supplied lighting data when present (normalized light direction and warm/cold tone) to adapt the surface appearance of the fresco and its very subtle contact shadow. Keep the room's real original lighting, exposure and all object shadows unchanged. If lighting is absent, match the existing wall illumination naturally; do not invent a light source.
+- The wall dimensions and fresco dimensions in centimetres are real installation constraints. Do not reinterpret them or change physical scale to accommodate object overlap. The user-defined four-corner perspective is a spatial constraint, not a style suggestion.
 - Maintain the original natural illumination. Add at most a subtle contact shadow for the thin fresco.
 - The delivery pipeline deliberately protects pixels OUTSIDE the fresco quadrilateral; do not attempt any new reflection or lighting change outside that boundary in this protected-editing mode. Preserving the original furniture and room exactly is more important than a decorative reflection.
 - Only consider small optical changes INSIDE the specified mural footprint; do not invent a table or polished surface to create reflections.
@@ -283,8 +299,8 @@ LIGHT AND REFLECTIONS — ONLY IF PHYSICALLY JUSTIFIED BY ORIGINAL ROOM:
 
 FINAL CHECK BEFORE OUTPUT:
 A. Compare with ORIGINAL ROOM: is every originally empty region still empty? Are ALL objects and architectural details unchanged and NO new items present?
-B. Compare with MANUAL PLACEMENT GUIDE: is the fresco still at the exact same four corners, size and perspective?
-C. If an existing object overlaps the fresco, is it still in front without moving either object or fresco?
+B. Compare with MANUAL PLACEMENT GUIDE: is the fresco still at the exact same four corners, size and perspective, even when its edges disappear behind original objects?
+C. Compare ORIGINAL ROOM and result at all foreground boundaries, especially where an object crosses the mural border. Does each original object remain complete, continuous and in front without moving either it or the mural?
 D. Is any reflection confined to an already existing real reflective surface? If uncertain, omit it.
 If any check fails, correct the EDIT; do not regenerate, decorate or restage the room.
 
