@@ -63,6 +63,31 @@ class ProtectedCompositionTests(unittest.TestCase):
                 self.assertEqual(photo.getpixel((40,110)),result.getpixel((40,110)),
                                  "Outside the mural always stays original")
 
+    def test_openai_edit_mask_is_one_perspective_quad(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            Image.new("RGB",(640,480),"white").save(root/"room.jpg")
+            # A tilted trapezoid must NOT be replaced with a straight source rectangle.
+            placement={"fresco_quad_normalized":[
+                [.20,.32],[.73,.20],[.79,.75],[.24,.68]],
+                "occlusion_strokes":[{"radius":.02,"points":[[.47,.48]]}]}
+            (root/"manifest.json").write_text(
+                json.dumps({"placement":placement}),encoding="utf8")
+            module.make_edit_mask(str(root/"room.jpg"),str(root/"manifest.json"),
+                                  str(root/"mask.png"))
+            with Image.open(root/"mask.png") as img:
+                self.assertEqual(img.size,(640,480),"Edit mask must match input room photo")
+                self.assertEqual(img.mode,"RGBA","Edit mask must contain real alpha")
+                self.assertEqual(img.getpixel((310,295))[3],0,
+                                 "Unprotected area inside the perspective fresco editable")
+                self.assertEqual(img.getpixel((300,230))[3],255,
+                                 "Marked original foreground must not be edited")
+                self.assertEqual(img.getpixel((128,110))[3],255,
+                                 "Area inside axis-aligned bounding box but outside skewed quad protected")
+                self.assertEqual(img.getpixel((30,30))[3],255,
+                                 "Outside fresco original room must be protected")
+            self.assertLess((root/"mask.png").stat().st_size,4*1024*1024)
+
     def test_reject_missing_quad_and_bad_camera_ratio(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d)
