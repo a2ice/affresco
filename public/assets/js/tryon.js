@@ -54,7 +54,7 @@
   let selected=true,lightMode=false,lighting=null,layer='wall',wallQuad=null,placed=null,lastWall={width:500,height:275};
   let selection=null,room=null,crop=null,quad=null,placing=false,revision=0,savedRevision=-1,saved=null,busy=false,drag=null,operation=0,historyRequest=0;
   let aiContext=crypto.randomUUID(),aiBusy=false,aiLoginPending=false,aiLoginRevision=-1;
-  let aiPollTimer=null,aiLastShown=null,aiJobs=[],aiRequest=0,manualExport=null,exportBusy=false;
+  let aiPollTimer=null,aiLastShown=null,aiJobs=[],aiRequest=0,manualExport=null,exportBusy=false,deletedManualRevision=null;
 
   const keyOwner=()=>window.affrescoAccount?.current()?.id?'account:'+window.affrescoAccount.current().id:'guest';
   const open=()=>window.dispatchEvent(new CustomEvent('affresco:open-modal',{detail:'tryon'}));
@@ -188,7 +188,7 @@
   }
   window.addEventListener('resize',()=>{if(room)paint();});
   if(typeof ResizeObserver!=='undefined')new ResizeObserver(()=>{if(room)paint();}).observe(stage);
-  function changed(){revision++;saved=null;manualExport=null;feedback('');paint();}
+  function changed(){revision++;saved=null;manualExport=null;deletedManualRevision=null;feedback('');paint();}
   function summary(){if(selection){$('tryonSummary').textContent='Арт. '+selection.sku+' · Исходный кадр '+cm(selection.width_cm)+' × '+cm(selection.height_cm);$('tryonCopyFeedback').textContent='';}}
   function showStep(which){
     $('tryonUploadStep').hidden=which!=='upload';$('tryonWorkspace').hidden=!['setup','placement'].includes(which);$('tryonSavedStep').hidden=which!=='saved';
@@ -198,7 +198,7 @@
     $('tryonChangeRoom').hidden=!['setup','placement'].includes(which);
     if(which!=='placement')$('tryonControls').innerHTML='';
   }
-  function resetRoom(){aiRequest++;aiContext=crypto.randomUUID();aiBusy=false;aiLoginPending=false;aiJobs=[];aiLastShown=null;manualExport=null;
+  function resetRoom(){aiRequest++;aiContext=crypto.randomUUID();aiBusy=false;aiLoginPending=false;aiJobs=[];aiLastShown=null;manualExport=null;deletedManualRevision=null;
     if(aiPollTimer)clearTimeout(aiPollTimer);aiPollTimer=null;
     $('tryonAIToast').hidden=true;$('tryonAIResults').hidden=true;
     $('tryonAIGallery').replaceChildren();$('tryonAIError').hidden=true;syncExportLabels();
@@ -405,7 +405,7 @@
     if(saved&&savedRevision===revision&&saved.owner===owner&&saved.tracked)return saved;
     const token=operation;drag=null;lock(true);feedback('Сохраняем примерку…');
     try{
-      let record=saved&&savedRevision===revision&&saved.owner===owner?saved:{id:crypto.randomUUID(),owner,created:Date.now(),image:jpeg(),sku:selection.sku,width_cm:placed.width,height_cm:placed.height,source_width_cm:selection.width_cm,source_height_cm:selection.height_cm,wall_width_cm:lastWall.width,wall_height_cm:lastWall.height,placement_cm:{...placed},wall_quad:wallQuad.map(p=>({x:p.x/canvas.width,y:p.y/canvas.height})),context:aiContext,kind:'tryon',tracked:false};
+      let record=saved&&savedRevision===revision&&saved.owner===owner?saved:{id:manualExport?.revision===revision&&manualExport.context===aiContext?manualExport.id:crypto.randomUUID(),owner,created:Date.now(),image:jpeg(),sku:selection.sku,width_cm:placed.width,height_cm:placed.height,source_width_cm:selection.width_cm,source_height_cm:selection.height_cm,wall_width_cm:lastWall.width,wall_height_cm:lastWall.height,placement_cm:{...placed},wall_quad:wallQuad.map(p=>({x:p.x/canvas.width,y:p.y/canvas.height})),context:aiContext,kind:'tryon',tracked:false};
       // Store a recoverable local JPEG before recording the completed result.
       await store(record);
       if(sceneRevision===revision){saved=record;savedRevision=sceneRevision;}
@@ -413,7 +413,7 @@
       if(identity!==window.affrescoAccount?.identity())throw Error('identity_changed');
       const response=await fetch('/api/manual-tryon.php',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','X-Affresco-Request':'1'},body:JSON.stringify({id:record.id,sku:record.sku,width_cm:record.width_cm,height_cm:record.height_cm,owner})});
       const data=await response.json();if(!response.ok||data.accepted!==true)throw Error(data.error||'tracking_unavailable');
-      record={...record,tracked:true};
+      record={...record,tracked:true};manualExport={...record,revision:sceneRevision};deletedManualRevision=null;
       try{await store(record);}catch(_){} // JPEG is already stored; retry uses the same event ID.
       if(sceneRevision===revision){saved=record;savedRevision=sceneRevision;}
       if(identity!==window.affrescoAccount?.identity())throw Error('identity_changed');
@@ -432,8 +432,17 @@
   }
   function email(record){window.dispatchEvent(new CustomEvent('affresco:email-tryon',{detail:record}));}
   $('tryonSave').addEventListener('click',()=>{void save();});
-  $('tryonDownload').addEventListener('click',async()=>{const record=await save();if(record)download(record);});
-  $('tryonEmail').addEventListener('click',async()=>{const record=await save();if(record)email(record);});
+  $('tryonDownload').addEventListener('click',async()=>{
+    if(aiJobs.some(j=>j.status==='completed')){await downloadCombined();return;}
+    const record=await save();if(record)download(record);
+  });
+  $('tryonEmail').addEventListener('click',async()=>{
+    if(aiJobs.some(j=>j.status==='completed')){
+      window.dispatchEvent(new CustomEvent('affresco:email-ai-tryon',{detail:{context:aiContext}}));
+      return;
+    }
+    const record=await save();if(record)email(record);
+  });
   $('tryonSavedDownload').addEventListener('click',()=>{if(saved&&saved.owner===keyOwner())download(saved);});
   $('tryonSavedEmail').addEventListener('click',()=>{if(saved&&saved.owner===keyOwner())email(saved);});
   async function renderHistory(){
@@ -459,6 +468,11 @@
 
   const aiMessages={
     login_required:'Для AI-генерации войдите в личный кабинет.',
+    no_results:'Нет изображений для скачивания.',
+    manual_storage_limit:'Серверное хранилище ручных примерок заполнено. Удалите лишние изображения в личном кабинете.',
+    manual_conflict:'Не удалось связать ручную примерку с текущим набором изображений.',
+    zip_unavailable:'Создание ZIP временно недоступно на сервере.',
+    zip_too_large:'Файлов слишком много для одного архива. Удалите ненужные изображения в кабинете.',
     ai_not_configured:'AI-генерация пока не подключена на сервере. Сообщите администратору.',
     ai_storage_unavailable:'Сервер не может сохранить изображения. Попробуйте позднее.',
     ai_in_progress:'Дождитесь окончания текущей генерации.',
@@ -510,7 +524,7 @@
       tx.onerror=tx.onabort=()=>{db.close();reject(Error('local_storage'));};
     });
     if(saved?.id===id){saved=null;savedRevision=-1;}
-    if(manualExport?.id===id)manualExport=null;
+    if(manualExport?.id===id){deletedManualRevision=revision;manualExport=null;}
     void renderHistory();
   }
   async function prepareCombinedExport(context=aiContext){
@@ -519,12 +533,14 @@
     const owner=keyOwner(),identity=window.affrescoAccount.identity();
     const all=await records(owner);
     const chosen=all.filter(r=>r.context===context&&r.image?.startsWith('data:image/jpeg;base64,'));
-    if(!manualExport||manualExport.revision!==revision||manualExport.context!==context){
-      const current=saved?.owner===owner&&savedRevision===revision&&saved.context===context
-        ?saved:{id:crypto.randomUUID(),owner,context,created:Date.now(),image:jpeg()};
-      manualExport={...current,revision};
+    if(deletedManualRevision!==revision){
+      if(!manualExport||manualExport.revision!==revision||manualExport.context!==context){
+        const current=saved?.owner===owner&&savedRevision===revision&&saved.context===context
+          ?saved:{id:crypto.randomUUID(),owner,context,created:Date.now(),image:jpeg()};
+        manualExport={...current,revision};
+      }
+      if(!chosen.some(r=>r.id===manualExport.id))chosen.push(manualExport);
     }
-    if(!chosen.some(r=>r.id===manualExport.id))chosen.push(manualExport);
     for(const record of chosen){
       if(context!==aiContext||identity!==window.affrescoAccount.identity())throw Error('unauthorized');
       await aiResponse(await fetch('/api/ai-tryon-export.php?manual=1',{
