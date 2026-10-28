@@ -57,7 +57,9 @@ function af_guest_activity(): array {
     if (!is_array($activity)) $activity=[];
     return [
         'emails_count'=>max(0,(int)($activity['emails_count']??0)),
-        'last_email'=>is_string($activity['last_email']??null)?$activity['last_email']:null
+        'last_email'=>is_string($activity['last_email']??null)?$activity['last_email']:null,
+        'manual_generations_used'=>max(0,(int)($activity['manual_generations_used']??0)),
+        'last_manual_generation'=>is_string($activity['last_manual_generation']??null)?$activity['last_manual_generation']:null
     ];
 }
 function af_track_guest_email(): void {
@@ -66,3 +68,4 @@ function af_track_guest_email(): void {
     $activity['last_email']=gmdate('c');
     $_SESSION['affresco_guest_activity']=$activity;
 }
+
