@@ -12,6 +12,67 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageChops
 
+def make_edit_mask(original_path: str, manifest_path: str, output_path: str) -> None:
+    """Prepare the first-image edit mask for OpenAI.
+
+    Alpha 0 = editable mural footprint. Alpha 255 = original room protected.
+    The post-generation compositor remains authoritative: the API mask is
+    guidance to the model and does NOT replace deterministic clipping.
+    """
+    with open(manifest_path, encoding="utf-8") as handle:
+        manifest = json.load(handle)
+    points = manifest.get("placement", {}).get("fresco_quad_normalized")
+    if not isinstance(points, list) or len(points) != 4:
+        raise ValueError("Missing authenticated fresco geometry")
+    with Image.open(original_path) as photo:
+        width,height=photo.size
+    if width<100 or height<100:
+        raise ValueError("Unexpected image size")
+    corners=[]
+    for item in points:
+        if (not isinstance(item,list) or len(item)!=2 or
+            any(not isinstance(v,(int,float)) or not math.isfinite(v) or
+                not -20<=v<=20 for v in item)):
+            raise ValueError("Invalid fresco quadrilateral coordinates")
+        corners.append((round(item[0]*width),round(item[1]*height)))
+    # Source photo has its own camera coordinate system. The user may place
+    # some vertices outside its visible area: PIL clips the polygon safely.
+    image = Image.new("RGBA",(width,height),(0,0,0,255))
+    draw=ImageDraw.Draw(image)
+    draw.polygon(corners,fill=(0,0,0,0))
+    strokes=manifest.get("placement",{}).get("occlusion_strokes",[])
+    if not isinstance(strokes,list) or len(strokes)>64:
+        raise ValueError("Invalid foreground protection data")
+    total=0
+    for stroke in strokes:
+        if not isinstance(stroke,dict):
+            raise ValueError("Invalid foreground stroke")
+        radius=stroke.get("radius");points=stroke.get("points")
+        if (not isinstance(radius,(int,float)) or not math.isfinite(radius) or
+            not .00025<=radius<=.15 or not isinstance(points,list) or
+            not 1<=len(points)<=128):
+            raise ValueError("Invalid foreground stroke")
+        total+=len(points)
+        if total>3000:
+            raise ValueError("Too many foreground points")
+        coords=[]
+        for p in points:
+            if (not isinstance(p,list) or len(p)!=2 or any(
+                not isinstance(v,(int,float)) or not math.isfinite(v) or not 0<=v<=1
+                for v in p)):
+                raise ValueError("Invalid foreground coordinates")
+            coords.append((round(p[0]*width),round(p[1]*height)))
+        radius_px=max(1,round(radius*width))
+        if len(coords)>1:
+            draw.line(coords,fill=(0,0,0,255),width=radius_px*2+1,joint="curve")
+        for x,y in coords:
+            draw.ellipse((x-radius_px,y-radius_px,x+radius_px,y+radius_px),
+                         fill=(0,0,0,255))
+    image.save(output_path,"PNG",optimize=True)
+    if Path(output_path).stat().st_size>4*1024*1024:
+        raise ValueError("OpenAI editing mask exceeds 4MB")
+
+
 def composite(original_path: str, generated_path: str, manifest_path: str, output_path: str) -> None:
     with open(manifest_path, encoding="utf-8") as handle:
         manifest = json.load(handle)
@@ -79,11 +140,17 @@ def composite(original_path: str, generated_path: str, manifest_path: str, outpu
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--original", required=True)
-    p.add_argument("--generated", required=True)
+    p.add_argument("--generated")
     p.add_argument("--manifest", required=True)
     p.add_argument("--output", required=True)
+    p.add_argument("--make-edit-mask", action="store_true")
     args = p.parse_args()
-    composite(args.original, args.generated, args.manifest, args.output)
+    if args.make_edit_mask:
+        make_edit_mask(args.original, args.manifest, args.output)
+    elif args.generated:
+        composite(args.original, args.generated, args.manifest, args.output)
+    else:
+        p.error("--generated required unless --make-edit-mask is used")
 
 if __name__ == "__main__":
     main()
