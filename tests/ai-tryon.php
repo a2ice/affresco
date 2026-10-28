@@ -40,9 +40,23 @@ try{
     'NOT be enlarged','fresco_width_to_height_cm_ratio',
     'SURFACE-CONFINED REFLECTIONS','HORIZONTAL BENCH TOP','MASKED',
     'lower-right corner','NEVER blur, smear','OMIT the new reflection entirely',
-    'FINAL PRIORITY ORDER'
+    'FINAL PRIORITY ORDER',
+    'DEPTH LAYERING AND OCCLUSION',
+    'MENTAL COMPOSITING PROCEDURE',
+    'ORIGINAL FOREGROUND OBJECT PIXELS WIN',
+    'FAILURE CASE TO AVOID',
+    'SAME fresco at the SAME wall coordinates',
+    'partly INVISIBLE BEHIND the sofa',
+    'Never raise/lower/shift the mural',
+    'Do not make the mural float above furniture',
+    'sofa silhouette',
+    'custom cutouts',
+    'CHECK BEFORE OUTPUT'
  ] as $fragment)
     ai_check(str_contains(strtolower($prompt),strtolower($fragment)),'Prompt missing occlusion priority: '.$fragment);
+ ai_check(str_contains($prompt,'including the portion hidden by a sofa')||str_contains($prompt,'INCLUDING THE PORTION HIDDEN BY A SOFA'),'Guide must keep its hidden underlying footprint');
+ ai_check(str_contains($prompt,'Furniture overlapping the guide is a reason to HIDE mural pixels, NEVER to move'),'Overlap must be resolved by occlusion not by relocating mural');
+ ai_check(str_contains($prompt,'the original FRESCO CROP'),'Source artwork remains the input to the wall projection');
  ai_check(str_contains($prompt,'"fresco_width_to_height_cm_ratio":1.5'),'The 180 × 120 cm aspect ratio must be sent as numeric data');
  ai_check(str_contains($prompt,'"fresco_quad_normalized":[[0.2,0.2],[0.6,0.2],[0.6,0.6],[0.2,0.6]]'),'Manual quad must be supplied without modification');
  ai_check(str_contains($prompt,'reflection on the existing polished horizontal stone cannot be produced, OMIT'),'No destructive fallback blurring');
