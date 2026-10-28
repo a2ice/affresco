@@ -18,6 +18,12 @@ jobs:
       GENERATION_ID: ${{ inputs.generation_id }}
       PUBLIC_URL: ${{ vars.AFFRESCO_AI_PUBLIC_URL }}
     steps:
+      - name: Check out protected image-compositing code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Prepare image compositing dependency
+        run: python3 -m pip install --quiet --disable-pip-version-check 'Pillow==11.3.0'
+
       - name: Generate and notify AFFRESCO
         shell: bash
         run: |
@@ -78,7 +84,14 @@ jobs:
             echo "OpenAI image edit HTTP $status" >&2
             false
           fi
-          jq -er '.data[0].b64_json' response.json | base64 --decode > result.png
+          jq -er '.data[0].b64_json' response.json | base64 --decode > ai-proposal.png
+          file ai-proposal.png | grep -q 'PNG image data'
+          # Only the interior of the server-validated mural polygon may be
+          # generated. Preserve all floor, furniture, room detail and walls
+          # outside it as actual ORIGINAL ROOM photographic pixels.
+          python3 .github/scripts/protect-original-room.py \
+            --original reference-0.jpg --generated ai-proposal.png \
+            --manifest manifest.json --output result.png
           file result.png | grep -q 'PNG image data'
           test "$(stat -c%s result.png)" -le 12582912
           callback completed result.png
