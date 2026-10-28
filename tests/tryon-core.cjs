@@ -22,3 +22,20 @@ const ctx={canvas:{width:1000,height:800},drawImage(){images++;},save(){},restor
 core.draw(ctx,{},{width:400,height:300},moved,true,false);
 assert.equal(images,1+24*24*2,'Room and perspective texture are both exported');assert.equal(mask,1);assert.equal(borders,0,'Export excludes selection controls');
 console.log('PASS: presets, optional dimensions, fit warning, independent corners, convexity, perspective mapping, bounds and JPEG compositing path');
+
+assert.equal(core.historyLimit('guest'),3);
+assert.equal(core.historyLimit('account:tester'),12);
+const vm=require('node:vm'),fs=require('node:fs');
+const bootstrap=fs.readFileSync(require('node:path').join(__dirname,'../public/assets/js/tryon-compat.js'),'utf8');
+function compatibility(missing){
+ const elements=new Map(['tryOnWall','tryonBrowserNotice','tryonGlobalNotice','tryonCompatibilityMessage','tryonUploadStep'].map(id=>[id,{hidden:true,disabled:false,setAttribute(k,v){this[k]=v;}}]));
+ const window={Promise,fetch(){},indexedDB:{},File:function(){},Blob:function(){},URL:{createObjectURL(){},revokeObjectURL(){}},Uint8Array,PointerEvent:function(){},crypto:{randomUUID(){}},CustomEvent:function(){}};
+ if(missing)window[missing]=undefined;
+ const document={createElement:()=>({getContext:()=>({}),toDataURL(){}}),getElementById:id=>elements.get(id)};
+ vm.runInNewContext(bootstrap,{window,document});return {window,elements};
+}
+const modern=compatibility();assert.equal(modern.window.affrescoTryonCompat.supported,true);assert.equal(modern.elements.get('tryOnWall').disabled,false);
+for(const feature of ['PointerEvent','indexedDB','crypto']){
+ const older=compatibility(feature);assert.equal(older.window.affrescoTryonCompat.supported,false);assert.equal(older.elements.get('tryOnWall').disabled,true);assert.equal(older.elements.get('tryonGlobalNotice').hidden,false);assert.equal(older.elements.get('tryonUploadStep').hidden,true);
+}
+console.log('PASS: guest/account history caps and capability-based browser gating');

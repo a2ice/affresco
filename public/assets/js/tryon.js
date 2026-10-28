@@ -2,6 +2,12 @@
 (() => {
   'use strict';
   const $=id=>document.getElementById(id),core=window.affrescoTryonCore;
+  if(window.affrescoTryonCompat?.supported===false){
+    window.affrescoTryon={start:()=>window.dispatchEvent(new CustomEvent('affresco:open-modal',{detail:'tryon'})),renderHistory:()=>{
+      const target=$('accountTryonList');if(target)target.textContent='Обновите браузер, чтобы работать с ручными примерками.';
+    }};
+    return;
+  }
   const canvas=$('tryonCanvas'),ctx=canvas.getContext('2d',{alpha:false});
   let selection=null,room=null,crop=null,quad=null,placing=false,revision=0,savedRevision=-1,saved=null,busy=false,drag=null,operation=0,historyRequest=0;
   const keyOwner=()=>window.affrescoAccount?.current()?.id?'account:'+window.affrescoAccount.current().id:'guest';
@@ -30,14 +36,30 @@
       const tx=db.transaction('images','readwrite');tx.objectStore('images').put(record);
       tx.oncomplete=()=>{db.close();resolve();};tx.onerror=tx.onabort=()=>{db.close();reject(Error('local_storage'));};
     });
-    // Keep twelve recent JPEGs per owner on this device; counters have no such limit.
-    const list=await records(record.owner);
-    if(list.length>12){
-      const clean=await database();await new Promise((resolve,reject)=>{
-        const tx=clean.transaction('images','readwrite');for(const item of list.slice(12))tx.objectStore('images').delete(item.id);
-        tx.oncomplete=()=>{clean.close();resolve();};tx.onerror=tx.onabort=()=>{clean.close();reject(Error('local_storage'));};
+    await prune(record.owner);
+  }
+  function storageNote(owner=keyOwner()){
+    return core.historyLimit(owner)===3
+      ?'Гостю доступны 3 последние примерки на этом устройстве. Авторизуйтесь, чтобы сохранять до 12.'
+      :'На этом устройстве сохраняются 12 последних примерок вашего аккаунта.';
+  }
+  async function prune(owner){
+    const list=await records(owner),limit=core.historyLimit(owner);
+    if(list.length>limit){
+      const db=await database();await new Promise((resolve,reject)=>{
+        const tx=db.transaction('images','readwrite');for(const item of list.slice(limit))tx.objectStore('images').delete(item.id);
+        tx.oncomplete=()=>{db.close();resolve();};tx.onerror=tx.onabort=()=>{db.close();reject(Error('local_storage'));};
       });
     }
+    return list.slice(0,limit);
+  }
+  async function storageAvailable(){
+    const db=await database();
+    return new Promise((resolve,reject)=>{
+      const id='probe-'+crypto.randomUUID(),tx=db.transaction('images','readwrite'),store=tx.objectStore('images');
+      store.put({id,owner:'probe'});store.delete(id);
+      tx.oncomplete=()=>{db.close();resolve();};tx.onerror=tx.onabort=()=>{db.close();reject(Error('local_storage'));};
+    });
   }
   function wall(){return {width:core.wallValue($('tryonWallWidth').value),height:core.wallValue($('tryonWallHeight').value)};}
   function validWall(){const w=wall();return !Number.isNaN(w.width)&&!Number.isNaN(w.height);}
@@ -63,14 +85,19 @@
     $('tryonSetupActions').hidden=which!=='setup';$('tryonPlacementActions').hidden=which!=='placement';
   }
   function resetRoom(){room=null;quad=null;placing=false;drag=null;saved=null;revision++;savedRevision=-1;$('tryonRoomFile').value='';showStep('upload');feedback('');}
-  function start(value){
+  async function start(value){
     operation++;selection={...value};crop=null;resetRoom();summary();
     $('tryonPreset').value='';$('tryonWallWidth').value='';$('tryonWallHeight').value='';$('tryonBack').hidden=false;
     $('tryonScaleValue').textContent='50%';$('tryonHandle').value='layer';
-    open();
+    $('tryonStorageNote').textContent=storageNote();
+    $('tryonCompatibilityMessage').hidden=true;
+    $('tryonUploadZone').disabled=true;
+    const token=operation;open();
+    try{await storageAvailable();if(token===operation){$('tryonUploadZone').disabled=false;await prune(keyOwner());}}
+    catch(_){if(token===operation){showStep('unsupported');$('tryonCompatibilityMessage').textContent='Браузер не разрешает сохранять примерки на этом устройстве. Разрешите хранение данных сайта или попробуйте другой браузер.';$('tryonCompatibilityMessage').hidden=false;}}
   }
-  $('tryonRoomFile').addEventListener('change',async()=>{
-    const file=$('tryonRoomFile').files?.[0];if(!file||!selection)return;
+  async function loadRoom(file){
+    if(!file||!selection||busy)return;
     const token=++operation;feedback('Загружаем фото…');
     if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>15*1024*1024){feedback('Выберите JPEG, PNG или WebP размером до 15 МБ.',true);return;}
     let url;
@@ -87,8 +114,23 @@
       quad=core.rectangle(core.frame(canvas.width,canvas.height,crop.naturalWidth/crop.naturalHeight,50));
       placing=false;$('tryonScale').value=50;showStep('setup');feedback('');paint();
     }catch(_){if(token===operation)feedback('Не удалось прочитать фото. Выберите изображение от 100 × 100 пикселей, до 60 мегапикселей.',true);}
-    finally{if(url)URL.revokeObjectURL(url);}
+    finally{if(url)URL.revokeObjectURL(url);$('tryonRoomFile').value='';}
+  }
+  $('tryonRoomFile').addEventListener('change',()=>{void loadRoom($('tryonRoomFile').files?.[0]);});
+  $('tryonUploadZone').addEventListener('click',()=>{$('tryonRoomFile').click();});
+  let dragDepth=0;
+  const dropZone=$('tryonUploadZone');
+  dropZone.addEventListener('dragenter',event=>{event.preventDefault();if(dropZone.disabled)return;dragDepth++;dropZone.classList.add('is-dragging');});
+  dropZone.addEventListener('dragover',event=>{event.preventDefault();if(event.dataTransfer)event.dataTransfer.dropEffect=dropZone.disabled?'none':'copy';});
+  dropZone.addEventListener('dragleave',event=>{event.preventDefault();dragDepth=Math.max(0,dragDepth-1);if(!dragDepth)dropZone.classList.remove('is-dragging');});
+  dropZone.addEventListener('drop',event=>{
+    event.preventDefault();dragDepth=0;dropZone.classList.remove('is-dragging');if(dropZone.disabled)return;
+    const files=event.dataTransfer?.files;
+    if(files?.length!==1){feedback('Перетащите одно фото комнаты.',true);return;}
+    void loadRoom(files[0]);
   });
+  // Dropping outside the upload area must not navigate away from the editor.
+  for(const type of ['dragover','drop'])$('tryonModal').addEventListener(type,event=>{if(event.dataTransfer&&Array.from(event.dataTransfer.types).includes('Files'))event.preventDefault();});
   $('tryonPreset').addEventListener('change',()=>{
     const preset=core.presets[$('tryonPreset').value];
     $('tryonWallWidth').value=preset?.width??'';$('tryonWallHeight').value=preset?.height??'';changed();
@@ -183,7 +225,8 @@
     if(!$('accountPanelGenerations')||$('accountPanelGenerations').hidden)return;
     const owner=keyOwner(),request=++historyRequest;
     try{
-      const list=await records(owner);if(owner!==keyOwner()||request!==historyRequest)return;
+      $('accountTryonStorageNote').textContent=storageNote(owner);
+      const list=await prune(owner);if(owner!==keyOwner()||request!==historyRequest)return;
       target.replaceChildren();
       if(!list.length){target.textContent='Пока нет сохранённых примерок.';return;}
       for(const record of list){
@@ -197,7 +240,8 @@
       }
     }catch(_){if(owner===keyOwner()&&request===historyRequest)target.textContent='История примерок на этом устройстве недоступна.';}
   }
-  window.addEventListener('affresco:auth-changed',()=>{operation++;saved=null;void renderHistory();});
+  window.addEventListener('affresco:auth-changed',()=>{operation++;saved=null;$('tryonStorageNote').textContent=storageNote();void renderHistory();});
   window.affrescoTryon={start,renderHistory};
   void window.affrescoAccount?.ready.then(()=>renderHistory());
 })();
+

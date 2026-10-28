@@ -85,6 +85,8 @@
       for(const p of quad){ctx.fillStyle='#fff';ctx.strokeStyle='#766453';ctx.lineWidth=2;ctx.fillRect(p.x-size/2,p.y-size/2,size,size);ctx.strokeRect(p.x-size/2,p.y-size/2,size,size);}
     }
   }
-  const api={presets,wallValue,fits,frame,move,rectangle,convex,corner,translate,resize,project,inside,warp,draw};
+  function historyLimit(owner){return typeof owner==='string'&&owner.indexOf('account:')===0?12:3;}
+  const api={historyLimit,presets,wallValue,fits,frame,move,rectangle,convex,corner,translate,resize,project,inside,warp,draw};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.affrescoTryonCore=api;
 })(typeof window!=='undefined'?window:globalThis);
+
