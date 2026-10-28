@@ -43,7 +43,7 @@ try{
     'ONLY FOR OBJECTS THAT ACTUALLY EXIST IN ORIGINAL ROOM',
     'If no such object exists','do NOT invent an occluding object',
     'ARCHITECTURAL INTERRUPTIONS',
-    'LIGHT AND REFLECTIONS','Never invent a table or polished surface',
+    'LIGHT AND REFLECTIONS','do not invent a table or polished surface',
     'FINAL CHECK BEFORE OUTPUT','no extra furniture',
     'INVENTORY BEFORE EDITING','DELETION IS STRICTLY FORBIDDEN',
     'existing bed, bedding, rug, carpet',
