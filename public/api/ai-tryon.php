@@ -95,7 +95,10 @@ if($method==='GET'&&isset($_GET['manual'])){
 }
 if($method==='POST'&&isset($_GET['delete'])){
     af_guard_post();
-    $data=json_decode((string)file_get_contents('php://input'),true);
+    if((int)($_SERVER['CONTENT_LENGTH']??0)>2048)ai_terminal_error(413,'request_too_large');
+    $raw=file_get_contents('php://input');
+    if(!is_string($raw)||strlen($raw)>2048)ai_terminal_error(413,'request_too_large');
+    $data=json_decode($raw,true);
     $type=is_array($data)?(string)($data['type']??''):'';
     $id=is_array($data)?(string)($data['id']??''):'';
     if(!in_array($type,['manual','ai'],true))ai_terminal_error(422,'invalid_request');
