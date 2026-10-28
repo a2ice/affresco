@@ -141,6 +141,31 @@ function af_ai_manual_items(string $owner,string $context): array {
     usort($items,static fn($a,$b)=>$a['created']<=>$b['created']);
     return $items;
 }
+/** All saved images visible to the authenticated owner in the cabinet. */
+function af_ai_library_items(string $owner): array {
+    $base=af_ai_user_dir($owner);$items=[];
+    foreach(glob($base.'/manual-*.json')?:[] as $metaFile) {
+        $id=substr(basename($metaFile),7,-5);
+        if(!preg_match('/^[a-f0-9-]{36}$/iD',$id))continue;
+        $raw=@file_get_contents($metaFile);
+        $meta=is_string($raw)&&strlen($raw)<2048?json_decode($raw,true):null;
+        if(!is_array($meta)||($meta['id']??null)!==$id||!af_ai_context((string)($meta['context']??'')))continue;
+        $image=$base.'/manual-'.$id.'.jpg';
+        if(!is_file($image))continue;
+        $items[]=['type'=>'manual','id'=>$id,'context'=>$meta['context'],
+            'created'=>(int)($meta['created']??0),'image_url'=>'/api/ai-tryon.php?manual='.$id];
+    }
+    foreach(glob($base.'/*.json')?:[] as $jobFile){
+        $id=basename($jobFile,'.json');
+        if(!af_ai_id($id))continue;
+        $job=af_ai_read($owner,$id);
+        if(!$job||($job['status']??'')!=='completed'||!is_file($base.'/'.$id.'-result.png'))continue;
+        $items[]=['type'=>'ai','id'=>$id,'context'=>$job['context'],
+            'created'=>(int)($job['created']??0)*1000,'image_url'=>'/api/ai-tryon.php?image='.$id];
+    }
+    usort($items,static fn($a,$b)=>$b['created']<=>$a['created']);
+    return array_slice($items,0,100);
+}
 function af_ai_export_items(string $owner,string $context): array {
     $items=af_ai_manual_items($owner,$context);
     foreach(af_ai_jobs($owner,$context) as $job){
