@@ -23,6 +23,7 @@ if($method==='GET'&&isset($_GET['manifest'])){
     af_response(200,[
       'generation_id'=>$id,
       'prompt'=>af_ai_prompt($job['metadata']),
+      'placement'=>['fresco_quad_normalized'=>$job['metadata']['fresco_quad']],
       'references'=>[
         af_ai_signed_url($cfg,$id,'room',$expiry),
         af_ai_signed_url($cfg,$id,'fresco',$expiry),
