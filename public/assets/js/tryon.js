@@ -571,7 +571,9 @@
     }
     const token=++aiRequest,context=aiContext,identity=window.affrescoAccount.identity();
     $('tryonAIError').hidden=true;
-    aiSetBusy(true);
+    aiBusy=true;$('tryonAIGenerate').disabled=true;$('tryonAIRerun').disabled=true;
+    // The persistent toast appears only after server confirms GitHub dispatch.
+    $('tryonAIToast').hidden=true;
     try{
       const payload=await aiInputs();
       if(token!==aiRequest||context!==aiContext||identity!==window.affrescoAccount.identity())throw Error('unauthorized');
@@ -606,8 +608,19 @@
     const resume=aiLoginPending&&window.affrescoAccount?.signedIn()&&aiLoginRevision===operation;
     aiLoginPending=false;
     operation++;saved=null;
-    if(resume){open();void startAI();}
-$('tryonStorageNote').textContent=storageNote();$('tryonStorageNote').hidden=!$('tryonStorageNote').textContent;void renderHistory();});
+    if(aiBusy||aiJobs.length){
+      aiRequest++;if(aiPollTimer)clearTimeout(aiPollTimer);aiPollTimer=null;
+      aiJobs=[];aiSetBusy(false);$('tryonAIGallery').replaceChildren();
+      $('tryonAIResults').hidden=true;$('tryonAIError').hidden=true;
+    }
+    if(resume){
+      // Let account.js finish its own focus transition before reopening try-on.
+      setTimeout(()=>{if(window.affrescoAccount?.signedIn()){open();void startAI();}},0);
+    }
+    $('tryonStorageNote').textContent=storageNote();
+    $('tryonStorageNote').hidden=!$('tryonStorageNote').textContent;
+    void renderHistory();
+  });
   window.affrescoTryon={start,renderHistory};
   void window.affrescoAccount?.ready.then(()=>renderHistory());
 })();
