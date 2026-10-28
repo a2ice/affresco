@@ -69,9 +69,10 @@ foreach($items as $item){
 }
 if($size>48*1048576)af_response(413,['error'=>'zip_too_large']);
 $count=count($items);
-$bundle=$count>1;
-$filename=$bundle?'affresco-tryon-results.zip':$items[0]['name'];
-$mime=$bundle?'application/zip':$items[0]['mime'];
+$delivery=af_ai_delivery_type($items);
+$bundle=$delivery['archive'];
+$filename=$delivery['filename'];
+$mime=$delivery['mime'];
 if($bundle){
     if(!class_exists('ZipArchive'))af_response(503,['error'=>'zip_unavailable']);
     $attachment=tempnam(af_ai_user_dir($owner),'export-');
