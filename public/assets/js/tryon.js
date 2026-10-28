@@ -511,8 +511,8 @@
     const count=combinedCount();
     $('tryonAIZip').hidden=count<1;
     $('tryonAIEmail').hidden=count<1;
-    $('tryonAIZip').textContent=count===1?'Скачать изображение':'Скачать ZIP ('+count+')';
-    $('tryonAIEmail').textContent=count===1?'Отправить изображение':'Отправить ZIP ('+count+')';
+    $('tryonAIZip').textContent=count===1?'Скачать изображение':'Скачать все (ZIP)';
+    $('tryonAIEmail').textContent=count===1?'Отправить изображение':'Отправить все (ZIP)';
   }
   async function removeSavedRecord(id){
     if(typeof id!=='string')return;
@@ -688,6 +688,7 @@
     window.dispatchEvent(new CustomEvent('affresco:email-ai-tryon',{detail:{context:aiContext}}));
   });
   window.addEventListener('affresco:ai-image-deleted',event=>{
+    if(event.detail?.type==='manual')syncExportLabels();
     if(event.detail?.type==='ai'&&aiJobs.some(j=>j.id===event.detail.id)){
       aiJobs=aiJobs.filter(j=>j.id!==event.detail.id);
       void aiStatus();
