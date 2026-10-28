@@ -54,6 +54,8 @@ jobs:
           node tests/cabinet.mjs
           php tests/account-activity.php
           php tests/mail-quota.php
+          node tests/tryon-core.cjs
+          php tests/manual-tryon.php
 
   preflight:
     name: Manual credentials presence check (no secret values)
@@ -151,4 +153,5 @@ jobs:
             images/**
             **/Images/**
             **/images/**
+
 

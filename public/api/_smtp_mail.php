@@ -55,7 +55,7 @@ function af_smtp_config(): array {
     ];
 }
 /** Returns null if accepted by SMTP, or a public error code on failure. */
-function af_send_crop_smtp(string $to,string $sku,float $width,float $height,string $binary): ?string {
+function af_send_crop_smtp(string $to,string $sku,float $width,float $height,string $binary,string $kind='crop'): ?string {
     try {
         $cfg=af_smtp_config();
     } catch (RuntimeException $e) {
@@ -84,15 +84,16 @@ function af_send_crop_smtp(string $to,string $sku,float $width,float $height,str
         $mailer->CharSet='UTF-8';
         $mailer->setFrom($cfg['from'],$cfg['from_name']);
         $mailer->addAddress($to);
-        $mailer->Subject='AFFRESCO — ваш кадр фрески '.$sku;
+        $isTryon=$kind==='tryon';
+        $mailer->Subject=($isTryon?'AFFRESCO — ваша примерка фрески ':'AFFRESCO — ваш кадр фрески ').$sku;
         $mailer->isHTML(false);
-        $mailer->Body="Ваш кадр фрески AFFRESCO\n".
+        $mailer->Body=($isTryon?"Ваша примерка фрески AFFRESCO\n":"Ваш кадр фрески AFFRESCO\n").
             "Артикул: ".$sku."\n".
             "Размер кадра: ".$width." × ".$height." см\n\n".
-            "Выбранный фрагмент приложен в формате JPEG.\n".
+            ($isTryon?"Фото комнаты с фреской приложено в формате JPEG.\n":"Выбранный фрагмент приложен в формате JPEG.\n").
             "Размеры ориентировочные, уточняются перед изготовлением.\n".
             "https://affresco.a2ice.ru/\n";
-        $mailer->addStringAttachment($binary,'affresco-'.$sku.'.jpg',
+        $mailer->addStringAttachment($binary,($isTryon?'affresco-room-':'affresco-').$sku.'.jpg',
             PHPMailer\PHPMailer\PHPMailer::ENCODING_BASE64,'image/jpeg');
         $mailer->send();
         return null;
@@ -104,3 +105,4 @@ function af_send_crop_smtp(string $to,string $sku,float $width,float $height,str
         return 'smtp_unavailable';
     }
 }
+

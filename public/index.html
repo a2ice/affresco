@@ -15,8 +15,11 @@
   <link rel="stylesheet" href="/assets/css/site.css">
   <link rel="stylesheet" href="/assets/css/editorial.css?v=favorites-popup-20261028">
   <link rel="stylesheet" href="/assets/css/account.css?v=unified-cabinet-20261028">
-  <script src="/assets/js/account.js?v=cabinet-copy-20261028" defer></script>
-  <script src="/assets/js/site.js?v=mail-rate-20261028" defer></script>
+  <script src="/assets/js/account.js?v=manual-tryon-20261028" defer></script>
+  <link rel="stylesheet" href="/assets/css/tryon.css?v=manual-tryon-20261028">
+  <script src="/assets/js/tryon-core.js?v=manual-tryon-20261028" defer></script>
+  <script src="/assets/js/tryon.js?v=manual-tryon-20261028" defer></script>
+  <script src="/assets/js/site.js?v=manual-tryon-20261028" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#content">Перейти к содержимому</a>
@@ -352,7 +355,11 @@
         <section id="accountPanelGenerations" role="tabpanel" aria-labelledby="accountTabGenerations" tabindex="0" hidden>
           <h3>Генерации</h3>
           <p class="account-quota" id="accountQuota"></p>
-          <p class="account-note">Примерка с AI пока не подключена. Здесь появятся результаты реальных генераций.</p>
+          <p class="account-note" id="accountManualQuota"></p>
+          <h4>Ваши примерки</h4>
+          <p class="account-note">Сохранённые изображения на этом устройстве.</p>
+          <div id="accountTryonList" class="account-sku-list"></div>
+          <p class="account-note">AI-примерка появится позже.</p>
         </section>
       </div>
       <p id="accountFeedback" class="feedback" role="status" aria-live="polite"></p>
@@ -362,13 +369,45 @@
       </div>
     </div>
   </div>
-  <div class="modal" id="futureModal" hidden>
-    <div class="modal-panel modal-small" role="dialog" aria-modal="true" aria-labelledby="futureTitle">
-      <button class="modal-close" type="button" aria-label="Закрыть" data-close>×</button>
+  <div class="modal" id="tryonModal" hidden>
+    <div class="modal-panel tryon-panel" role="dialog" aria-modal="true" aria-labelledby="tryonTitle">
+      <button class="modal-close" type="button" aria-label="Закрыть примерку" data-close>×</button>
       <span class="eyebrow">ПРИМЕРКА В ИНТЕРЬЕРЕ</span>
-      <h2 id="futureTitle">Кадр готов</h2>
-      <p>Выбранный кадр фрески <strong id="futureSku"></strong> сохранён. Сейчас обработка фотографии интерьера временно недоступна.</p>
-      <button type="button" class="button button-primary button-wide" data-close>Понятно</button>
+      <h2 id="tryonTitle">Ваша фреска в комнате</h2>
+      <p id="tryonSummary" class="tryon-note"></p>
+      <div id="tryonUploadStep">
+        <label class="tryon-upload" for="tryonRoomFile"><strong>Загрузите фото комнаты</strong><span>JPEG, PNG или WebP · до 15 МБ</span><input type="file" id="tryonRoomFile" accept="image/jpeg,image/png,image/webp"></label>
+        <p class="tryon-note">Выберите фото, на котором хорошо видна нужная стена.</p>
+      </div>
+      <div id="tryonWorkspace" hidden>
+        <div class="tryon-wall-controls">
+          <div class="field-group"><label for="tryonPreset">Размер стены</label><select id="tryonPreset">
+            <option value="">Без размеров / свой размер</option>
+            <option value="standard">Стандартная комната · 500 × 275 см</option>
+            <option value="high">Высокие потолки · 500 × 350 см</option>
+            <option value="hall">Большой зал · 800 × 400 см</option>
+            <option value="compact">Компактная комната · 300 × 250 см</option>
+            <option value="wide">Широкая стена · 650 × 300 см</option>
+          </select></div>
+          <div class="tryon-dimensions">
+            <div class="field-group"><label for="tryonWallWidth">Ширина стены, см</label><input id="tryonWallWidth" type="number" inputmode="decimal" min="30" max="5000" step="any" placeholder="Необязательно"></div>
+            <div class="field-group"><label for="tryonWallHeight">Высота стены, см</label><input id="tryonWallHeight" type="number" inputmode="decimal" min="30" max="5000" step="any" placeholder="Необязательно"></div>
+          </div>
+        </div>
+        <p id="tryonFit" class="tryon-fit" role="status" aria-live="polite"></p>
+        <div class="tryon-stage"><canvas id="tryonCanvas" tabindex="0" aria-label="Примерка фрески. Перетаскивайте фреску мышью или пальцем. Для перемещения с клавиатуры используйте стрелки."></canvas></div>
+        <div id="tryonSetupActions"><p class="tryon-note">Размеры стены можно не указывать. Их можно будет изменить и на следующем шаге.</p><button type="button" class="button button-primary" id="tryonBegin">Разместить фреску</button></div>
+        <div id="tryonPlacementActions" hidden>
+          <div class="tryon-dimensions"><div class="field-group"><label for="tryonHandle">Управление с клавиатуры</label><select id="tryonHandle"><option value="layer">Перемещение всей фрески</option><option value="0">Левый верхний угол</option><option value="1">Правый верхний угол</option><option value="2">Правый нижний угол</option><option value="3">Левый нижний угол</option></select></div><button type="button" class="button button-secondary" id="tryonResetPerspective">Сбросить перспективу</button></div>
+          <div class="field-group"><label for="tryonScale">Масштаб на фото <span id="tryonScaleValue"></span></label><input id="tryonScale" type="range" min="5" max="100" value="50" step="1"></div>
+          <p class="tryon-note">Перетащите фреску на стену. Тяните угловые маркеры по отдельности, чтобы настроить перспективу. Масштаб на фото настраивается вручную.</p>
+          <div class="tryon-actions"><button type="button" class="button button-primary" id="tryonSave">Сохранить примерку</button><button type="button" class="button button-secondary" id="tryonDownload">Скачать JPEG</button><button type="button" class="button button-secondary" id="tryonEmail">Отправить на почту</button></div>
+        </div>
+        <button type="button" class="text-link" id="tryonChangeRoom">Выбрать другое фото</button>
+      </div>
+      <div id="tryonSavedStep" hidden><img id="tryonSavedImage" alt="Сохранённая примерка фрески в комнате"><div class="tryon-actions"><button type="button" class="button button-primary" id="tryonSavedDownload">Скачать JPEG</button><button type="button" class="button button-secondary" id="tryonSavedEmail">Отправить на почту</button></div><p id="tryonSavedMeta" class="tryon-note"></p></div>
+      <p id="tryonFeedback" class="tryon-feedback" role="status" aria-live="polite"></p>
+      <button type="button" id="tryonBack" class="modal-back">← Вернуться к кадру</button>
     </div>
   </div>
 </body>

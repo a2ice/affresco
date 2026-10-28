@@ -73,7 +73,7 @@
   const modalEditor = $('editorModal');
   const modalLogin = $('accountModal');
   const modalAccount = $('accountModal');
-  const modalFuture = $('futureModal');
+  const modalTryon = $('tryonModal');
   const modalEmail = $('emailModal');
   const modalEmailSuccess = $('emailSuccessModal');
   const modalFavorites = $('favoritesModal');
@@ -82,7 +82,8 @@
   let emailSendBusy = false;
   let emailSendRequest = 0;
   let preparedEmailCrop = null;
-  const modals = [modalPicker, modalEditor, modalAccount, modalFuture, modalEmail, modalEmailSuccess, modalFavorites];
+  let emailReturnModal = modalEditor;
+  const modals = [modalPicker, modalEditor, modalAccount, modalTryon, modalEmail, modalEmailSuccess, modalFavorites];
   let previousFocus = null;
   let openDialog = null;
   let items = [];
@@ -258,7 +259,7 @@
     }
   }
   window.addEventListener('affresco:open-modal',event=>{
-    const target=event.detail==='account'?modalAccount:event.detail==='login'?modalLogin:null;
+    const target=event.detail==='account'?modalAccount:event.detail==='login'?modalLogin:event.detail==='tryon'?modalTryon:event.detail==='editor'?modalEditor:null;
     if(target)setModal(target);
   });
   modals.forEach(modal => {
@@ -1433,6 +1434,11 @@
         'Не удалось подготовить выбранный кадр.',true);
       return;
     }
+    emailReturnModal=modalEditor;
+    $('emailModalTitle').textContent='Отправить кадр';
+    $('emailModalDescription').textContent='Мы отправим выбранный кадр фрески на вашу электронную почту во вложении JPEG.';
+    $('emailBackToEditor').textContent='← Вернуться к кадру';
+    $('emailSuccessBack').textContent='Вернуться к кадру';
     preparedEmailCrop={image:attachment,sku:currentItem.sku,
       width_cm:state.width,height_cm:state.height};
     saveDraft();
@@ -1445,6 +1451,21 @@
     emailRecipient.value=window.affrescoAccount?.savedEmail()||'';
     setModal(modalEmail,$('sendCrop'));
     if(!emailRecipient.value)emailRecipient.focus();
+  });
+  window.addEventListener('affresco:email-tryon',event=>{
+    const selection=event.detail;
+    if(!selection?.image?.startsWith('data:image/jpeg;base64,'))return;
+    preparedEmailCrop={...selection,kind:'tryon'};
+    emailReturnModal=modalTryon;
+    $('emailSendForm').reset();
+    emailRecipient.setCustomValidity('');emailRecipient.removeAttribute('aria-invalid');
+    emailRecipient.value=window.affrescoAccount?.savedEmail()||'';
+    $('emailSendFeedback').textContent='';
+    $('emailModalTitle').textContent='Отправить примерку';
+    $('emailModalDescription').textContent='Фото комнаты с выбранной фреской придёт вам во вложении JPEG.';
+    $('emailBackToEditor').textContent='← Вернуться к примерке';
+    $('emailSuccessBack').textContent='Вернуться к примерке';
+    setModal(modalEmail);
   });
   $('emailSendForm').addEventListener('submit',async event=>{
     event.preventDefault();
@@ -1472,7 +1493,7 @@
         headers:{'Content-Type':'application/json','X-Affresco-Request':'1'},
         body:JSON.stringify({
           email,sku:selection.sku,width_cm:selection.width_cm,
-          height_cm:selection.height_cm,image:selection.image
+          height_cm:selection.height_cm,image:selection.image,kind:selection.kind||'crop'
         })
       });
       let result=null;
@@ -1484,7 +1505,7 @@
       void window.affrescoAccount?.refreshProfile().catch(()=>{});
       if(openDialog===modalEmail&&requestId===emailSendRequest){
         preparedEmailCrop=null;
-        $('emailSuccessDescription').textContent='Письмо с выбранным кадром отправлено на '+email+
+        $('emailSuccessDescription').textContent=(selection.kind==='tryon'?'Письмо с примеркой отправлено на ':'Письмо с выбранным кадром отправлено на ')+email+
           '. Проверьте входящие и папку «Спам».'+
           (result.email_saved===false?' Адрес в профиле сохранить не удалось.':'');
         emailRecipient.value='';
@@ -1519,11 +1540,11 @@
   });
   $('emailBackToEditor').addEventListener('click',()=>{
     preparedEmailCrop=null;
-    setModal(modalEditor);
+    setModal(emailReturnModal);
   });
   $('emailSuccessBack').addEventListener('click',()=>{
     preparedEmailCrop=null;
-    setModal(modalEditor);
+    setModal(emailReturnModal);
   });
   $('resetCrop').addEventListener('click',()=>{
     if(!imageLoaded)return;
@@ -1542,31 +1563,13 @@
   window.addEventListener('resize',()=>{
     if(openDialog===modalEditor)updateCrop();
   });
-  $('tryOnWall').addEventListener('click',async()=>{
+  $('tryOnWall').addEventListener('click',()=>{
     if(!currentItem||!imageLoaded){showFeedback('Сначала дождитесь загрузки изображения.',true);return;}
-    saveDraft();
-    const trigger=$('tryOnWall');
-    const triggerLabel=$('tryOnWallLabel');
-    trigger.disabled=true;
-    trigger.setAttribute('aria-label','Проверяем вход');
-    triggerLabel.textContent='Проверка…';
-    try {
-      await window.affrescoAccount?.ready;
-      if(window.affrescoAccount?.signedIn()){
-        $('futureSku').textContent=currentItem.sku;
-        setModal(modalFuture);
-      } else {
-        $('loginFeedback').textContent='Чтобы примерить фреску на стену, войдите в свой аккаунт. Настройки кадра сохранены.';
-        $('backToEditor').hidden=false;
-        setModal(modalLogin);
-      }
-    } catch(_){
-      showFeedback('Проверка входа сейчас недоступна. Черновик сохранён, попробуйте позже.',true);
-    } finally {
-      trigger.disabled=false;
-      trigger.setAttribute('aria-label','Примерить на стену');
-      triggerLabel.textContent='Примерить';
-    }
+    try{
+      const selection={image:cropEmailJpeg(),sku:currentItem.sku,width_cm:state.width,height_cm:state.height};
+      saveDraft();
+      window.affrescoTryon.start(selection);
+    }catch(_){showFeedback('Не удалось подготовить кадр для примерки. Попробуйте снова.',true);}
   });
   $('backToEditor').addEventListener('click',()=>setModal(modalEditor));
   $('changeSelectedFresco').addEventListener('click',()=>{
@@ -1700,3 +1703,4 @@
   });
   loadCatalog();
 })();
+

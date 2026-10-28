@@ -99,7 +99,9 @@ function af_public_account(array $row): array {
         'last_update'=>is_string($row['last_update']??null)?$row['last_update']:null,
         'updates_count'=>max(0,(int)($row['updates_count']??0)),
         'emails_count'=>max(0,(int)($row['emails_count']??0)),
-        'last_email'=>is_string($row['last_email']??null)?$row['last_email']:null
+        'last_email'=>is_string($row['last_email']??null)?$row['last_email']:null,
+        'manual_generations_used'=>max(0,(int)($row['manual_generations_used']??0)),
+        'last_manual_generation'=>is_string($row['last_manual_generation']??null)?$row['last_manual_generation']:null
     ];
 }
 function af_account_state_file(string $id): string {
@@ -145,4 +147,5 @@ function af_state(string $id, ?callable $edit=null): ?array {
     fclose($handle);
     return $state;
 }
+
 

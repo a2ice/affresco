@@ -71,6 +71,7 @@
       $('accountPanel'+tab).hidden=!selected;
       if(selected&&focus)button.focus();
     }
+    if(activeTab==='Generations')void window.affrescoTryon?.renderHistory();
   }
   for(const name of tabs){
     const button=$('accountTab'+name);
@@ -120,7 +121,7 @@
     else if(document.activeElement!==email)email.value=user.email||'';
     $('accountFavorites').textContent=String(favorites.length);
     $('accountEdits').textContent=String(Object.keys(currentDrafts).length);
-    $('accountGenerations').textContent=String(user?.generations_used||0);
+    $('accountGenerations').textContent=String((user?.generations_used||0)+(activity.manual_generations_used||0));
     $('accountIdentity').textContent=member?'Логин: '+user.login:'Вы просматриваете коллекцию как гость.';
     $('accountScope').textContent=member
       ?'Избранное, кадры и активность принадлежат вашему аккаунту. Гостевые данные хранятся отдельно.'
@@ -131,7 +132,10 @@
       ['Сохранений кадра',member?String(activity.updates_count||0):String(saves.count||0)],
       ['Последнее сохранение',dateLabel(member?activity.last_update:saves.last)],
       ['Отправок на почту',String(activity.emails_count||0)],
-      ['Последняя отправка',dateLabel(activity.last_email)]
+      ['Последняя отправка',dateLabel(activity.last_email)],
+      ['Ручных примерок',String(activity.manual_generations_used||0)],
+      ['Последняя примерка',dateLabel(activity.last_manual_generation)],
+      ['AI-генераций',String(user?.generations_used||0)]
     ];
     const list=$('accountActivity');list.replaceChildren();
     for(const [label,value] of rows){
@@ -139,8 +143,9 @@
       dt.textContent=label;dd.textContent=value;list.append(dt,dd);
     }
     $('accountQuota').textContent=member
-      ?'Использовано: '+(user.generations_used||0)+' из '+(user.generations_limit||0)+' · Неудачных попыток: '+(user.generations_failed||0)
-      :'Войдите в аккаунт, чтобы увидеть свой лимит генераций.';
+      ?'AI: использовано '+(user.generations_used||0)+' из '+(user.generations_limit||0)+' · Неудачных попыток: '+(user.generations_failed||0)
+      :'AI-примерка будет доступна после входа в аккаунт.';
+    $('accountManualQuota').textContent='Ручные примерки: '+String(activity.manual_generations_used||0)+' · Без ограничений';
     $('accountDraftScope').textContent=member?'Кадры вашего аккаунта.':'Кадры, сохранённые в этом браузере.';
     renderSkuList('accountFavoriteList',favorites,'Пока нет избранных фресок.');
     $('accountShowFavorites').hidden=favorites.length===0;
@@ -260,3 +265,4 @@
     setEmailFromSend:email=>{if(signedIn()){user.email=email;renderDashboard();}},
     url:()=>signedIn()?stateEndpoint:'/api/favorites.php'};
 })();
+

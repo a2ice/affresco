@@ -18,6 +18,8 @@ $sku=$data['sku']??null;
 $image=$data['image']??null;
 $width=$data['width_cm']??null;
 $height=$data['height_cm']??null;
+$kind=$data['kind']??'crop';
+if (!in_array($kind,['crop','tryon'],true)) af_response(422,['error'=>'invalid_request']);
 // Validate recipient BEFORE JPEG processing, quotas, profile changes and mail().
 $email=is_string($email)?trim($email):'';
 $domain=strrpos($email,'@')!==false ? substr($email,strrpos($email,'@')+1) : '';
@@ -109,7 +111,7 @@ $account=af_current_account();
 // Hold the per-IP lock across the short mail transport call, so concurrent
 // successful submissions cannot exceed the limit.
 $quota=af_mail_quota_open();
-$error=af_send_crop_smtp($email,$sku,(float)$width,(float)$height,$binary);
+$error=af_send_crop_smtp($email,$sku,(float)$width,(float)$height,$binary,$kind);
 $accepted=$error===null;
 af_mail_quota_close($quota,$accepted);
 if (!$accepted) {
@@ -127,4 +129,5 @@ if ($account!==null) {
 }
 af_response(200,['accepted'=>true,'email'=>$email,'sku'=>$sku,
     'email_saved'=>$account!==null ? $emailSaved : null]);
+
 
