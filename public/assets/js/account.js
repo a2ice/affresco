@@ -117,7 +117,7 @@
       $('accountPanel'+tab).hidden=!selected;
       if(selected&&focus)button.focus();
     }
-    if(activeTab==='Generations'){void window.affrescoTryon?.renderHistory();void renderServerImageLibrary();}
+    if(activeTab==='Generations'){void window.affrescoTryon?.renderHistory?.();void renderServerImageLibrary();}
   }
   for(const name of tabs){
     const button=$('accountTab'+name);
