@@ -140,6 +140,60 @@
     const distance=Math.hypot((end.x-start.x)*width,(end.y-start.y)*height);
     return {from:start,to:end,tone:tone==='cold'?'cold':'warm',strength:clamp(distance/(Math.min(width,height)*.6),0,1)};
   }
+  // A visual cast shadow for a fresco lifted ~12 cm above its wall. The light
+  // gesture supplies a 2D direction and strength, not a true 3D light position.
+  // Use centimeters in the calibrated wall plane so perspective and zoom stay
+  // independent of the shadow geometry.
+  function shadowProjection(frescoQuad,wallQuad,wallSize,light,imageWidth,imageHeight){
+    if(!light||!Number.isFinite(light.strength)||light.strength<=.015||
+       !frescoQuad||frescoQuad.length!==4||!wallQuad||wallQuad.length!==4||
+       !wallSize||!(wallSize.width>0&&wallSize.height>0)||
+       !(imageWidth>0&&imageHeight>0))return null;
+    const vx=(light.to.x-light.from.x)*imageWidth,vy=(light.to.y-light.from.y)*imageHeight;
+    const length=Math.hypot(vx,vy);
+    if(!Number.isFinite(length)||length<1e-6)return null;
+    const center=project(frescoQuad,.5,.5),step=Math.max(1,Math.min(imageWidth,imageHeight)*.025);
+    const origin=unproject(wallQuad,center);
+    const forward=unproject(wallQuad,{x:center.x+vx/length*step,y:center.y+vy/length*step});
+    if(!origin||!forward)return null;
+    const dirX=(forward.x-origin.x)*wallSize.width,dirY=(forward.y-origin.y)*wallSize.height;
+    const dirLength=Math.hypot(dirX,dirY);
+    if(!Number.isFinite(dirLength)||dirLength<1e-8)return null;
+    // Virtual relief 12 cm; larger gestures represent more oblique illumination.
+    const strength=clamp(light.strength,0,1);
+    const shiftCm=12*(.25+.95*strength);
+    const du=dirX/dirLength*shiftCm/wallSize.width,dv=dirY/dirLength*shiftCm/wallSize.height;
+    const displaced=frescoQuad.map(p=>{
+      const uv=unproject(wallQuad,p);
+      return uv?project(wallQuad,uv.x+du,uv.y+dv):null;
+    });
+    if(displaced.some(p=>!p||![p.x,p.y].every(v=>Number.isFinite(v)&&Math.abs(v)<Math.max(imageWidth,imageHeight)*30)))return null;
+    const resultCenter=project(wallQuad,origin.x+du,origin.y+dv);
+    const screenShift=Math.hypot(resultCenter.x-center.x,resultCenter.y-center.y);
+    if(!Number.isFinite(screenShift))return null;
+    return {
+      quad:displaced,
+      opacity:.055+.14*strength,
+      blur:clamp(4+screenShift*.5,5,28),
+      shiftCm
+    };
+  }
+  function drawShadow(ctx,frescoQuad,wallQuad,wallSize,light){
+    const geometry=shadowProjection(frescoQuad,wallQuad,wallSize,light,ctx.canvas.width,ctx.canvas.height);
+    if(!geometry)return;
+    ctx.save();
+    // The shadow belongs to the calibrated wall, never to adjacent objects.
+    ctx.beginPath();
+    wallQuad.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));
+    ctx.closePath();ctx.clip();
+    ctx.shadowColor='rgba(24,21,18,'+(geometry.opacity*.8)+')';
+    ctx.shadowBlur=geometry.blur;
+    ctx.fillStyle='rgba(24,21,18,'+geometry.opacity+')';
+    ctx.beginPath();
+    geometry.quad.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));
+    ctx.closePath();ctx.fill();
+    ctx.restore();
+  }
   function drawLight(ctx,quad,light){
     if(!light||!Number.isFinite(light.strength)||light.strength<=0)return;
     const amount=clamp(light.strength,0,1),w=ctx.canvas.width,h=ctx.canvas.height;
@@ -152,9 +206,10 @@
     ctx.globalCompositeOperation='soft-light';ctx.fillStyle=gradient;ctx.fillRect(0,0,w,h);ctx.restore();
   }
   function controlPoints(quad,scale,offsetX=0,offsetY=0){return quad.map(p=>({x:Math.round(p.x*scale+offsetX),y:Math.round(p.y*scale+offsetY)}));}
-  function draw(ctx,room,crop,quad,warning=false,border=false,light=null,steps=border?12:24){
+  function draw(ctx,room,crop,quad,warning=false,border=false,light=null,steps=border?12:24,wallPlane=null){
     ctx.drawImage(room,0,0,ctx.canvas.width,ctx.canvas.height);
     if(!crop||!quad)return;
+    if(wallPlane&&light)drawShadow(ctx,quad,wallPlane.quad,wallPlane.size,light);
     warp(ctx,crop,quad,steps);
     drawLight(ctx,quad,light);
     if(warning){ctx.fillStyle='rgba(190,35,35,0.30)';ctx.beginPath();quad.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();ctx.fill();}
@@ -165,7 +220,7 @@
     }
   }
   function historyLimit(owner){return typeof owner==='string'&&owner.indexOf('account:')===0?12:3;}
-  const api={homography,unproject,maxPlacementPercent,placement,placementQuad,movePlacement,resizePlacement,makeLight,drawLight,controlPoints,historyLimit,presets,wallValue,fits,frame,move,rectangle,convex,corner,translate,freeCorner,freeTranslate,viewTransform,zoomViewAt,fitQuadView,resize,project,inside,warp,draw};
+  const api={homography,unproject,maxPlacementPercent,placement,placementQuad,movePlacement,resizePlacement,makeLight,shadowProjection,drawShadow,drawLight,controlPoints,historyLimit,presets,wallValue,fits,frame,move,rectangle,convex,corner,translate,freeCorner,freeTranslate,viewTransform,zoomViewAt,fitQuadView,resize,project,inside,warp,draw};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.affrescoTryonCore=api;
 })(typeof window!=='undefined'?window:globalThis);
 
