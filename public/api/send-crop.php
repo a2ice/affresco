@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require __DIR__ . '/_account.php';
 require __DIR__ . '/_account_email.php';
+require __DIR__ . '/_smtp_mail.php';
 af_session();
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     header('Allow: POST');
@@ -101,47 +102,22 @@ function af_mail_quota_close(array $quota,bool $accepted): void {
     flock($handle,LOCK_UN);
     fclose($handle);
 }
-// Only persist the recipient to the account owned by the current session.
-// Guests can send a limited number of messages but have no saved profile.
+// Mail recipients are accepted independently from saving their address in
+// accounts.json. An account email is updated only after SMTP accepts a mail.
 $account=af_current_account();
-if ($account!==null && !af_save_account_email((string)$account['id'],$email)) {
-    af_response(503,['error'=>'email_storage_unavailable']);
-}
-$from=getenv('AFFRESCO_MAIL_FROM');
-if (!is_string($from) || !filter_var($from,FILTER_VALIDATE_EMAIL)) {
-    $from='no-reply@affresco.a2ice.ru';
-}
-$boundary='affresco_'.bin2hex(random_bytes(12));
-$subject='=?UTF-8?B?'.base64_encode('AFFRESCO — ваш кадр фрески '.$sku).'?=';
-$text="Ваш кадр фрески AFFRESCO\n".
-    "Артикул: ".$sku."\n".
-    "Размер кадра: ".(float)$width." × ".(float)$height." см\n\n".
-    "Изображение выбранного фрагмента во вложении.\n".
-    "Размеры демонстрационные, уточняются перед изготовлением.\n\n".
-    "https://affresco.a2ice.ru/\n";
-$headers=[
-    'From: AFFRESCO <'.$from.'>',
-    'MIME-Version: 1.0',
-    'Content-Type: multipart/mixed; boundary="'.$boundary.'"',
-    'X-Auto-Response-Suppress: All'
-];
-$body="--".$boundary."\r\n".
-    "Content-Type: text/plain; charset=UTF-8\r\n".
-    "Content-Transfer-Encoding: 8bit\r\n\r\n".$text."\r\n".
-    "--".$boundary."\r\n".
-    "Content-Type: image/jpeg; name=\"affresco-".$sku.".jpg\"\r\n".
-    "Content-Transfer-Encoding: base64\r\n".
-    "Content-Disposition: attachment; filename=\"affresco-".$sku.".jpg\"\r\n\r\n".
-    chunk_split(base64_encode($binary),76,"\r\n").
-    "--".$boundary."--\r\n";
 // Hold the per-IP lock across the short mail transport call, so concurrent
 // successful submissions cannot exceed the limit.
 $quota=af_mail_quota_open();
-$accepted=function_exists('mail') && @mail($email,$subject,$body,implode("\r\n",$headers));
+$error=af_send_crop_smtp($email,$sku,(float)$width,(float)$height,$binary);
+$accepted=$error===null;
 af_mail_quota_close($quota,$accepted);
 if (!$accepted) {
-    af_response(503,['error'=>'mail_unavailable']);
+    af_response(503,['error'=>$error]);
 }
-// mail() confirms only acceptance by the server's local mail transport.
-// Final delivery to inbox is not guaranteed.
-af_response(200,['accepted'=>true,'email'=>$email,'sku'=>$sku]);
+// SMTP success confirms acceptance by the remote SMTP server, not inbox delivery.
+$emailSaved=false;
+if ($account!==null) {
+    $emailSaved=af_save_account_email((string)$account['id'],$email);
+}
+af_response(200,['accepted'=>true,'email'=>$email,'sku'=>$sku,
+    'email_saved'=>$account!==null ? $emailSaved : null]);
