@@ -95,7 +95,13 @@ const delay=()=>new Promise(r=>setTimeout(r,30));
  await $('tryonAIGenerate').fire('click');await delay();
  assert.equal(aiLaunches,0,'Guest cannot launch AI generation');
  assert.ok(dispatched.some(e=>e.type==='affresco:open-modal'&&e.detail==='login'),'Login modal requested');
- // Successful login resumes the original intent without a second user click.
+ // Closing the login popup cancels the pending AI intent.
+ window.dispatchEvent({type:'affresco:modal-closed',detail:'login'});
+ member={id:'tester'};window.dispatchEvent({type:'affresco:auth-changed'});await delay();
+ assert.equal(aiLaunches,0,'Canceled login cannot launch paid AI generation later');
+ member=null;window.dispatchEvent({type:'affresco:auth-changed'});
+ await $('tryonAIGenerate').fire('click');await delay();
+ // Successful login resumes the new intent without a second click.
  member={id:'tester'};window.dispatchEvent({type:'affresco:auth-changed'});await delay();
  assert.equal(aiLaunches,1,'Exactly one AI dispatch after successful login');
  assert.equal($('tryonAIToast').hidden,true,'Toast hidden on completed generation');
