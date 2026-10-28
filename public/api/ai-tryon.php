@@ -23,7 +23,7 @@ if($method==='GET'&&isset($_GET['manifest'])){
     af_response(200,[
       'generation_id'=>$id,
       'prompt'=>af_ai_prompt($job['metadata']),
-      'placement'=>['fresco_quad_normalized'=>$job['metadata']['fresco_quad']],
+      'placement'=>['fresco_quad_normalized'=>$job['metadata']['fresco_quad'],'occlusion_strokes'=>$job['metadata']['occlusion_strokes']??[]],
       'references'=>[
         af_ai_signed_url($cfg,$id,'room',$expiry),
         af_ai_signed_url($cfg,$id,'fresco',$expiry),
@@ -147,7 +147,7 @@ if($method!=='POST'){header('Allow: GET, POST');ai_terminal_error(405,'method_no
 af_guard_post();
 if((int)($_SERVER['CONTENT_LENGTH']??0)>8*1048576)ai_terminal_error(413,'request_too_large');
 if(!$cfg||!function_exists('curl_init'))ai_terminal_error(503,'ai_not_configured');
-$meta=isset($_POST['metadata'])&&is_string($_POST['metadata'])&&strlen($_POST['metadata'])<4096?json_decode($_POST['metadata'],true):null;
+$meta=isset($_POST['metadata'])&&is_string($_POST['metadata'])&&strlen($_POST['metadata'])<80000?json_decode($_POST['metadata'],true):null;
 $context=is_array($meta)?(string)($meta['context']??''):'';
 if(!af_ai_context($context))ai_terminal_error(422,'invalid_request');
 foreach(['wall_cm','fresco_cm'] as $key) {
@@ -161,6 +161,9 @@ foreach(['wall_quad','fresco_quad'] as $key) {
       foreach($p as $v)if(!is_numeric($v)||!is_finite((float)$v)||abs((float)$v)>20)ai_terminal_error(422,'invalid_request');
     }
 }
+$occlusion=af_ai_occlusion_strokes($meta['occlusion_strokes']??[]);
+if($occlusion===null)ai_terminal_error(422,'invalid_occlusion_mask');
+$meta['occlusion_strokes']=$occlusion;
 $meta['orientation']=($meta['orientation']??'')==='portrait'?'portrait':'landscape';
 $light=$meta['lighting']??null;
 if($light!==null){

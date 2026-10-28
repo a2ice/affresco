@@ -10,7 +10,7 @@ import json
 import math
 from pathlib import Path
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageChops
 
 def composite(original_path: str, generated_path: str, manifest_path: str, output_path: str) -> None:
     with open(manifest_path, encoding="utf-8") as handle:
@@ -38,6 +38,39 @@ def composite(original_path: str, generated_path: str, manifest_path: str, outpu
         # The four vertices are in source-camera coordinates; no artistic
         # extrapolation outside the requested footprint is permitted.
         drawing.polygon(polygon, fill=255)
+        # The user marks REAL furniture/objects on the original, including
+        # portions overlapping the mural. Protect those original pixels here.
+        strokes = manifest.get("placement", {}).get("occlusion_strokes", [])
+        if not isinstance(strokes, list) or len(strokes) > 64:
+            raise ValueError("Invalid foreground protection data")
+        if strokes:
+            foreground = Image.new("L", proposal.size, 0)
+            pen = ImageDraw.Draw(foreground)
+            total = 0
+            for stroke in strokes:
+                if not isinstance(stroke, dict):
+                    raise ValueError("Invalid foreground stroke")
+                radius = stroke.get("radius")
+                points = stroke.get("points")
+                if (not isinstance(radius, (float, int)) or not math.isfinite(radius) or
+                    not .002 <= radius <= .15 or not isinstance(points, list) or
+                    not 1 <= len(points) <= 128):
+                    raise ValueError("Invalid foreground stroke")
+                total += len(points)
+                if total > 3000:
+                    raise ValueError("Too many foreground points")
+                coords=[]
+                for p in points:
+                    if (not isinstance(p, list) or len(p)!=2 or
+                        any(not isinstance(v,(int,float)) or not math.isfinite(v) or not 0<=v<=1 for v in p)):
+                        raise ValueError("Invalid foreground coordinates")
+                    coords.append((round(p[0]*w),round(p[1]*h)))
+                pixel_radius=max(1,round(radius*w))
+                if len(coords)>1:
+                    pen.line(coords, fill=255, width=pixel_radius*2+1, joint="curve")
+                for x,y in coords:
+                    pen.ellipse((x-pixel_radius,y-pixel_radius,x+pixel_radius,y+pixel_radius),fill=255)
+            mask = ImageChops.subtract(mask, foreground)
         result = Image.composite(proposed, room, mask)
         result.save(output_path, "PNG", optimize=True)
         if Path(output_path).stat().st_size > 12*1024*1024:

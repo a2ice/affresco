@@ -62,6 +62,12 @@ try{
  ai_check(af_ai_output_size(['room_px'=>[1920,1080]])==='1280x720','16:9 room stays 16:9');
  ai_check(af_ai_output_size(['room_px'=>[1000,1000]])==='1280x1280','Square room stays square');
  ai_check(af_ai_output_size(['orientation'=>'landscape'])==='1536x1024','Legacy pending jobs keep compatibility');
+ $mask=af_ai_occlusion_strokes([['radius'=>.035,'points'=>[[.3,.4],[.6,.4]]]]);
+ ai_check(count($mask)===1&&count($mask[0]['points'])===2,'Valid marked foreground passes server validation');
+ ai_check(af_ai_occlusion_strokes(null)===[],'Legacy jobs without foreground mask remain valid');
+ ai_check(af_ai_occlusion_strokes([['radius'=>.035,'points'=>[[1.3,.4]]]])===null,'Reject out-of-room mask points');
+ ai_check(af_ai_occlusion_strokes([['radius'=>2,'points'=>[[.3,.4]]]])===null,'Reject unbounded brush radius');
+ ai_check(af_ai_occlusion_strokes(array_fill(0,65,['radius'=>.03,'points'=>[[.3,.4]]]))===null,'Reject oversized stroke collection');
  ai_check(!str_contains($prompt,'SECRET'),'Prompt leaked account secrets');
  $cfg=['public_url'=>'https://affresco.a2ice.ru','callback_secret'=>'test-key'];
  $url=af_ai_signed_url($cfg,$id,'room',time()+600);

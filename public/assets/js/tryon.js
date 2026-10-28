@@ -55,6 +55,35 @@
   let selection=null,room=null,crop=null,quad=null,placing=false,revision=0,savedRevision=-1,saved=null,busy=false,drag=null,operation=0,historyRequest=0;
   let aiContext=crypto.randomUUID(),aiBusy=false,aiLoginPending=false,aiLoginRevision=-1;
   let aiPollTimer=null,aiLastShown=null,aiJobs=[],aiRequest=0,manualExport=null,exportBusy=false,deletedManualRevision=null;
+  // A manually marked, deterministic foreground mask keeps actual object pixels.
+  // No generated image is used as the source of protected foreground objects.
+  let maskMode=false,foregroundStrokes=[];
+  function maskPoint(p){
+    return [Math.max(0,Math.min(1,p.x/canvas.width)),Math.max(0,Math.min(1,p.y/canvas.height))];
+  }
+  function previewForeground(){
+    ctx.save();ctx.globalAlpha=.58;ctx.strokeStyle='#e53b26';ctx.lineCap='round';ctx.lineJoin='round';
+    for(const stroke of foregroundStrokes){
+      if(!stroke.points.length)continue;
+      ctx.lineWidth=stroke.radius*canvas.width*2;
+      ctx.beginPath();
+      const first=stroke.points[0];ctx.moveTo(first[0]*canvas.width,first[1]*canvas.height);
+      if(stroke.points.length===1)ctx.lineTo(first[0]*canvas.width+.02,first[1]*canvas.height);
+      for(const p of stroke.points.slice(1))ctx.lineTo(p[0]*canvas.width,p[1]*canvas.height);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  function syncProtectTools(){
+    $('tryonForegroundTools').hidden=!placing;
+    $('tryonProtectToggle').setAttribute('aria-pressed',String(maskMode));
+    $('tryonProtectToggle').textContent=maskMode?'Готово':'Защитить предметы';
+    $('tryonProtectHint').hidden=!maskMode;
+    $('tryonProtectUndo').disabled=busy||!foregroundStrokes.length;
+    $('tryonProtectClear').disabled=busy||!foregroundStrokes.length;
+    stage.classList.toggle('is-masking',maskMode);
+  }
+
 
   const keyOwner=()=>window.affrescoAccount?.current()?.id?'account:'+window.affrescoAccount.current().id:'guest';
   const open=()=>window.dispatchEvent(new CustomEvent('affresco:open-modal',{detail:'tryon'}));
@@ -136,6 +165,7 @@
       :'Размещение: '+cm(placed.width)+' × '+cm(placed.height)+'. Максимум — размер исходного кадра и границы стены.';
     $('tryonFit').classList.toggle('is-warning',invalid);
     for(const id of ['tryonBegin','tryonSave','tryonDownload','tryonEmail'])$(id).disabled=busy||invalid;
+    $('tryonProtectToggle').disabled=busy||invalid||!placing;
     $('tryonAIGenerate').disabled=busy||aiBusy||invalid||!placing;
     $('tryonLayerWall').disabled=busy;$('tryonLayerFresco').disabled=busy||!placing;
     $('tryonScale').disabled=busy||invalid||layer!=='fresco';
@@ -145,8 +175,11 @@
     if(!room)return;
     checkFit();
     if(placing&&placed&&wallQuad)quad=core.placementQuad(wallQuad,lastWall,placed);
-    core.draw(ctx,room,placing?crop:null,placing?quad:null,false,false,lighting,12,{quad:wallQuad,size:lastWall});
-    layoutScene();renderControls();syncLightTools();
+    if(maskMode){
+      ctx.drawImage(room,0,0,canvas.width,canvas.height);
+      previewForeground();
+    }else core.draw(ctx,room,placing?crop:null,placing?quad:null,false,false,lighting,12,{quad:wallQuad,size:lastWall});
+    layoutScene();renderControls();syncLightTools();syncProtectTools();
   }
   function syncLightTools(){
     $('tryonLightToggle').setAttribute('aria-pressed',String(lightMode));
@@ -156,7 +189,7 @@
   }
   function renderControls(){
     const svg=$('tryonControls');
-    if(!room||!wallQuad){svg.innerHTML='';return;}
+    if(!room||!wallQuad||maskMode){svg.innerHTML='';return;}
     const {bounds,scale,x:ox,y:oy}=scene();
     if(!Number.isFinite(scale)||scale<=0){svg.innerHTML='';return;}
     const map=q=>core.controlPoints(q,scale,ox,oy);
@@ -198,7 +231,7 @@
     $('tryonChangeRoom').hidden=!['setup','placement'].includes(which);
     if(which!=='placement')$('tryonControls').innerHTML='';
   }
-  function resetRoom(){aiRequest++;aiContext=crypto.randomUUID();aiBusy=false;aiLoginPending=false;aiJobs=[];aiLastShown=null;manualExport=null;deletedManualRevision=null;
+  function resetRoom(){maskMode=false;foregroundStrokes=[];aiRequest++;aiContext=crypto.randomUUID();aiBusy=false;aiLoginPending=false;aiJobs=[];aiLastShown=null;manualExport=null;deletedManualRevision=null;
     if(aiPollTimer)clearTimeout(aiPollTimer);aiPollTimer=null;
     $('tryonAIToast').hidden=true;$('tryonAIResults').hidden=true;
     $('tryonAIGallery').replaceChildren();$('tryonAIError').hidden=true;syncExportLabels();
@@ -228,7 +261,7 @@
       const bctx=buffer.getContext('2d',{alpha:false});bctx.fillStyle='#fff';bctx.fillRect(0,0,buffer.width,buffer.height);bctx.drawImage(source,0,0,buffer.width,buffer.height);
       const loadedCrop=await imageFrom(selection.image);
       if(token!==operation)return;
-      room=buffer;crop=loadedCrop;canvas.width=buffer.width;canvas.height=buffer.height;view={zoom:1,panX:0,panY:0};
+      room=buffer;crop=loadedCrop;maskMode=false;foregroundStrokes=[];canvas.width=buffer.width;canvas.height=buffer.height;view={zoom:1,panX:0,panY:0};
       wallQuad=core.rectangle({x:canvas.width*.1,y:canvas.height*.12,width:canvas.width*.8,height:canvas.height*.7});
       placing=false;layer='wall';selected=true;rebuildPlacement(100);showStep('setup');feedback('');setLayer('wall');
     }catch(_){if(token===operation)feedback('Не удалось прочитать фото. Выберите изображение от 100 × 100 пикселей, до 60 мегапикселей.',true);}
@@ -255,14 +288,25 @@
     rebuildPlacement();changed();
   });
   for(const id of ['tryonWallWidth','tryonWallHeight'])$(id).addEventListener('input',()=>{$('tryonPreset').value='custom';rebuildPlacement();changed();});
-  $('tryonLayerWall').addEventListener('click',()=>{if(!busy)setLayer('wall');});
-  $('tryonLayerFresco').addEventListener('click',()=>{if(!busy)setLayer('fresco');});
+  $('tryonLayerWall').addEventListener('click',()=>{if(!busy){maskMode=false;setLayer('wall');}});
+  $('tryonLayerFresco').addEventListener('click',()=>{if(!busy){maskMode=false;setLayer('fresco');}});
   $('tryonBegin').addEventListener('click',()=>{if(!validWall()||!room||!crop||!wallQuad)return;rebuildPlacement(100);placing=true;showStep('placement');setLayer('fresco');changed();canvas.focus();});
   $('tryonScale').addEventListener('input',()=>{if(!room||!quad||!validWall())return;rebuildPlacement(Number($('tryonScale').value));changed();});
   $('tryonZoomIn').addEventListener('click',()=>{if(!busy)zoomAt(1.25);});
   $('tryonZoomOut').addEventListener('click',()=>{if(!busy)zoomAt(.8);});
   $('tryonFitPhoto').addEventListener('click',()=>{if(!busy)fitPhoto();});
   $('tryonFitWall').addEventListener('click',()=>{if(!busy)fitWall();});
+  $('tryonProtectToggle').addEventListener('click',()=>{
+    if(busy||!placing)return;
+    maskMode=!maskMode;lightMode=false;drag=null;pointers.clear();pinch=null;
+    paint();
+  });
+  $('tryonProtectUndo').addEventListener('click',()=>{
+    if(busy)return;foregroundStrokes.pop();paint();
+  });
+  $('tryonProtectClear').addEventListener('click',()=>{
+    if(busy)return;foregroundStrokes=[];paint();
+  });
   stage.addEventListener('wheel',event=>{
     if(!room||busy||!event.ctrlKey)return;
     event.preventDefault();
@@ -289,11 +333,22 @@
       if(pointers.size===2){
         const center=pointerCenter();
         pinch={view:{...view},center,distance:center.distance};
-        drag=null;stage.setPointerCapture(event.pointerId);event.preventDefault();return;
+        if(drag?.kind==='occlusion')foregroundStrokes.pop();
+        drag=null;stage.setPointerCapture(event.pointerId);event.preventDefault();paint();return;
       }
       if(pointers.size>2){pointers.delete(event.pointerId);return;}
     }
     const p=point(event);
+    if(maskMode){
+      if(p.x<0||p.y<0||p.x>canvas.width||p.y>canvas.height){
+        pointers.delete(event.pointerId);return;
+      }
+      if(foregroundStrokes.length>=64){feedback('Лимит мазков достигнут. Используйте более широкую кисть или отмените предыдущие.',true);return;}
+      const radius=Math.max(.002,Math.min(.15,Number($('tryonProtectBrush').value)/canvas.width));
+      foregroundStrokes.push({radius,points:[maskPoint(p)]});
+      drag={id:event.pointerId,kind:'occlusion'};
+      event.preventDefault();stage.setPointerCapture(event.pointerId);paint();return;
+    }
     if(lightMode){
       if(p.x<0||p.y<0||p.x>canvas.width||p.y>canvas.height){
         pointers.delete(event.pointerId);
@@ -329,6 +384,16 @@
       }
     }
     if(!drag||event.pointerId!==drag.id||busy)return;
+    if(drag.kind==='occlusion'){
+      const stroke=foregroundStrokes[foregroundStrokes.length-1];
+      if(stroke&&stroke.points.length<128){
+        const p=maskPoint(point(event)),last=stroke.points[stroke.points.length-1];
+        if(Math.hypot((p[0]-last[0])*canvas.width,(p[1]-last[1])*canvas.height)>stroke.radius*canvas.width/3){
+          stroke.points.push(p);paint();
+        }
+      }
+      event.preventDefault();return;
+    }
     if(drag.kind==='pan'){
       updateView({...view,panX:drag.panX+event.clientX-drag.x,panY:drag.panY+event.clientY-drag.y});
       return;
@@ -369,7 +434,7 @@
   stage.addEventListener('pointercancel',stopDrag);
   stage.addEventListener('lostpointercapture',stopDrag);
   canvas.addEventListener('keydown',event=>{
-    if(busy||!selected||lightMode||!wallQuad||!validWall())return;
+    if(busy||!selected||lightMode||maskMode||!wallQuad||!validWall())return;
     if(['0','1','2','3','4'].includes(event.key)){event.preventDefault();$('tryonHandle').value=event.key==='0'?'layer':String(Number(event.key)-1);return;}
     if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key))return;
     event.preventDefault();const n=event.shiftKey?10:1,dx=event.key==='ArrowLeft'?-n:event.key==='ArrowRight'?n:0,dy=event.key==='ArrowUp'?-n:event.key==='ArrowDown'?n:0,index=$('tryonHandle').value;
@@ -384,7 +449,7 @@
     changed();
   });
   $('tryonApply').addEventListener('click',()=>{if(busy)return;selected=false;lightMode=false;drag=null;paint();});
-  $('tryonLightToggle').addEventListener('click',()=>{if(busy||!placing)return;const enable=!lightMode;if(enable&&layer!=='fresco')setLayer('fresco');lightMode=enable;if(lightMode)selected=false;drag=null;paint();});
+  $('tryonLightToggle').addEventListener('click',()=>{if(busy||!placing)return;if(maskMode)maskMode=false;const enable=!lightMode;if(enable&&layer!=='fresco')setLayer('fresco');lightMode=enable;if(lightMode)selected=false;drag=null;paint();});
   $('tryonLightTone').addEventListener('change',()=>{if(lighting){lighting={...lighting,tone:$('tryonLightTone').value==='cold'?'cold':'warm'};changed();}else syncLightTools();});
   $('tryonLightCancel').addEventListener('click',()=>{if(busy)return;lighting=null;lightMode=false;drag=null;changed();});
   $('tryonChangeRoom').addEventListener('click',()=>{if(busy)return;operation++;resetRoom();});
@@ -662,7 +727,8 @@
       fresco_cm:[placed.width,placed.height],
       wall_quad:normalized(wallQuad),fresco_quad:normalized(quad),
       lighting:lighting?{from:[lighting.from.x,lighting.from.y],to:[lighting.to.x,lighting.to.y],tone:lighting.tone}:null,
-      orientation:canvas.height>canvas.width?'portrait':'landscape'
+      orientation:canvas.height>canvas.width?'portrait':'landscape',
+      occlusion_strokes:foregroundStrokes
     }));
     return form;
   }
@@ -675,6 +741,7 @@
       return;
     }
     const token=++aiRequest,context=aiContext,identity=window.affrescoAccount.identity();
+    if(maskMode){maskMode=false;paint();}
     $('tryonAIError').hidden=true;
     aiBusy=true;$('tryonAIGenerate').disabled=true;$('tryonAIRerun').disabled=true;
     // The persistent toast appears only after server confirms GitHub dispatch.

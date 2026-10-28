@@ -161,3 +161,16 @@
 @keyframes tryon-ai-spin{to{transform:rotate(360deg)}}
 @media(max-width:640px){.tryon-ai-results{padding:12px}.tryon-ai-actions .button{flex-basis:100%;}}
 @media(prefers-reduced-motion:reduce){.tryon-ai-loader{animation:none}}
+
+/* Optional foreground restoration mask — original room only, never drawn in exports. */
+#tryonModal .tryon-foreground-tools{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:8px 0;}
+#tryonModal .tryon-foreground-tools button{min-height:44px;padding:8px 12px;border:1px solid #b7ada1;background:#faf9f6;color:#51473e;font:600 12px/1.4 Manrope,sans-serif;cursor:pointer;}
+#tryonModal #tryonProtectToggle[aria-pressed=true]{background:#593f38;color:white;}
+#tryonModal .tryon-foreground-tools label{font:500 12px/1.4 Manrope,sans-serif;}
+#tryonModal #tryonProtectBrush{width:110px;max-width:35vw;accent-color:#9c3f2c;}
+#tryonModal .tryon-foreground-hint{font:500 12px/1.6 Manrope,sans-serif;color:#704135;margin:4px 0 12px;}
+#tryonModal .tryon-stage.is-masking{cursor:crosshair;}
+#tryonModal .tryon-stage.is-masking #tryonCanvas{cursor:crosshair;}
+@media(max-width:640px){#tryonModal .tryon-foreground-tools{gap:6px;}#tryonModal .tryon-foreground-tools button{padding:7px 9px;}}
+
+#tryonModal .tryon-foreground-tools[hidden],#tryonModal .tryon-foreground-hint[hidden]{display:none;}

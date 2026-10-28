@@ -204,6 +204,33 @@ function af_ai_output_size(array $meta): string {
     $outH=max(512,((int)round($h*$factor/16))*16);
     return $outW.'x'.$outH;
 }
+/**
+ * Normalize explicitly user-marked foreground strokes.
+ * Pixels in those strokes are restored from the ORIGINAL ROOM, including
+ * overlaps within the fresco quadrilateral. Never trust raw client masks.
+ */
+function af_ai_occlusion_strokes(mixed $value): ?array {
+    if($value===null)return [];
+    if(!is_array($value)||count($value)>64)return null;
+    $out=[];$total=0;
+    foreach($value as $item){
+        if(!is_array($item)||!is_numeric($item['radius']??null))return null;
+        $radius=(float)$item['radius'];
+        if(!is_finite($radius)||$radius<.002||$radius>.15)return null;
+        $points=$item['points']??null;
+        if(!is_array($points)||!count($points)||count($points)>128)return null;
+        $next=[];$total+=count($points);
+        if($total>3000)return null;
+        foreach($points as $point){
+            if(!is_array($point)||count($point)!==2||!is_numeric($point[0]??null)||!is_numeric($point[1]??null))return null;
+            $x=(float)$point[0];$y=(float)$point[1];
+            if(!is_finite($x)||!is_finite($y)||$x<0||$x>1||$y<0||$y>1)return null;
+            $next[]=[$x,$y];
+        }
+        $out[]=['radius'=>$radius,'points'=>$next];
+    }
+    return $out;
+}
 function af_ai_prompt(array $meta): string {
     // This is ONE canonical prompt for both furnished and completely empty rooms.
     // Don't include example furniture: named examples previously caused hallucinations.
@@ -222,6 +249,7 @@ THREE INPUTS (IN ORDER):
 1. ORIGINAL ROOM is the sole authority for what physically EXISTS: room architecture, camera, window, floor, fixtures, furniture (if any), plants (if any), objects, emptiness, natural light, shadows and materials.
 2. FRESCO CROP supplies the unmodified artwork.
 3. MANUAL PLACEMENT GUIDE supplies the exact four-corner mural geometry, wall perspective, position and scale. It is a placement diagram, NOT an instruction to decorate the room.
+4. USER-MARKED FOREGROUND PROTECTION, when supplied, marks actual object pixels selected by the user in the ORIGINAL ROOM. Those pixels MUST remain the originals, in FRONT of the wall-mounted fresco, even if they fall INSIDE the projected mural quad. Never hallucinate details to replace them.
 
 NON-NEGOTIABLE SCENE PRESERVATION:
 - Do NOT add, invent, furnish, remove, replace or reposition ANY object. Do NOT perform virtual staging, room redesign, decoration, styling, renovation or beautification.
