@@ -11,6 +11,13 @@ function ai_rm(string $path): void {
  elseif(is_file($path))unlink($path);
 }
 try{
+ // Shared hosting keeps the configuration in public/data; refuse use without a deny rule.
+ mkdir($root.'/public/data',0700,true);
+ $testConfig=['github_repo'=>'a2ice/affresco','github_token'=>'test-only','callback_secret'=>'test-callback','public_url'=>'https://affresco.a2ice.ru'];
+ file_put_contents($root.'/public/data/affresco-ai.json',json_encode($testConfig));
+ ai_check(af_ai_config()===null,'Public config must fail closed without deny rule');
+ file_put_contents($root.'/public/data/.htaccess',"catalog\\.json\nRequire all denied\n");
+ ai_check(af_ai_config()['github_repo']==='a2ice/affresco','Protected shared-host config can be loaded');
  $account=['id'=>'fixture','login'=>'user','generations_used'=>0,'generations_limit'=>2,'pass'=>'SECRET'];
  file_put_contents($root.'/data/accounts.json',json_encode([$account]));
  ai_check(af_ai_quota('fixture',1),'Reserve first generation');
