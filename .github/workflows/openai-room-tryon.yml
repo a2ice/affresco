@@ -3,7 +3,6 @@ on:
   workflow_dispatch:
     inputs:
       generation_id: {required: true, type: string}
-      manifest_url: {required: true, type: string}
 permissions:
   contents: read
 concurrency:
@@ -17,7 +16,7 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       CALLBACK_SECRET: ${{ secrets.AFFRESCO_AI_CALLBACK_SECRET }}
       GENERATION_ID: ${{ inputs.generation_id }}
-      MANIFEST_URL: ${{ inputs.manifest_url }}
+      PUBLIC_URL: ${{ vars.AFFRESCO_AI_PUBLIC_URL }}
     steps:
       - name: Generate and notify AFFRESCO
         shell: bash
@@ -48,7 +47,11 @@ jobs:
             exit "$status"
           }
           trap failed ERR
-          curl -fsSL "$MANIFEST_URL" -o manifest.json
+          PUBLIC_URL="${PUBLIC_URL:-https://affresco.a2ice.ru}"
+          case "$PUBLIC_URL" in https://affresco.a2ice.ru|https://afreska.2ice.ru) ;; *) echo "Unsupported AFFRESCO host" >&2; exit 1 ;; esac
+          expiry="$(($(date +%s)+600))"
+          signature="$(printf '%s\n%s' "$GENERATION_ID" "$expiry" | openssl dgst -sha256 -hmac "$CALLBACK_SECRET" -hex | awk '{print $NF}')"
+          curl -fsSL "$PUBLIC_URL/api/ai-tryon.php?manifest=$GENERATION_ID&exp=$expiry&sig=$signature" -o manifest.json
           test "$(jq -r '.generation_id' manifest.json)" = "$GENERATION_ID"
           callback_url="$(jq -r '.callback_url' manifest.json)"
           case "$callback_url" in https://*/api/ai-tryon.php?callback=*) ;; *) echo 'Invalid callback URL' >&2; exit 1 ;; esac
