@@ -74,10 +74,28 @@
     ctx.restore();
   }
   function inside(quad,p){return quad.every((a,i)=>{const b=quad[(i+1)%4];return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x)>=0;});}
-  function draw(ctx,room,crop,quad,warning=false,border=false){
+  function makeLight(from,to,tone,width,height){
+    const start={x:clamp(from.x/width,0,1),y:clamp(from.y/height,0,1)},end={x:clamp(to.x/width,0,1),y:clamp(to.y/height,0,1)};
+    const distance=Math.hypot((end.x-start.x)*width,(end.y-start.y)*height);
+    return {from:start,to:end,tone:tone==='cold'?'cold':'warm',strength:clamp(distance/(Math.min(width,height)*.6),0,1)};
+  }
+  function drawLight(ctx,quad,light){
+    if(!light||!Number.isFinite(light.strength)||light.strength<=0)return;
+    const amount=clamp(light.strength,0,1),w=ctx.canvas.width,h=ctx.canvas.height;
+    const gradient=ctx.createLinearGradient(light.from.x*w,light.from.y*h,light.to.x*w,light.to.y*h);
+    const bright=light.tone==='cold'?'178,220,255':'255,207,139',dark=light.tone==='cold'?'12,30,52':'48,30,16';
+    gradient.addColorStop(0,'rgba('+bright+','+(amount*.75)+')');
+    gradient.addColorStop(.45,'rgba('+bright+','+(amount*.08)+')');
+    gradient.addColorStop(1,'rgba('+dark+','+(amount*.75)+')');
+    ctx.save();ctx.beginPath();quad.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();ctx.clip();
+    ctx.globalCompositeOperation='soft-light';ctx.fillStyle=gradient;ctx.fillRect(0,0,w,h);ctx.restore();
+  }
+  function controlPoints(quad,scale,offsetX=0,offsetY=0){return quad.map(p=>({x:Math.round(p.x*scale+offsetX),y:Math.round(p.y*scale+offsetY)}));}
+  function draw(ctx,room,crop,quad,warning=false,border=false,light=null,steps=border?12:24){
     ctx.drawImage(room,0,0,ctx.canvas.width,ctx.canvas.height);
     if(!crop||!quad)return;
-    warp(ctx,crop,quad,border?12:24);
+    warp(ctx,crop,quad,steps);
+    drawLight(ctx,quad,light);
     if(warning){ctx.fillStyle='rgba(190,35,35,0.30)';ctx.beginPath();quad.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();ctx.fill();}
     if(border){
       ctx.strokeStyle=warning?'#b12424':'#ffffff';ctx.lineWidth=2;ctx.setLineDash([8,5]);ctx.beginPath();quad.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();ctx.stroke();ctx.setLineDash([]);
@@ -86,7 +104,8 @@
     }
   }
   function historyLimit(owner){return typeof owner==='string'&&owner.indexOf('account:')===0?12:3;}
-  const api={historyLimit,presets,wallValue,fits,frame,move,rectangle,convex,corner,translate,resize,project,inside,warp,draw};
+  const api={makeLight,drawLight,controlPoints,historyLimit,presets,wallValue,fits,frame,move,rectangle,convex,corner,translate,resize,project,inside,warp,draw};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.affrescoTryonCore=api;
 })(typeof window!=='undefined'?window:globalThis);
+
 

@@ -9,6 +9,7 @@
     return;
   }
   const canvas=$('tryonCanvas'),ctx=canvas.getContext('2d',{alpha:false});
+  let selected=true,lightMode=false,lighting=null;
   let selection=null,room=null,crop=null,quad=null,placing=false,revision=0,savedRevision=-1,saved=null,busy=false,drag=null,operation=0,historyRequest=0;
   const keyOwner=()=>window.affrescoAccount?.current()?.id?'account:'+window.affrescoAccount.current().id:'guest';
   const open=()=>window.dispatchEvent(new CustomEvent('affresco:open-modal',{detail:'tryon'}));
@@ -76,15 +77,50 @@
   function paint(){
     if(!room)return;
     const warning=checkFit();
-    core.draw(ctx,room,placing?crop:null,placing?quad:null,warning,placing);
+    core.draw(ctx,room,placing?crop:null,placing?quad:null,warning,false,lighting,12);
+    renderControls();
+    syncLightTools();
   }
+  function syncLightTools(){
+    $('tryonLightToggle').setAttribute('aria-pressed',String(lightMode));
+    $('tryonLightTone').hidden=!lightMode;
+    $('tryonLightCancel').disabled=busy||!lighting;
+    canvas.classList.toggle('is-light-mode',lightMode);
+  }
+  function renderControls(){
+    const svg=$('tryonControls');
+    if(!placing||!room||!quad){svg.innerHTML='';return;}
+    const bounds=canvas.getBoundingClientRect(),stage=$('tryonStage').getBoundingClientRect();
+    const scale=Math.min(bounds.width/canvas.width,bounds.height/canvas.height);
+    if(!Number.isFinite(scale)||scale<=0){svg.innerHTML='';return;}
+    const ox=bounds.left-stage.left+(bounds.width-canvas.width*scale)/2,oy=bounds.top-stage.top+(bounds.height-canvas.height*scale)/2;
+    const points=core.controlPoints(quad,scale,ox,oy);
+    let markup='';
+    if(selected&&!lightMode){
+      markup='<polygon points="'+points.map(p=>p.x+','+p.y).join(' ')+'" fill="none" stroke="#fff" stroke-width="1.5" stroke-dasharray="5 4"/>';
+      for(const p of points)markup+='<rect x="'+(p.x-6)+'.5" y="'+(p.y-6)+'.5" width="12" height="12" fill="#fff" stroke="#766453" stroke-width="1"/>';
+    }
+    if(lightMode&&lighting){
+      const a={x:lighting.from.x*canvas.width*scale+ox,y:lighting.from.y*canvas.height*scale+oy},b={x:lighting.to.x*canvas.width*scale+ox,y:lighting.to.y*canvas.height*scale+oy};
+      const angle=Math.atan2(b.y-a.y,b.x-a.x),size=9;
+      const left={x:b.x-size*Math.cos(angle-.5),y:b.y-size*Math.sin(angle-.5)},right={x:b.x-size*Math.cos(angle+.5),y:b.y-size*Math.sin(angle+.5)};
+      markup+='<path d="M '+a.x+' '+a.y+' L '+b.x+' '+b.y+' M '+left.x+' '+left.y+' L '+b.x+' '+b.y+' L '+right.x+' '+right.y+'" stroke="#f0c67b" stroke-width="2" fill="none"/><circle cx="'+a.x+'" cy="'+a.y+'" r="4" fill="#f0c67b" stroke="#766453"/>';
+    }
+    svg.innerHTML=markup;
+  }
+  window.addEventListener('resize',()=>{if(room)paint();});
+  if(typeof ResizeObserver!=='undefined')new ResizeObserver(()=>renderControls()).observe($('tryonStage'));
   function changed(){revision++;saved=null;feedback('');paint();}
   function summary(){if(selection)$('tryonSummary').textContent='Арт. '+selection.sku+' · Фреска '+selection.width_cm+' × '+selection.height_cm+' см';}
   function showStep(which){
     $('tryonUploadStep').hidden=which!=='upload';$('tryonWorkspace').hidden=!['setup','placement'].includes(which);$('tryonSavedStep').hidden=which!=='saved';
     $('tryonSetupActions').hidden=which!=='setup';$('tryonPlacementActions').hidden=which!=='placement';
+    $('tryonFooter').hidden=!['placement','saved'].includes(which);
+    $('tryonFooterPlacement').hidden=which!=='placement';$('tryonFooterSaved').hidden=which!=='saved';
+    $('tryonChangeRoom').hidden=!['setup','placement'].includes(which);
+    if(which!=='placement')$('tryonControls').innerHTML='';
   }
-  function resetRoom(){room=null;quad=null;placing=false;drag=null;saved=null;revision++;savedRevision=-1;$('tryonRoomFile').value='';showStep('upload');feedback('');}
+  function resetRoom(){selected=true;lightMode=false;lighting=null;syncLightTools();room=null;quad=null;placing=false;drag=null;saved=null;revision++;savedRevision=-1;$('tryonRoomFile').value='';showStep('upload');feedback('');}
   async function start(value){
     operation++;selection={...value};crop=null;resetRoom();summary();
     $('tryonPreset').value='';$('tryonWallWidth').value='';$('tryonWallHeight').value='';$('tryonBack').hidden=false;
@@ -136,7 +172,7 @@
     $('tryonWallWidth').value=preset?.width??'';$('tryonWallHeight').value=preset?.height??'';changed();
   });
   for(const id of ['tryonWallWidth','tryonWallHeight'])$(id).addEventListener('input',()=>{$('tryonPreset').value='';changed();});
-  $('tryonBegin').addEventListener('click',()=>{if(!validWall()||!room||!crop)return;placing=true;showStep('placement');changed();canvas.focus();});
+  $('tryonBegin').addEventListener('click',()=>{if(!validWall()||!room||!crop)return;placing=true;selected=true;showStep('placement');changed();canvas.focus();});
   $('tryonScale').addEventListener('input',()=>{
     if(!room||!quad)return;
     quad=core.resize(quad,Number($('tryonScale').value),canvas.width,canvas.height);
@@ -147,41 +183,61 @@
     return {x:(event.clientX-bounds.left-(bounds.width-canvas.width*scale)/2)/scale,y:(event.clientY-bounds.top-(bounds.height-canvas.height*scale)/2)/scale};
   }
   canvas.addEventListener('pointerdown',event=>{
-    if(!placing||busy||!quad)return;const p=point(event);
-    const bounds=canvas.getBoundingClientRect(),scale=Math.min(bounds.width/canvas.width,bounds.height/canvas.height),radius=22/scale;
-    const index=quad.findIndex(c=>Math.hypot(c.x-p.x,c.y-p.y)<=radius);
-    if(index<0&&!core.inside(quad,p))return;
-    event.preventDefault();canvas.focus();$('tryonHandle').value=index<0?'layer':String(index);drag={...p,id:event.pointerId,index};canvas.setPointerCapture(event.pointerId);
+    if(!placing||busy||!quad)return;
+    const p=point(event);
+    if(p.x<0||p.y<0||p.x>canvas.width||p.y>canvas.height){selected=false;paint();return;}
+    if(lightMode){
+      event.preventDefault();canvas.focus();
+      drag={id:event.pointerId,kind:'light',start:p,previous:lighting};
+      lighting=core.makeLight(p,p,$('tryonLightTone').value,canvas.width,canvas.height);
+      canvas.setPointerCapture(event.pointerId);paint();return;
+    }
+    const bounds=canvas.getBoundingClientRect(),scale=Math.min(bounds.width/canvas.width,bounds.height/canvas.height),radius=16/scale;
+    const index=selected?quad.findIndex(c=>Math.hypot(c.x-p.x,c.y-p.y)<=radius):-1;
+    if(index<0&&!core.inside(quad,p)){selected=false;paint();return;}
+    selected=true;paint();
+    event.preventDefault();canvas.focus();$('tryonHandle').value=index<0?'layer':String(index);drag={...p,id:event.pointerId,index,kind:'geometry'};canvas.setPointerCapture(event.pointerId);
   });
   let framePending=false;
   canvas.addEventListener('pointermove',event=>{
     if(!drag||event.pointerId!==drag.id||busy)return;
     const p=point(event);
-    quad=drag.index>=0?core.corner(quad,drag.index,p,canvas.width,canvas.height):core.translate(quad,p.x-drag.x,p.y-drag.y,canvas.width,canvas.height);
-    drag={...p,id:drag.id,index:drag.index};revision++;saved=null;
+    if(drag.kind==='light')lighting=core.makeLight(drag.start,p,$('tryonLightTone').value,canvas.width,canvas.height);
+    else {
+      quad=drag.index>=0?core.corner(quad,drag.index,p,canvas.width,canvas.height):core.translate(quad,p.x-drag.x,p.y-drag.y,canvas.width,canvas.height);
+      drag={...drag,...p};
+    }
+    revision++;saved=null;
     if(!framePending){framePending=true;requestAnimationFrame(()=>{framePending=false;feedback('');paint();});}
   });
-  function stopDrag(){drag=null;}
+  function stopDrag(event){
+    if(drag?.kind==='light'&&(event?.type==='pointercancel'||!lighting||lighting.strength<.015))lighting=drag.previous;
+    drag=null;paint();
+  }
   canvas.addEventListener('pointerup',stopDrag);canvas.addEventListener('pointercancel',stopDrag);canvas.addEventListener('lostpointercapture',stopDrag);
   canvas.addEventListener('keydown',event=>{
-    if(!placing||busy||!quad||!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key))return;
+    if(!placing||busy||!selected||lightMode||!quad||!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key))return;
     event.preventDefault();const n=event.shiftKey?20:5;
     const dx=event.key==='ArrowLeft'?-n:event.key==='ArrowRight'?n:0,dy=event.key==='ArrowUp'?-n:event.key==='ArrowDown'?n:0;
     const index=$('tryonHandle').value;
     quad=index==='layer'?core.translate(quad,dx,dy,canvas.width,canvas.height):core.corner(quad,Number(index),{x:quad[Number(index)].x+dx,y:quad[Number(index)].y+dy},canvas.width,canvas.height);changed();
   });
-  $('tryonResetPerspective').addEventListener('click',()=>{if(busy||!crop)return;quad=core.rectangle(core.frame(canvas.width,canvas.height,crop.naturalWidth/crop.naturalHeight,Number($('tryonScale').value)));changed();});
+  $('tryonResetPerspective').addEventListener('click',()=>{if(busy||!crop)return;selected=true;lightMode=false;quad=core.rectangle(core.frame(canvas.width,canvas.height,crop.naturalWidth/crop.naturalHeight,Number($('tryonScale').value)));changed();});
+  $('tryonApply').addEventListener('click',()=>{if(busy)return;selected=false;lightMode=false;drag=null;paint();});
+  $('tryonLightToggle').addEventListener('click',()=>{if(busy||!placing)return;lightMode=!lightMode;if(lightMode)selected=false;drag=null;paint();});
+  $('tryonLightTone').addEventListener('change',()=>{if(lighting){lighting={...lighting,tone:$('tryonLightTone').value==='cold'?'cold':'warm'};changed();}else syncLightTools();});
+  $('tryonLightCancel').addEventListener('click',()=>{if(busy)return;lighting=null;lightMode=false;drag=null;changed();});
   $('tryonChangeRoom').addEventListener('click',()=>{if(busy)return;operation++;resetRoom();});
   $('tryonBack').addEventListener('click',()=>window.dispatchEvent(new CustomEvent('affresco:open-modal',{detail:'editor'})));
   function jpeg(){
     const output=document.createElement('canvas');output.width=canvas.width;output.height=canvas.height;
-    core.draw(output.getContext('2d',{alpha:false}),room,crop,quad,checkFit(),false);
+    core.draw(output.getContext('2d',{alpha:false}),room,crop,quad,checkFit(),false,lighting);
     let image;
     for(const quality of [.88,.78,.68,.58]){image=output.toDataURL('image/jpeg',quality);if(image.length<2900000)break;}
     if(image.length>=2900000)throw Error('image_export');
     return image;
   }
-  function lock(value){busy=value;for(const id of ['tryonSave','tryonDownload','tryonEmail','tryonChangeRoom','tryonPreset','tryonWallWidth','tryonWallHeight','tryonScale','tryonBack','tryonHandle','tryonResetPerspective'])$(id).disabled=value;}
+  function lock(value){busy=value;for(const id of ['tryonSave','tryonDownload','tryonEmail','tryonChangeRoom','tryonPreset','tryonWallWidth','tryonWallHeight','tryonScale','tryonBack','tryonHandle','tryonResetPerspective','tryonApply','tryonLightToggle','tryonLightTone','tryonLightCancel'])$(id).disabled=value;syncLightTools();}
   async function save(){
     if(busy||!placing||!validWall())return null;
     await window.affrescoAccount?.ready;
@@ -244,4 +300,5 @@
   window.affrescoTryon={start,renderHistory};
   void window.affrescoAccount?.ready.then(()=>renderHistory());
 })();
+
 
