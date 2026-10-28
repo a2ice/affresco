@@ -138,9 +138,6 @@
       const dt=document.createElement('dt'),dd=document.createElement('dd');
       dt.textContent=label;dd.textContent=value;list.append(dt,dd);
     }
-    $('accountMailNote').textContent=member
-      ?'Отправки считаются после принятия письма SMTP-сервером. Учёт отправок включён 28.10.2026; более ранние письма не учитываются.'
-      :'Отправки учитываются в текущей гостевой сессии, сохранения — в этом браузере с момента включения статистики.';
     $('accountQuota').textContent=member
       ?'Использовано: '+(user.generations_used||0)+' из '+(user.generations_limit||0)+' · Неудачных попыток: '+(user.generations_failed||0)
       :'Войдите в аккаунт, чтобы увидеть свой лимит генераций.';
