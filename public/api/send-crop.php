@@ -21,7 +21,7 @@ $email=is_string($email)?trim($email):'';
 $domain=strrpos($email,'@')!==false ? substr($email,strrpos($email,'@')+1) : '';
 if ($email==='' || strlen($email)>254 ||
     filter_var($email,FILTER_VALIDATE_EMAIL)===false ||
-    !preg_match('/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$/iD',$domain)) {
+    !preg_match('/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/iD',$domain)) {
     af_response(422,['error'=>'invalid_email']);
 }
 if (!is_string($sku) || preg_match('/^[A-Za-z0-9_.-]{1,100}$/D',$sku)!==1 ||
