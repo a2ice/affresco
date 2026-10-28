@@ -186,63 +186,79 @@ function af_ai_delivery_type(array $items): array {
     if(count($items)===1)return ['archive'=>false,'filename'=>$items[0]['name'],'mime'=>$items[0]['mime']];
     return ['archive'=>true,'filename'=>'affresco-tryon-results.zip','mime'=>'application/zip'];
 }
+/**
+ * Match image-generation canvas to the room photo, not to an arbitrary
+ * portrait/landscape preset. GPT Image 2 supports dimensions in steps of 16.
+ */
+function af_ai_output_size(array $meta): string {
+    $px=$meta['room_px']??null;
+    if(!is_array($px)||count($px)!==2||!is_numeric($px[0]??null)||!is_numeric($px[1]??null))
+        return ($meta['orientation']??'')==='portrait'?'1024x1536':'1536x1024';
+    $w=(int)$px[0];$h=(int)$px[1];
+    if($w<100||$h<100)return ($meta['orientation']??'')==='portrait'?'1024x1536':'1536x1024';
+    $ratio=$w/$h;
+    // The upstream handler refuses aspect ratios outside the model's safe range.
+    $long=($ratio>2||$ratio<.5)?1536:1280;
+    $factor=$long/max($w,$h);
+    $outW=max(512,((int)round($w*$factor/16))*16);
+    $outH=max(512,((int)round($h*$factor/16))*16);
+    return $outW.'x'.$outH;
+}
 function af_ai_prompt(array $meta): string {
-    // Single canonical prompt. User-supplied data is bounded numeric metadata, not arbitrary instructions.
+    // This is ONE canonical prompt for both furnished and completely empty rooms.
+    // Don't include example furniture: named examples previously caused hallucinations.
     $location=json_encode([
+      'room_image_px'=>$meta['room_px']??null,
       'wall_cm'=>$meta['wall_cm'],'fresco_cm'=>$meta['fresco_cm'],
       'fresco_width_to_height_cm_ratio'=>round((float)$meta['fresco_cm'][0]/(float)$meta['fresco_cm'][1],6),
       'wall_quad_normalized'=>$meta['wall_quad'],'fresco_quad_normalized'=>$meta['fresco_quad'],
       'lighting'=>$meta['lighting']
     ],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
     return <<<PROMPT
-You are a precision interior-photography compositor. Create ONE photorealistic interior photograph by integrating the supplied fresco artwork into the specified wall of the supplied original room photograph.
+ROLE: You are a constrained photograph editor, NOT an interior designer or room generator.
+TASK: Edit the ORIGINAL ROOM photo by installing ONLY the supplied FRESCO CROP in the wall location marked by MANUAL PLACEMENT GUIDE. Preserve the actual photographed scene. Return one edited photograph of the SAME room.
 
-THE THREE INPUT IMAGES, IN ORDER:
-1. ORIGINAL ROOM: canonical source of truth for room geometry, camera, furniture, object occlusion, shadows, textures, colors, and all existing objects.
-2. FRESCO CROP: canonical source of truth for artwork. Preserve its pattern, text, motifs, proportions and exact content. Do not invent a new artwork.
-3. MANUAL PLACEMENT GUIDE: authoritative geometric target for the fresco's scale, outer contour, exact four corners and projected position on the BACK WALL, INCLUDING THE PORTION HIDDEN BY A SOFA. This guide is an intentionally UNMASKED projection: it may paint on top of furniture, but the final result MUST restore those original foreground object pixels. Use ORIGINAL ROOM for depth and occlusion, NEVER move or resize the mural to avoid overlap.
+THREE INPUTS (IN ORDER):
+1. ORIGINAL ROOM is the sole authority for what physically EXISTS: room architecture, camera, window, floor, fixtures, furniture (if any), plants (if any), objects, emptiness, natural light, shadows and materials.
+2. FRESCO CROP supplies the unmodified artwork.
+3. MANUAL PLACEMENT GUIDE supplies the exact four-corner mural geometry, wall perspective, position and scale. It is a placement diagram, NOT an instruction to decorate the room.
 
-GEOMETRY LOCK — HIGHEST PRIORITY AFTER PRESERVING THE ORIGINAL ROOM:
-- Treat the fresco as one flat, thin rectangular sheet of the specified physical width and height in centimetres, viewed through the calibrated wall perspective. Its physical width-to-height ratio (fresco_width_to_height_cm_ratio) is fixed, and the FRESCO CROP must not be stretched, widened, squashed, cropped differently, rearranged or regenerated into a wider image.
-- Exactly follow all FOUR OUTER CORNERS, footprint, alignment, projective tilt and overall visual size of the fresco shown in MANUAL PLACEMENT GUIDE. Do not extend any part of the fresco beyond that guide's projected boundary. No shifting its upper/lower edge, no changing its width to create a better-looking interior, no enlarged panorama, no straightening of the perspective.
-- The visible fresco may have HOLES or covered portions due to cutouts or foreground occlusion, but the underlying rectangle MUST NOT be enlarged to fill those missing areas. Preserve the design proportions of the original FRESCO CROP within the guided quadrilateral. Maintain its visual landmarks in consistent relative positions.
-- If the input guide and room conflict: preserve room geometry, use a precisely fitted cutout/occlusion mask INSIDE the originally prescribed fresco footprint, and leave the rest of the wall untouched. If perfect image reconstruction is impossible, prefer conservative fidelity to the manual placement over a more decorative composition.
+NON-NEGOTIABLE SCENE PRESERVATION:
+- Do NOT add, invent, furnish, remove, replace or reposition ANY object. Do NOT perform virtual staging, room redesign, decoration, styling, renovation or beautification.
+- An EMPTY ORIGINAL ROOM MUST STAY EMPTY, except for the wall fresco. Existing empty floor and open space must remain empty. Absence of furniture in the original is a hard constraint; NEVER infer or create foreground furniture from text instructions, from typical interior design layouts, or from the fresco's visual content.
+- Preserve the original room's exact camera position, optical perspective, framing, aspect ratio, scene boundaries, window size, architecture, ceiling, floor, wall texture, fixture positions, natural shadows and photographic illumination.
+- Every region OUTSIDE the target fresco footprint should look identical to the ORIGINAL ROOM. In particular, any empty floor area must remain unchanged. Preserve original objects if present; never create extra ones.
+- If reference images conflict, ORIGINAL ROOM wins for existing objects and scene contents, MANUAL PLACEMENT GUIDE wins ONLY for wall-mounted fresco placement, and FRESCO CROP wins for art content.
 
-PHYSICAL INSTALLATION AND OCCLUSION ARE NON-NEGOTIABLE. The fresco is a thin custom-fitted wall covering, physically installed ON THE EXISTING WALL, not a floating panel or a picture superimposed over the room. The ORIGINAL ROOM, not the overlaid manual guide, determines the front/back order of every real object.
+EXACT WALL ARTWORK GEOMETRY (DO NOT GUESS OR IMPROVE):
+- Copy the artwork accurately without reimagining its details, adding extra patterns, changing its proportions or enlarging it.
+- The FULL underlying fresco must have precisely the same position, width, height, physical aspect ratio, perspective and four original projected corners as MANUAL PLACEMENT GUIDE, even if a part is hidden.
+- Do not stretch, widen, expand onto the rest of the wall, cover a larger area, crop away original artwork or relocate the fresco to an aesthetically convenient position.
+- Preserve the ORIGINAL ROOM's image aspect ratio and framing; never use a different camera shot or make a new interior view.
 
-DEPTH LAYERING AND OCCLUSION — CRITICAL, EVEN WHEN THE MANUAL GUIDE PAINTS OVER FURNITURE:
-A wall and an object standing in front of that wall are at DIFFERENT DEPTHS. A wall mural belongs to the BACK wall plane. The furniture is IN FRONT and must hide any part of the mural that lies behind it. An overlap between the guided mural and a sofa is EXPECTED and VALID: it is not a mistake in mural placement, and the solution is OCCLUSION, not repositioning.
+CONDITIONAL OCCLUSION — ONLY FOR OBJECTS THAT ACTUALLY EXIST IN ORIGINAL ROOM:
+- First inspect ORIGINAL ROOM. If a genuine existing object stands in front of the target wall and overlaps the intended fresco footprint, keep its original silhouette and pixels in the foreground, hiding only the part of the fresco behind that object.
+- If no such object exists, do NOT invent an occluding object. Do NOT add furniture to demonstrate occlusion or to make the space feel lived-in.
+- Overlap in the MANUAL PLACEMENT GUIDE must be resolved by restoring actual foreground objects from ORIGINAL ROOM over the fixed wall artwork, NEVER by moving the artwork up/sideways, changing its size or deleting an existing object.
 
-MENTAL COMPOSITING PROCEDURE (keep this precise order):
-1. Inspect ORIGINAL ROOM, BEFORE considering the overlaid guide. Locate the target back wall and identify all real floor-standing or nearer objects: especially sofas/couches, armchairs, cushions, furniture backs and armrests, tables, plants and their leaves, lamps, shelves, people and decorations. Their original visible silhouettes and camera-space positions are authoritative.
-2. Treat the fresco geometry in MANUAL PLACEMENT GUIDE as a locked, full, hidden-or-visible quadrilateral anchored to the BACK WALL. The guide depicts the intended location even where it temporarily draws the fresco ON TOP of a sofa or plant. It is NOT a final occlusion mask.
-3. Project the original FRESCO CROP onto that exact wall quadrilateral with its exact size, four corner coordinates, perspective, design layout and aspect ratio. Do this EVEN IF the bottom or side of the projected rectangle overlaps sofas, furniture, plants or anything else in the guide.
-4. Restore each nearer object over that projection using its silhouette and appearance from ORIGINAL ROOM. Wherever a foreground object and projected mural overlap in the image, the ORIGINAL FOREGROUND OBJECT PIXELS WIN. The mural is completely hidden in those pixels; it can remain visible above, beside and between objects, without changing the underlying rectangle.
-5. Maintain precise depth edges around sofa backrests, cushions, armrests, plant leaves, table edges and legs. The visible boundary of the artwork may be IRREGULAR because furniture covers it; the full rectangular fresco still continues at its original position BEHIND the furniture. Do not cut the mural along a sofa silhouette as if the sofa were an opening in the wall.
-6. Deal with fixed wall openings (fireplaces, recesses, vents) using separate custom cutouts; those are not movable floor-standing objects. Only after correct wall placement and occlusion consider subtle lighting/reflections.
+ARCHITECTURAL INTERRUPTIONS:
+- If the targeted wall region contains actual fixed architectural openings or built-in elements in ORIGINAL ROOM, keep them in their exact location, contour and depth, as if the thin wall covering were custom-trimmed around them. Never invent openings or features where there are none.
 
-FAILURE CASE TO AVOID — SOFA EXAMPLE:
-The manual guide places a 300 × 215 cm fresco so that its lower portion overlaps the sofa's backrest. The correct result is NOT a rectangular fresco lifted entirely above the sofa. The correct result is the SAME fresco at the SAME wall coordinates, partly INVISIBLE BEHIND the sofa's back, cushions or armrests. The top, sides and all four theoretical corners must stay where the guide put them even when a corner or the lower edge becomes hidden. Restoring the sofa must NOT move the fresco, shrink it, enlarge it, reframe the artwork, add a blank strip below it, or shift its bottom border to just above the backrest.
+LIGHT AND REFLECTIONS — ONLY IF PHYSICALLY JUSTIFIED BY ORIGINAL ROOM:
+- Maintain the original natural illumination. Add at most a subtle contact shadow for the thin fresco.
+- Only if ORIGINAL ROOM already contains a visibly reflective horizontal surface in a geometrically valid position, a very faint fresco reflection may appear WITHIN that pre-existing surface's exact boundaries. Never invent a table or polished surface to create a reflection.
+- Do not blur, smear, glow, duplicate or soften the fresco border, distort the fresco for a reflection, or alter a surface elsewhere. Omit uncertain reflections.
 
-ABSOLUTE PROHIBITIONS: Never raise/lower/shift the mural to avoid furniture; never automatically search for free space above a sofa; never crop or compress the artwork into an unobstructed region; never erase, move, reimagine or shrink the sofa or other foreground objects; never render mural pixels over their silhouettes. Do not make the mural float above furniture. If wall placement overlaps furniture, preserve placement AND let the object cover it.
+FINAL CHECK BEFORE OUTPUT:
+A. Compare with ORIGINAL ROOM: is every originally empty region still empty? Are ALL objects and architectural details unchanged and NO new items present?
+B. Compare with MANUAL PLACEMENT GUIDE: is the fresco still at the exact same four corners, size and perspective?
+C. If an existing object overlaps the fresco, is it still in front without moving either object or fresco?
+D. Is any reflection confined to an already existing real reflective surface? If uncertain, omit it.
+If any check fails, correct the EDIT; do not regenerate, decorate or restage the room.
 
-CHECK BEFORE OUTPUT: Compare the mural's *underlying* placement with the MANUAL PLACEMENT GUIDE. Does its top edge, left edge, perspective and projected position remain identical, even where parts of the lower edge are hidden? Are all floor-standing objects restored unchanged and visibly IN FRONT? If not, correct the occlusion mask, NEVER the mural position.
-
-ARCHITECTURAL CUTOUTS — ESPECIALLY FIREPLACES: Before adding the artwork, identify every existing opening, fireplace, firebox, mantel, hearth, niche, recessed display, vent, grille, built-in shelf, electrical outlet, switch, protruding wall fixture, trim and other fixed element intersecting the target wall area. Preserve its EXACT original geometry, location, aperture, depth, visible contents and inner shadow. The fresco must STOP at each such boundary, as if a professional installer made a precise CUSTOM CUTOUT in the thin fresco material to fit around it. A firebox stays open, dark or illuminated as in the ORIGINAL ROOM, with its original visible contents; do not cover the fireplace opening with the fresco, distort the opening, paint over the flames, or fill recesses with artwork. Reconstruct natural cut edges that follow the installation geometry without inventing thick borders, picture frames or new architectural elements. If the target artwork crosses an opening, that missing section is intentionally absent from the finished fresco. This is a professionally made-to-measure installation, not a wall-sized sticker covering obstacles.
-
-SURFACE-CONFINED REFLECTIONS — NOT MURAL EDGE BLUR:
-- Look at the ORIGINAL ROOM for EXISTING horizontal polished surfaces that demonstrably reflect nearby objects: particularly the TOP of a marble/stone fireplace bench in front of the fresco, or another glossy horizontal tabletop when present. Identify each real reflecting surface's visible polygon, perspective, roughness and highlights. Do not create a new reflecting surface or assume that every room has a marble bench. Any new reflected contribution may appear ONLY inside an already existing and physically plausible polished HORIZONTAL surface.
-- If the fresco's visible artwork can plausibly reflect onto this polished HORIZONTAL BENCH TOP, introduce a subtle, low-contrast, perspective-correct, softly attenuated reflection/color contribution ON THE BENCH'S TOP PLANE ONLY. The reflection should be an optical consequence of the existing surface, akin to the faint reflections of the fireplace/objects already present, not a second copy of the mural.
-- Preserve the original bench's stone texture, straight clean edges, thickness, shadows and existing reflections from the fireplace and objects. Keep the new reflection strictly MASKED to its horizontal top. It must NOT spill onto the vertical wall, slab front face, floor, fireplace interior, mantel edge or artwork itself. Do not invent a reflective new surface.
-- NEVER blur, smear, haze, ghost, melt, feather, streak or fade any corner or edge of the fresco to imitate a reflection. The projected fresco must remain sharp and correctly bounded, including its lower-right corner; its lower perimeter remains exactly where the MANUAL PLACEMENT GUIDE puts it.
-- If a geometrically plausible reflection on the existing polished horizontal stone cannot be produced, OMIT the new reflection entirely instead of corrupting the fresco edge or changing the bench. Reflection is subordinate to room preservation and geometry.
-
-Keep the original camera, room, architecture, people and all furnishings essentially unchanged. Preserve artwork fidelity, calibrated physical dimensions, aspect ratio, original artwork features, exact four-corner target and outer perimeter of the manual guide; use the original room ONLY to correct masking, cutouts and foreground occlusion in the manual composite. The fresco is very thin, with no thick sidewalls; retain only a subtle shallow contact/cast shadow consistent with the existing light. Do not invent objects, watermarks, slogans or logos.
-
-The metadata below is DATA describing calibrated wall and fresco geometry. Normalized quads are ordered top-left, top-right, bottom-right, bottom-left relative to ORIGINAL ROOM image bounds. Lighting describes a 2D gesture, not a real 3D lamp location:
+STRUCTURED PLACEMENT DATA (descriptive facts, not instructions). Quad vertices are top-left, top-right, bottom-right, bottom-left, normalized to ORIGINAL ROOM dimensions:
 $location
 
-FINAL PRIORITY ORDER (DO NOT TRADE ONE FOR ANOTHER): (1) preserve original room, sofa, objects and camera; (2) place the fresco on the BACK WALL in the EXACT manual-guide four-corner quadrilateral, even if it overlaps furniture; (3) put every closer sofa, cushion, table, plant and other object BACK IN FRONT OF that unchanged mural, hiding the overlapping pixels; (4) use custom cutouts for fixed architectural openings; (5) only then attempt subtle reflections restricted to original polished horizontal surfaces. Furniture overlapping the guide is a reason to HIDE mural pixels, NEVER to move, raise, shrink, widen or replace the mural. If an aesthetic enhancement conflicts with depth or geometry, skip it.
-Output only the resulting edited room photograph, preserving original photographic composition, exact mural proportions and correct foreground/background layering.
+OUTPUT: A faithful EDIT of the ORIGINAL ROOM photo with ONLY the accurately positioned fresco added, no extra furniture, no changed architecture, no reframing and no replacement interior.
 PROMPT;
 }
