@@ -1484,8 +1484,8 @@
       void window.affrescoAccount?.refreshProfile().catch(()=>{});
       if(openDialog===modalEmail&&requestId===emailSendRequest){
         preparedEmailCrop=null;
-        $('emailSuccessDescription').textContent='Письмо с выбранным кадром принято SMTP-сервером для '+email+
-          '. Проверьте входящие и папку «Спам»: доставка может занять некоторое время.'+
+        $('emailSuccessDescription').textContent='Письмо с выбранным кадром отправлено на '+email+
+          '. Проверьте входящие и папку «Спам».'+
           (result.email_saved===false?' Адрес в профиле сохранить не удалось.':'');
         emailRecipient.value='';
         setModal(modalEmailSuccess);
