@@ -33,8 +33,19 @@ try{
  ai_check(af_ai_write('fixture',$job),'Atomic private job write');
  ai_check(af_ai_read('fixture',$id)['status']==='pending','Read private job');
  $prompt=af_ai_prompt($meta);
- foreach(['ORIGINAL ROOM','FRESCO CROP','MANUAL PLACEMENT GUIDE','IN FRONT','couch','FOREGROUND','FIREPLACES','CUSTOM CUTOUT','REFLECTIONS','polished'] as $fragment)
+ foreach([
+    'ORIGINAL ROOM','FRESCO CROP','MANUAL PLACEMENT GUIDE','IN FRONT','couch','FOREGROUND',
+    'FIREPLACES','CUSTOM CUTOUT','REFLECTIONS','polished',
+    'GEOMETRY LOCK','ALL FOUR OUTER CORNERS','physical width-to-height ratio',
+    'NOT be enlarged','fresco_width_to_height_cm_ratio',
+    'SURFACE-CONFINED REFLECTIONS','HORIZONTAL BENCH TOP','MASKED',
+    'lower-right corner','NEVER blur, smear','OMIT the new reflection entirely',
+    'FINAL PRIORITY ORDER'
+ ] as $fragment)
     ai_check(str_contains(strtolower($prompt),strtolower($fragment)),'Prompt missing occlusion priority: '.$fragment);
+ ai_check(str_contains($prompt,'"fresco_width_to_height_cm_ratio":1.5'),'The 180 × 120 cm aspect ratio must be sent as numeric data');
+ ai_check(str_contains($prompt,'"fresco_quad_normalized":[[0.2,0.2],[0.6,0.2],[0.6,0.6],[0.2,0.6]]'),'Manual quad must be supplied without modification');
+ ai_check(str_contains($prompt,'reflection on the existing polished horizontal stone cannot be produced, OMIT'),'No destructive fallback blurring');
  ai_check(!str_contains($prompt,'SECRET'),'Prompt leaked account secrets');
  $cfg=['public_url'=>'https://affresco.a2ice.ru','callback_secret'=>'test-key'];
  $url=af_ai_signed_url($cfg,$id,'room',time()+600);
