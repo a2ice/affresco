@@ -81,6 +81,47 @@ if($method==='POST'&&isset($_GET['callback'])){
 $account=af_current_account();
 if($account===null)ai_terminal_error(401,'login_required');
 $owner=(string)$account['id'];
+if($method==='GET'&&isset($_GET['library'])){
+    af_response(200,['items'=>af_ai_library_items($owner)]);
+}
+if($method==='GET'&&isset($_GET['manual'])){
+    $id=(string)$_GET['manual'];
+    if(!preg_match('/^[a-f0-9-]{36}$/iD',$id))ai_terminal_error(404,'not_found');
+    $file=af_ai_user_dir($owner).'/manual-'.$id.'.jpg';
+    $meta=af_ai_user_dir($owner).'/manual-'.$id.'.json';
+    if(!is_file($file)||!is_file($meta))ai_terminal_error(404,'not_found');
+    header('Content-Type: image/jpeg');header('Cache-Control: private, no-store');
+    header('X-Content-Type-Options: nosniff');readfile($file);exit;
+}
+if($method==='POST'&&isset($_GET['delete'])){
+    af_guard_post();
+    $data=json_decode((string)file_get_contents('php://input'),true);
+    $type=is_array($data)?(string)($data['type']??''):'';
+    $id=is_array($data)?(string)($data['id']??''):'';
+    if(!in_array($type,['manual','ai'],true))ai_terminal_error(422,'invalid_request');
+    $valid=$type==='ai'?af_ai_id($id):preg_match('/^[a-f0-9-]{36}$/iD',$id)===1;
+    if(!$valid)ai_terminal_error(422,'invalid_request');
+    af_ai_lock($owner,static function()use($owner,$type,$id){
+        $base=af_ai_user_dir($owner);
+        if($type==='ai'){
+            $job=af_ai_read($owner,$id);
+            if(!$job)ai_terminal_error(404,'not_found');
+            if(($job['status']??'')!=='completed')ai_terminal_error(409,'ai_in_progress');
+            // Completed work stays counted toward the paid AI quota.
+            $paths=[$base.'/'.$id.'-result.png',$base.'/'.$id.'.json',
+                $base.'/'.$id.'-room.jpg',$base.'/'.$id.'-fresco.jpg',
+                $base.'/'.$id.'-guide.jpg',af_ai_root().'/ticket-'.$id.'.json'];
+        }else{
+            $meta=$base.'/manual-'.$id.'.json';
+            if(!is_file($meta))ai_terminal_error(404,'not_found');
+            $paths=[$base.'/manual-'.$id.'.jpg',$meta];
+        }
+        foreach($paths as $path){
+            if(is_file($path)&&!@unlink($path))ai_terminal_error(503,'delete_failed');
+        }
+    });
+    af_response(200,['deleted'=>true,'type'=>$type,'id'=>$id]);
+}
 if($method==='GET'&&isset($_GET['image'])){
     $id=(string)$_GET['image'];$job=af_ai_read($owner,$id);
     if(!$job||$job['status']!=='completed')ai_terminal_error(404,'not_found');
