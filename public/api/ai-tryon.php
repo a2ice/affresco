@@ -146,9 +146,7 @@ $created=af_ai_lock($owner,static function()use($owner,$context,$meta,$buffers,$
     if(@file_put_contents(af_ai_root().'/ticket-'.$id.'.json',$ticketJson,LOCK_EX)!==strlen($ticketJson)){af_ai_quota($owner,-1);ai_terminal_error(503,'ai_storage_unavailable');}
     return $job;
 });
-$id=$created['id'];$expiry=time()+1200;
-$signature=hash_hmac('sha256',"$id\n$expiry",$cfg['callback_secret']);
-$url=$cfg['public_url'].'/api/ai-tryon.php?manifest='.$id.'&exp='.$expiry.'&sig='.$signature;
+$id=$created['id'];
 $repo=(string)($cfg['github_repo']??'a2ice/affresco');
 if(!preg_match('~^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$~D',$repo))ai_terminal_error(503,'ai_not_configured');
 $endpoint="https://api.github.com/repos/$repo/actions/workflows/openai-room-tryon.yml/dispatches";
@@ -156,7 +154,7 @@ $ch=curl_init($endpoint);
 curl_setopt_array($ch,[CURLOPT_POST=>true,CURLOPT_RETURNTRANSFER=>true,CURLOPT_TIMEOUT=>20,
     CURLOPT_HTTPHEADER=>['Accept: application/vnd.github+json','Content-Type: application/json',
        'Authorization: Bearer '.$cfg['github_token'],'User-Agent: AFFRESCO-AI-Dispatcher','X-GitHub-Api-Version: 2022-11-28'],
-    CURLOPT_POSTFIELDS=>json_encode(['ref'=>'main','inputs'=>['generation_id'=>$id,'manifest_url'=>$url]]),
+    CURLOPT_POSTFIELDS=>json_encode(['ref'=>'main','inputs'=>['generation_id'=>$id]]),
     CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2
 ]);
 curl_exec($ch);$status=curl_getinfo($ch,CURLINFO_HTTP_CODE);curl_close($ch);
