@@ -39,9 +39,13 @@ try{
     'Never infer or create foreground furniture','Do NOT perform virtual staging',
     'Every region OUTSIDE the target fresco footprint',
     'EXACT WALL ARTWORK GEOMETRY','fresco_width_to_height_cm_ratio',
-    'four original projected corners','CONDITIONAL OCCLUSION',
-    'ONLY FOR OBJECTS THAT ACTUALLY EXIST IN ORIGINAL ROOM',
-    'If no such object exists','do NOT invent an occluding object',
+    'four original projected corners','AUTOMATIC FOREGROUND OCCLUSION',
+    'ORIGINAL ROOM FIRST','MANUAL PLACEMENT GUIDE AS AN UNMASKED WALL PROJECTION',
+    'bring back its ORIGINAL pixels',
+    'WITHOUT A BREAK','Do not let the fresco erase the upper part',
+    'KEEP THE ORIGINAL OBJECT IN FRONT',
+    'no manual mask is required',
+    'OPTIONAL USER FOREGROUND MARKS',
     'ARCHITECTURAL INTERRUPTIONS',
     'LIGHT AND REFLECTIONS','do not invent a table or polished surface',
     'FINAL CHECK BEFORE OUTPUT','no extra furniture',
@@ -64,6 +68,8 @@ try{
  ai_check(af_ai_output_size(['orientation'=>'landscape'])==='1536x1024','Legacy pending jobs keep compatibility');
  $mask=af_ai_occlusion_strokes([['radius'=>.035,'points'=>[[.3,.4],[.6,.4]]]]);
  ai_check(count($mask)===1&&count($mask[0]['points'])===2,'Valid marked foreground passes server validation');
+ ai_check(count(af_ai_occlusion_strokes([['radius'=>.0004,'points'=>[[.5,.5]]]]))===1,'Fine-detail 3px brush radius must be accepted');
+ ai_check(af_ai_occlusion_strokes([['radius'=>.0001,'points'=>[[.5,.5]]]])===null,'Subpixel unsafe brushes remain rejected');
  ai_check(af_ai_occlusion_strokes(null)===[],'Legacy jobs without foreground mask remain valid');
  ai_check(af_ai_occlusion_strokes([['radius'=>.035,'points'=>[[1.3,.4]]]])===null,'Reject out-of-room mask points');
  ai_check(af_ai_occlusion_strokes([['radius'=>2,'points'=>[[.3,.4]]]])===null,'Reject unbounded brush radius');
