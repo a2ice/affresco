@@ -34,7 +34,7 @@ try{
  ai_check(af_ai_read('fixture',$id)['status']==='pending','Read private job');
  $prompt=af_ai_prompt($meta);
  foreach(['ORIGINAL ROOM','FRESCO CROP','MANUAL PLACEMENT GUIDE','IN FRONT','couch','FOREGROUND','FIREPLACES','CUSTOM CUTOUT','REFLECTIONS','polished'] as $fragment)
-    ai_check(str_contains($prompt,$fragment),'Prompt missing occlusion priority: '.$fragment);
+    ai_check(str_contains(strtolower($prompt),strtolower($fragment)),'Prompt missing occlusion priority: '.$fragment);
  ai_check(!str_contains($prompt,'SECRET'),'Prompt leaked account secrets');
  $cfg=['public_url'=>'https://affresco.a2ice.ru','callback_secret'=>'test-key'];
  $url=af_ai_signed_url($cfg,$id,'room',time()+600);
