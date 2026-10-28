@@ -432,16 +432,28 @@
   }
   function email(record){window.dispatchEvent(new CustomEvent('affresco:email-tryon',{detail:record}));}
   $('tryonSave').addEventListener('click',()=>{void save();});
+  async function hasMultipleManualSaves(){
+    if(!window.affrescoAccount?.signedIn())return false;
+    try{return (await records(keyOwner())).filter(r=>r.context===aiContext).length>1;}
+    catch(_){return false;}
+  }
   $('tryonDownload').addEventListener('click',async()=>{
     if(aiJobs.some(j=>j.status==='completed')){await downloadCombined();return;}
-    const record=await save();if(record)download(record);
+    const record=await save();if(!record)return;
+    if(await hasMultipleManualSaves()){await downloadCombined();return;}
+    download(record);
   });
   $('tryonEmail').addEventListener('click',async()=>{
     if(aiJobs.some(j=>j.status==='completed')){
       window.dispatchEvent(new CustomEvent('affresco:email-ai-tryon',{detail:{context:aiContext}}));
       return;
     }
-    const record=await save();if(record)email(record);
+    const record=await save();if(!record)return;
+    if(await hasMultipleManualSaves()){
+      window.dispatchEvent(new CustomEvent('affresco:email-ai-tryon',{detail:{context:aiContext}}));
+      return;
+    }
+    email(record);
   });
   $('tryonSavedDownload').addEventListener('click',()=>{if(saved&&saved.owner===keyOwner())download(saved);});
   $('tryonSavedEmail').addEventListener('click',()=>{if(saved&&saved.owner===keyOwner())email(saved);});
