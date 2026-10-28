@@ -8,7 +8,49 @@
     }};
     return;
   }
-  const canvas=$('tryonCanvas'),ctx=canvas.getContext('2d',{alpha:false});
+  const canvas=$('tryonCanvas'),ctx=canvas.getContext('2d',{alpha:false}),stage=$('tryonStage');
+  let view={zoom:1,panX:0,panY:0};
+  const pointers=new Map();
+  let pinch=null;
+  const stageBounds=()=>stage.getBoundingClientRect();
+  function scene(){
+    const bounds=stageBounds();
+    return {bounds,...core.viewTransform(canvas.width,canvas.height,bounds.width,bounds.height,view)};
+  }
+  function layoutScene(){
+    if(!room)return;
+    const {scale,x,y}=scene();
+    if(!Number.isFinite(scale)||scale<=0)return;
+    canvas.style.left=x+'px';canvas.style.top=y+'px';
+    canvas.style.width=(canvas.width*scale)+'px';
+    canvas.style.height=(canvas.height*scale)+'px';
+    $('tryonZoomValue').textContent=Math.round(view.zoom*100)+'%';
+  }
+  function updateView(next){
+    if(!room)return;
+    view=next;layoutScene();renderControls();
+  }
+  const fitPhoto=()=>updateView({zoom:1,panX:0,panY:0});
+  function fitWall(){
+    if(!wallQuad||!room)return;
+    const bounds=stageBounds();
+    updateView(core.fitQuadView(wallQuad,canvas.width,canvas.height,bounds.width,bounds.height));
+  }
+  function zoomAt(factor,at){
+    if(!room)return;
+    const bounds=stageBounds();
+    updateView(core.zoomViewAt(view,factor,at||{x:bounds.width/2,y:bounds.height/2},bounds.width,bounds.height));
+  }
+  function keepCornerVisible(index){
+    if(index<0||!wallQuad)return;
+    const p=(layer==='wall'?wallQuad:quad)?.[index];
+    if(!p)return;
+    const {bounds,scale,x,y}=scene(),margin=28;
+    const sx=x+p.x*scale,sy=y+p.y*scale;
+    const dx=sx<margin?margin-sx:sx>bounds.width-margin?bounds.width-margin-sx:0;
+    const dy=sy<margin?margin-sy:sy>bounds.height-margin?bounds.height-margin-sy:0;
+    if(dx||dy)updateView({...view,panX:view.panX+dx,panY:view.panY+dy});
+  }
   let selected=true,lightMode=false,lighting=null,layer='wall',wallQuad=null,placed=null,lastWall={width:500,height:275};
   let selection=null,room=null,crop=null,quad=null,placing=false,revision=0,savedRevision=-1,saved=null,busy=false,drag=null,operation=0,historyRequest=0;
   const keyOwner=()=>window.affrescoAccount?.current()?.id?'account:'+window.affrescoAccount.current().id:'guest';
@@ -100,7 +142,7 @@
     checkFit();
     if(placing&&placed&&wallQuad)quad=core.placementQuad(wallQuad,lastWall,placed);
     core.draw(ctx,room,placing?crop:null,placing?quad:null,false,false,lighting,12);
-    renderControls();syncLightTools();
+    layoutScene();renderControls();syncLightTools();
   }
   function syncLightTools(){
     $('tryonLightToggle').setAttribute('aria-pressed',String(lightMode));
@@ -111,10 +153,8 @@
   function renderControls(){
     const svg=$('tryonControls');
     if(!room||!wallQuad){svg.innerHTML='';return;}
-    const bounds=canvas.getBoundingClientRect(),stage=$('tryonStage').getBoundingClientRect();
-    const scale=Math.min(bounds.width/canvas.width,bounds.height/canvas.height);
+    const {bounds,scale,x:ox,y:oy}=scene();
     if(!Number.isFinite(scale)||scale<=0){svg.innerHTML='';return;}
-    const ox=bounds.left-stage.left+(bounds.width-canvas.width*scale)/2,oy=bounds.top-stage.top+(bounds.height-canvas.height*scale)/2;
     const map=q=>core.controlPoints(q,scale,ox,oy);
     function outline(q,active,color){return '<polygon points="'+map(q).map(p=>p.x+','+p.y).join(' ')+'" fill="none" stroke="'+color+'" stroke-width="'+(active?1.5:1)+'" stroke-dasharray="5 4" opacity="'+(active?1:.5)+'"/>';}
     function dimensions(q,width,height,color){
@@ -129,7 +169,10 @@
     if(selected&&!lightMode){
       markup+=outline(wallQuad,layer==='wall','#766453')+dimensions(wallQuad,lastWall.width,lastWall.height,'#766453');
       if(placing&&quad)markup+=outline(quad,layer==='fresco','#25231f')+dimensions(quad,placed.width,placed.height,'#25231f');
-      for(const p of map(layer==='wall'?wallQuad:quad))markup+='<rect class="tryon-corner" x="'+(p.x-6)+'.5" y="'+(p.y-6)+'.5" width="12" height="12" fill="#fff" stroke="#766453" stroke-width="1"/>';
+      for(const p of map(layer==='wall'?wallQuad:quad)){
+        markup+='<circle cx="'+p.x+'" cy="'+p.y+'" r="18" fill="#faf9f6" fill-opacity=".35" stroke="#766453" stroke-opacity=".4" stroke-width="1"/>';
+        markup+='<rect class="tryon-corner" x="'+(p.x-6)+'.5" y="'+(p.y-6)+'.5" width="12" height="12" fill="#fff" stroke="#766453" stroke-width="1"/>';
+      }
     }
     if(lightMode&&lighting){
       const a={x:lighting.from.x*canvas.width*scale+ox,y:lighting.from.y*canvas.height*scale+oy},b={x:lighting.to.x*canvas.width*scale+ox,y:lighting.to.y*canvas.height*scale+oy};
@@ -140,7 +183,7 @@
     svg.innerHTML=markup;
   }
   window.addEventListener('resize',()=>{if(room)paint();});
-  if(typeof ResizeObserver!=='undefined')new ResizeObserver(()=>renderControls()).observe($('tryonStage'));
+  if(typeof ResizeObserver!=='undefined')new ResizeObserver(()=>{if(room)paint();}).observe(stage);
   function changed(){revision++;saved=null;feedback('');paint();}
   function summary(){if(selection){$('tryonSummary').textContent='Арт. '+selection.sku+' · Исходный кадр '+cm(selection.width_cm)+' × '+cm(selection.height_cm);$('tryonCopyFeedback').textContent='';}}
   function showStep(which){
@@ -151,7 +194,7 @@
     $('tryonChangeRoom').hidden=!['setup','placement'].includes(which);
     if(which!=='placement')$('tryonControls').innerHTML='';
   }
-  function resetRoom(){wallQuad=null;placed=null;layer='wall';lastWall={width:500,height:275};$('tryonLayerWall').setAttribute('aria-pressed','true');$('tryonLayerFresco').setAttribute('aria-pressed','false');selected=true;lightMode=false;lighting=null;syncLightTools();room=null;quad=null;placing=false;drag=null;saved=null;revision++;savedRevision=-1;$('tryonRoomFile').value='';showStep('upload');feedback('');}
+  function resetRoom(){view={zoom:1,panX:0,panY:0};pointers.clear();pinch=null;stage.classList.remove('is-panning');wallQuad=null;placed=null;layer='wall';lastWall={width:500,height:275};$('tryonLayerWall').setAttribute('aria-pressed','true');$('tryonLayerFresco').setAttribute('aria-pressed','false');selected=true;lightMode=false;lighting=null;syncLightTools();room=null;quad=null;placing=false;drag=null;saved=null;revision++;savedRevision=-1;$('tryonRoomFile').value='';showStep('upload');feedback('');}
   async function start(value){
     operation++;selection={...value};crop=null;resetRoom();summary();
     $('tryonPreset').value='standard';$('tryonWallWidth').value=500;$('tryonWallHeight').value=275;$('tryonBack').hidden=false;
@@ -177,7 +220,7 @@
       const bctx=buffer.getContext('2d',{alpha:false});bctx.fillStyle='#fff';bctx.fillRect(0,0,buffer.width,buffer.height);bctx.drawImage(source,0,0,buffer.width,buffer.height);
       const loadedCrop=await imageFrom(selection.image);
       if(token!==operation)return;
-      room=buffer;crop=loadedCrop;canvas.width=buffer.width;canvas.height=buffer.height;
+      room=buffer;crop=loadedCrop;canvas.width=buffer.width;canvas.height=buffer.height;view={zoom:1,panX:0,panY:0};
       wallQuad=core.rectangle({x:canvas.width*.1,y:canvas.height*.12,width:canvas.width*.8,height:canvas.height*.7});
       placing=false;layer='wall';selected=true;rebuildPlacement(100);showStep('setup');feedback('');setLayer('wall');
     }catch(_){if(token===operation)feedback('Не удалось прочитать фото. Выберите изображение от 100 × 100 пикселей, до 60 мегапикселей.',true);}
@@ -208,40 +251,84 @@
   $('tryonLayerFresco').addEventListener('click',()=>{if(!busy)setLayer('fresco');});
   $('tryonBegin').addEventListener('click',()=>{if(!validWall()||!room||!crop||!wallQuad)return;rebuildPlacement(100);placing=true;showStep('placement');setLayer('fresco');changed();canvas.focus();});
   $('tryonScale').addEventListener('input',()=>{if(!room||!quad||!validWall())return;rebuildPlacement(Number($('tryonScale').value));changed();});
+  $('tryonZoomIn').addEventListener('click',()=>{if(!busy)zoomAt(1.25);});
+  $('tryonZoomOut').addEventListener('click',()=>{if(!busy)zoomAt(.8);});
+  $('tryonFitPhoto').addEventListener('click',()=>{if(!busy)fitPhoto();});
+  $('tryonFitWall').addEventListener('click',()=>{if(!busy)fitWall();});
+  stage.addEventListener('wheel',event=>{
+    if(!room||busy||!event.ctrlKey)return;
+    event.preventDefault();
+    const bounds=stageBounds();
+    zoomAt(Math.exp(-event.deltaY*.002),{x:event.clientX-bounds.left,y:event.clientY-bounds.top});
+  },{passive:false});
   $('tryonCopySku').addEventListener('click',async()=>{
     if(!selection)return;
     try{await navigator.clipboard.writeText(selection.sku);$('tryonCopyFeedback').textContent='Скопировано';}
     catch(_){$('tryonCopyFeedback').textContent='Не удалось скопировать артикул';}
   });
   function point(event){
-    const bounds=canvas.getBoundingClientRect(),scale=Math.min(bounds.width/canvas.width,bounds.height/canvas.height);
-    return {x:(event.clientX-bounds.left-(bounds.width-canvas.width*scale)/2)/scale,y:(event.clientY-bounds.top-(bounds.height-canvas.height*scale)/2)/scale};
+    const {bounds,scale,x,y}=scene();
+    return {x:(event.clientX-bounds.left-x)/scale,y:(event.clientY-bounds.top-y)/scale};
   }
-  canvas.addEventListener('pointerdown',event=>{
-    if(busy||!wallQuad||!validWall()||(!placing&&layer!=='wall'))return;
+  function pointerCenter(){
+    const bounds=stageBounds(),values=[...pointers.values()],a=values[0],b=values[1];
+    return {x:(a.x+b.x)/2-bounds.left,y:(a.y+b.y)/2-bounds.top,distance:Math.hypot(a.x-b.x,a.y-b.y)||1};
+  }
+  stage.addEventListener('pointerdown',event=>{
+    if(busy||!room||!wallQuad||!validWall())return;
+    if(event.pointerType==='touch'){
+      pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+      if(pointers.size===2){
+        const center=pointerCenter();
+        pinch={view:{...view},center,distance:center.distance};
+        drag=null;stage.setPointerCapture(event.pointerId);event.preventDefault();return;
+      }
+      if(pointers.size>2)return;
+    }
     const p=point(event);
-    if(p.x<0||p.y<0||p.x>canvas.width||p.y>canvas.height){selected=false;paint();return;}
     if(lightMode){
+      if(p.x<0||p.y<0||p.x>canvas.width||p.y>canvas.height)return;
       event.preventDefault();canvas.focus();
       drag={id:event.pointerId,kind:'light',start:p,previous:lighting};
       lighting=core.makeLight(p,p,$('tryonLightTone').value,canvas.width,canvas.height);
-      canvas.setPointerCapture(event.pointerId);paint();return;
+      stage.setPointerCapture(event.pointerId);paint();return;
     }
-    const bounds=canvas.getBoundingClientRect(),scale=Math.min(bounds.width/canvas.width,bounds.height/canvas.height),radius=16/scale;
     const activeQuad=layer==='wall'?wallQuad:quad;
+    if(!activeQuad)return;
+    const radius=24/scene().scale;
     const index=selected?activeQuad.findIndex(c=>Math.hypot(c.x-p.x,c.y-p.y)<=radius):-1;
-    if(index<0&&!core.inside(activeQuad,p)){selected=false;paint();return;}
-    selected=true;paint();
-    event.preventDefault();canvas.focus();$('tryonHandle').value=index<0?'layer':String(index);drag={...p,id:event.pointerId,index,kind:'geometry'};canvas.setPointerCapture(event.pointerId);
+    if(index<0&&!core.inside(activeQuad,p)){
+      selected=false;drag={id:event.pointerId,kind:'pan',x:event.clientX,y:event.clientY,panX:view.panX,panY:view.panY};
+      stage.classList.add('is-panning');
+    }else{
+      selected=true;$('tryonHandle').value=index<0?'layer':String(index);
+      drag={...p,id:event.pointerId,index,kind:'geometry'};
+    }
+    event.preventDefault();canvas.focus();stage.setPointerCapture(event.pointerId);paint();
   });
   let framePending=false;
-  canvas.addEventListener('pointermove',event=>{
+  stage.addEventListener('pointermove',event=>{
+    if(event.pointerType==='touch'&&pointers.has(event.pointerId)){
+      pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+      if(pinch&&pointers.size>=2){
+        const current=pointerCenter(),bounds=stageBounds();
+        const zoomed=core.zoomViewAt(pinch.view,current.distance/pinch.distance,pinch.center,bounds.width,bounds.height);
+        updateView({...zoomed,panX:zoomed.panX+current.x-pinch.center.x,panY:zoomed.panY+current.y-pinch.center.y});
+        event.preventDefault();return;
+      }
+    }
     if(!drag||event.pointerId!==drag.id||busy)return;
+    if(drag.kind==='pan'){
+      updateView({...view,panX:drag.panX+event.clientX-drag.x,panY:drag.panY+event.clientY-drag.y});
+      return;
+    }
     const p=point(event);
     if(drag.kind==='light')lighting=core.makeLight(drag.start,p,$('tryonLightTone').value,canvas.width,canvas.height);
-    else {
-      if(layer==='wall')wallQuad=drag.index>=0?core.corner(wallQuad,drag.index,p,canvas.width,canvas.height):core.translate(wallQuad,p.x-drag.x,p.y-drag.y,canvas.width,canvas.height);
-      else {
+    else{
+      if(layer==='wall')wallQuad=drag.index>=0
+        ?core.freeCorner(wallQuad,drag.index,p,canvas.width,canvas.height)
+        :core.freeTranslate(wallQuad,p.x-drag.x,p.y-drag.y,canvas.width,canvas.height);
+      else{
         const current=core.unproject(wallQuad,p),previous=core.unproject(wallQuad,drag);
         if(current&&previous){
           placed=drag.index>=0?core.resizePlacement(placed,drag.index,{x:current.x*lastWall.width,y:current.y*lastWall.height},selection,lastWall):core.movePlacement(placed,(current.x-previous.x)*lastWall.width,(current.y-previous.y)*lastWall.height,lastWall);
@@ -256,16 +343,26 @@
     if(!framePending){framePending=true;requestAnimationFrame(()=>{framePending=false;feedback('');paint();});}
   });
   function stopDrag(event){
-    if(drag?.kind==='light'&&(event?.type==='pointercancel'||!lighting||lighting.strength<.015))lighting=drag.previous;
-    drag=null;paint();
+    if(event?.pointerType==='touch'){
+      pointers.delete(event.pointerId);
+      if(pointers.size<2)pinch=null;
+    }
+    if(drag?.id!==event?.pointerId)return;
+    if(drag.kind==='light'&&(event.type==='pointercancel'||!lighting||lighting.strength<.015))lighting=drag.previous;
+    const index=drag.kind==='geometry'?drag.index:-1;
+    drag=null;stage.classList.remove('is-panning');
+    if(index>=0)keepCornerVisible(index);
+    paint();
   }
-  canvas.addEventListener('pointerup',stopDrag);canvas.addEventListener('pointercancel',stopDrag);canvas.addEventListener('lostpointercapture',stopDrag);
+  stage.addEventListener('pointerup',stopDrag);
+  stage.addEventListener('pointercancel',stopDrag);
+  stage.addEventListener('lostpointercapture',stopDrag);
   canvas.addEventListener('keydown',event=>{
     if(busy||!selected||lightMode||!wallQuad||!validWall())return;
     if(['0','1','2','3','4'].includes(event.key)){event.preventDefault();$('tryonHandle').value=event.key==='0'?'layer':String(Number(event.key)-1);return;}
     if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key))return;
     event.preventDefault();const n=event.shiftKey?10:1,dx=event.key==='ArrowLeft'?-n:event.key==='ArrowRight'?n:0,dy=event.key==='ArrowUp'?-n:event.key==='ArrowDown'?n:0,index=$('tryonHandle').value;
-    if(layer==='wall')wallQuad=index==='layer'?core.translate(wallQuad,dx*3,dy*3,canvas.width,canvas.height):core.corner(wallQuad,Number(index),{x:wallQuad[Number(index)].x+dx*3,y:wallQuad[Number(index)].y+dy*3},canvas.width,canvas.height);
+    if(layer==='wall')wallQuad=index==='layer'?core.freeTranslate(wallQuad,dx*3,dy*3,canvas.width,canvas.height):core.freeCorner(wallQuad,Number(index),{x:wallQuad[Number(index)].x+dx*3,y:wallQuad[Number(index)].y+dy*3},canvas.width,canvas.height);
     else placed=core.movePlacement(placed,dx,dy,lastWall);
     changed();
   });
@@ -289,7 +386,7 @@
     if(image.length>=2900000)throw Error('image_export');
     return image;
   }
-  function lock(value){busy=value;for(const id of ['tryonSave','tryonDownload','tryonEmail','tryonChangeRoom','tryonPreset','tryonWallWidth','tryonWallHeight','tryonScale','tryonBack','tryonHandle','tryonResetPerspective','tryonApply','tryonLightToggle','tryonLightTone','tryonLightCancel','tryonLayerWall','tryonLayerFresco'])$(id).disabled=value;syncLightTools();}
+  function lock(value){busy=value;for(const id of ['tryonZoomIn','tryonZoomOut','tryonFitPhoto','tryonFitWall','tryonSave','tryonDownload','tryonEmail','tryonChangeRoom','tryonPreset','tryonWallWidth','tryonWallHeight','tryonScale','tryonBack','tryonHandle','tryonResetPerspective','tryonApply','tryonLightToggle','tryonLightTone','tryonLightCancel','tryonLayerWall','tryonLayerFresco'])$(id).disabled=value;syncLightTools();}
   async function save(){
     if(busy||!placing||!validWall())return null;
     await window.affrescoAccount?.ready;
