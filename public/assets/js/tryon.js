@@ -344,7 +344,7 @@
         pointers.delete(event.pointerId);return;
       }
       if(foregroundStrokes.length>=64){feedback('Лимит мазков достигнут. Используйте более широкую кисть или отмените предыдущие.',true);return;}
-      const radius=Number($('tryonProtectBrush').value)/canvas.width;
+      const radius=Math.max(.002,Math.min(.15,Number($('tryonProtectBrush').value)/canvas.width));
       foregroundStrokes.push({radius,points:[maskPoint(p)]});
       drag={id:event.pointerId,kind:'occlusion'};
       event.preventDefault();stage.setPointerCapture(event.pointerId);paint();return;
