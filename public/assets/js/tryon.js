@@ -165,7 +165,13 @@
     }catch(error){feedback(error.message==='identity_changed'?'Аккаунт изменился. Сохраните примерку повторно.':error.message==='local_storage'?'Не удалось сохранить изображение на устройстве. Проверьте свободное место и разрешения браузера.':'Не удалось сохранить примерку. Проверьте соединение и повторите попытку.',true);return null;}
     finally{lock(false);paint();}
   }
-  function download(record){const link=document.createElement('a');link.href=record.image;link.download='affresco-room-'+record.sku+'.jpg';document.body.append(link);link.click();link.remove();}
+  function download(record){
+    const encoded=record.image.split(',')[1],binary=atob(encoded),bytes=new Uint8Array(binary.length);
+    for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+    const url=URL.createObjectURL(new Blob([bytes],{type:'image/jpeg'})),link=document.createElement('a');
+    link.href=url;link.download='affresco-room-'+record.sku+'.jpg';link.hidden=true;document.body.append(link);link.click();
+    setTimeout(()=>{link.remove();URL.revokeObjectURL(url);},60000);
+  }
   function email(record){window.dispatchEvent(new CustomEvent('affresco:email-tryon',{detail:record}));}
   $('tryonSave').addEventListener('click',()=>{void save();});
   $('tryonDownload').addEventListener('click',async()=>{const record=await save();if(record)download(record);});

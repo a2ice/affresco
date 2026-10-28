@@ -24,3 +24,6 @@
 #tryonChangeRoom{margin-top:16px;}
 #tryonModal button:disabled{opacity:.5;cursor:wait;}
 @media(max-width:640px){#tryonModal .tryon-panel{width:calc(100vw - 16px);padding:42px 18px 24px;}.tryon-wall-controls{grid-template-columns:1fr;gap:0;}.tryon-upload{padding:24px 12px;}.tryon-actions{gap:8px;}.tryon-actions .button{flex-basis:100%;}#tryonModal h2{font-size:34px;}#tryonCanvas{max-height:55dvh;}}
+
+#tryonModal .tryon-panel{position:relative;}
+#tryonModal .modal-close{position:absolute;top:18px;right:18px;left:auto;width:44px;height:44px;margin:0;display:grid;place-items:center;}
