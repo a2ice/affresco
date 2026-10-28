@@ -74,6 +74,7 @@ await $('accountTabGenerations').fire('click');
 await new Promise(resolve=>setTimeout(resolve,0));
 assert.equal($('accountServerImageList').children.length,2,'Both AI and manual images appear in cabinet');
 const firstDelete=$('accountServerImageList').children[0].children[2];
+assert.equal(firstDelete.textContent,'×','Deletion is a cross on account image thumbnail');
 await firstDelete.fire('click');
 assert.equal(serverItems.length,2,'Cancel confirmation preserves image');
 confirmDeletion=true;
