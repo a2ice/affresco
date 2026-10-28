@@ -113,7 +113,7 @@ const delay=()=>new Promise(r=>setTimeout(r,30));
  const firstExport=await window.affrescoTryon.prepareCombinedExport();
  assert.equal(firstExport.manualCount,1,'Current unsaved manual view joins AI result');
  assert.equal(manualUploads,1,'Manual source is mirrored once before ZIP/email');
- assert.equal($('tryonAIZip').textContent,'Скачать ZIP (2)','Manual + AI is one ZIP');
+ assert.equal($('tryonAIZip').textContent,'Скачать все (ZIP)','Manual + AI is one ZIP');
  await $('tryonAIZip').fire('click');await delay();
  assert.equal(zipDownloads,1,'Unified ZIP download requested');
 
