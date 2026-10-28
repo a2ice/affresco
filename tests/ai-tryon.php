@@ -34,32 +34,30 @@ try{
  ai_check(af_ai_read('fixture',$id)['status']==='pending','Read private job');
  $prompt=af_ai_prompt($meta);
  foreach([
-    'ORIGINAL ROOM','FRESCO CROP','MANUAL PLACEMENT GUIDE','IN FRONT','couch','FOREGROUND',
-    'FIREPLACES','CUSTOM CUTOUT','REFLECTIONS','polished',
-    'GEOMETRY LOCK','ALL FOUR OUTER CORNERS','physical width-to-height ratio',
-    'NOT be enlarged','fresco_width_to_height_cm_ratio',
-    'SURFACE-CONFINED REFLECTIONS','HORIZONTAL BENCH TOP','MASKED',
-    'lower-right corner','NEVER blur, smear','OMIT the new reflection entirely',
-    'FINAL PRIORITY ORDER',
-    'DEPTH LAYERING AND OCCLUSION',
-    'MENTAL COMPOSITING PROCEDURE',
-    'ORIGINAL FOREGROUND OBJECT PIXELS WIN',
-    'FAILURE CASE TO AVOID',
-    'SAME fresco at the SAME wall coordinates',
-    'partly INVISIBLE BEHIND the sofa',
-    'Never raise/lower/shift the mural',
-    'Do not make the mural float above furniture',
-    'sofa silhouette',
-    'custom cutouts',
-    'CHECK BEFORE OUTPUT'
+    'ORIGINAL ROOM','FRESCO CROP','MANUAL PLACEMENT GUIDE',
+    'NON-NEGOTIABLE SCENE PRESERVATION','An EMPTY ORIGINAL ROOM MUST STAY EMPTY',
+    'Never infer or create foreground furniture','Do NOT perform virtual staging',
+    'Every region OUTSIDE the target fresco footprint',
+    'EXACT WALL ARTWORK GEOMETRY','fresco_width_to_height_cm_ratio',
+    'four original projected corners','CONDITIONAL OCCLUSION',
+    'ONLY FOR OBJECTS THAT ACTUALLY EXIST IN ORIGINAL ROOM',
+    'If no such object exists','do NOT invent an occluding object',
+    'ARCHITECTURAL INTERRUPTIONS',
+    'LIGHT AND REFLECTIONS','Never invent a table or polished surface',
+    'FINAL CHECK BEFORE OUTPUT','no extra furniture'
  ] as $fragment)
-    ai_check(str_contains(strtolower($prompt),strtolower($fragment)),'Prompt missing occlusion priority: '.$fragment);
- ai_check(str_contains($prompt,'including the portion hidden by a sofa')||str_contains($prompt,'INCLUDING THE PORTION HIDDEN BY A SOFA'),'Guide must keep its hidden underlying footprint');
- ai_check(str_contains($prompt,'Furniture overlapping the guide is a reason to HIDE mural pixels, NEVER to move'),'Overlap must be resolved by occlusion not by relocating mural');
- ai_check(str_contains($prompt,'the original FRESCO CROP'),'Source artwork remains the input to the wall projection');
- ai_check(str_contains($prompt,'"fresco_width_to_height_cm_ratio":1.5'),'The 180 × 120 cm aspect ratio must be sent as numeric data');
- ai_check(str_contains($prompt,'"fresco_quad_normalized":[[0.2,0.2],[0.6,0.2],[0.6,0.6],[0.2,0.6]]'),'Manual quad must be supplied without modification');
- ai_check(str_contains($prompt,'reflection on the existing polished horizontal stone cannot be produced, OMIT'),'No destructive fallback blurring');
+    ai_check(str_contains(strtolower($prompt),strtolower($fragment)),'Missing preservation contract: '.$fragment);
+ ai_check(str_contains($prompt,'"fresco_width_to_height_cm_ratio":1.5'),'Physical mural aspect ratio transmitted');
+ ai_check(str_contains($prompt,'"fresco_quad_normalized":[[0.2,0.2],[0.6,0.2],[0.6,0.6],[0.2,0.6]]'),'Unchanged manual projected quadrilateral transmitted');
+ $regression=strtolower($prompt);
+ ai_check(!str_contains($regression,'failure case to avoid — sofa example'),'Obsolete sofa examples must not prime furniture hallucinations');
+ ai_check(!str_contains($regression,'300 × 215 cm fresco'),'No fictional example dimensions should be included');
+ // Actual ORIGINAL ROOM dimensions, not a rigid 3:2 output, control OpenAI size.
+ ai_check(af_ai_output_size(['room_px'=>[1200,900]])==='1280x960','4:3 room stays 4:3');
+ ai_check(af_ai_output_size(['room_px'=>[900,1200]])==='960x1280','Portrait 3:4 room stays 3:4');
+ ai_check(af_ai_output_size(['room_px'=>[1920,1080]])==='1280x720','16:9 room stays 16:9');
+ ai_check(af_ai_output_size(['room_px'=>[1000,1000]])==='1280x1280','Square room stays square');
+ ai_check(af_ai_output_size(['orientation'=>'landscape'])==='1536x1024','Legacy pending jobs keep compatibility');
  ai_check(!str_contains($prompt,'SECRET'),'Prompt leaked account secrets');
  $cfg=['public_url'=>'https://affresco.a2ice.ru','callback_secret'=>'test-key'];
  $url=af_ai_signed_url($cfg,$id,'room',time()+600);
@@ -96,5 +94,5 @@ try{
  ai_check(af_ai_expire('fixture',$expired)['status']==='failed','Terminal state idempotent');
  ai_check((int)af_find_account(af_accounts(),'fixture')['generations_used']===0,'No double refund');
  ai_check(!isset(af_ai_public($job)['metadata']),'Private photo metadata stays out of browser status');
- echo "PASS: AI quota, HMAC, fireplace cutouts, reflections, isolated mixed exports and cabinet library\n";
+ echo "PASS: scene preservation, correct room aspect ratio, HMAC, quotas and owner-isolated exports\n";
 }finally{ai_rm($root);}

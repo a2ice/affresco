@@ -29,7 +29,7 @@ if($method==='GET'&&isset($_GET['manifest'])){
         af_ai_signed_url($cfg,$id,'guide',$expiry)
       ],
       'callback_url'=>$cfg['public_url'].'/api/ai-tryon.php?callback='.$id,
-      'openai'=>['model'=>'gpt-image-2','size'=>$job['metadata']['orientation']==='portrait'?'1024x1536':'1536x1024','quality'=>'medium','output_format'=>'png']
+      'openai'=>['model'=>'gpt-image-2','size'=>af_ai_output_size($job['metadata']),'quality'=>'medium','output_format'=>'png']
     ]);
 }
 if($method==='GET'&&isset($_GET['asset'])){
@@ -167,14 +167,23 @@ if($light!==null){
  foreach(['from','to'] as $key)if(!is_array($light[$key]??null)||count($light[$key])!==2||!is_numeric($light[$key][0]??null)||!is_numeric($light[$key][1]??null))ai_terminal_error(422,'invalid_request');
  $meta['lighting']=['tone'=>$light['tone'],'from'=>array_map('floatval',$light['from']),'to'=>array_map('floatval',$light['to'])];
 }
-$buffers=[];
+$buffers=[];$originalPx=null;
 foreach(['room','fresco','guide'] as $slot){
  $file=$_FILES[$slot]??null;
  if(!is_array($file)||($file['error']??1)!==UPLOAD_ERR_OK||($file['size']??0)<100||($file['size']??0)>2400000)ai_terminal_error(422,'invalid_image');
  $bytes=@file_get_contents($file['tmp_name']);$info=is_string($bytes)?@getimagesizefromstring($bytes):false;
  if(!is_array($info)||($info['mime']??'')!=='image/jpeg'||$info[0]<50||$info[1]<50||$info[0]>2500||$info[1]>2500)ai_terminal_error(422,'invalid_image');
+ if($slot==='room'){
+     $ratio=$info[0]/$info[1];
+     if($ratio<1/3||$ratio>3)ai_terminal_error(422,'unsupported_image_ratio');
+     $originalPx=[(int)$info[0],(int)$info[1]];
+ }
+ if($slot==='guide'&&$originalPx!==[(int)$info[0],(int)$info[1]])ai_terminal_error(422,'invalid_image');
  $buffers[$slot]=$bytes;
 }
+// Derived from the uploaded ORIGINAL ROOM, not from browser-provided orientation.
+$meta['room_px']=$originalPx;
+$meta['orientation']=$originalPx[0]>=$originalPx[1]?'landscape':'portrait';
 $created=af_ai_lock($owner,static function()use($owner,$context,$meta,$buffers,$cfg){
     $jobs=af_ai_jobs($owner,$context);
     if(count($jobs)>=6)ai_terminal_error(429,'ai_context_limit');
