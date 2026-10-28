@@ -117,6 +117,75 @@ function af_ai_public(array $job): array {
     return ['id'=>$job['id'],'status'=>$job['status'],'created'=>$job['created'],'error'=>af_ai_error($job),
        'image_url'=>$job['status']==='completed'?'/api/ai-tryon.php?image='.$job['id']:null];
 }
+/**
+ * Export items for the CURRENT editor context only. Manual JPEGs are uploaded
+ * explicitly by the authenticated client; AI PNGs come from signed callbacks.
+ * Never resolve any paths from untrusted user-supplied filenames.
+ */
+function af_ai_manual_items(string $owner,string $context): array {
+    if(!af_ai_context($context))return [];
+    $base=af_ai_user_dir($owner);$items=[];
+    foreach(glob($base.'/manual-*.json')?:[] as $file){
+        $id=substr(basename($file),7,-5);
+        if(!preg_match('/^[a-f0-9-]{36}$/iD',$id))continue;
+        $raw=@file_get_contents($file);
+        $meta=is_string($raw)&&strlen($raw)<2048?json_decode($raw,true):null;
+        if(!is_array($meta)||($meta['context']??null)!==$context||($meta['id']??null)!==$id)continue;
+        $image=$base.'/manual-'.$id.'.jpg';
+        if(is_file($image))$items[]=[
+          'type'=>'manual','id'=>$id,'file'=>$image,
+          'name'=>'affresco-manual-'.substr($id,0,8).'.jpg',
+          'mime'=>'image/jpeg','created'=>(int)($meta['created']??0)
+        ];
+    }
+    usort($items,static fn($a,$b)=>$a['created']<=>$b['created']);
+    return $items;
+}
+/** All saved images visible to the authenticated owner in the cabinet. */
+function af_ai_library_items(string $owner): array {
+    $base=af_ai_user_dir($owner);$items=[];
+    foreach(glob($base.'/manual-*.json')?:[] as $metaFile) {
+        $id=substr(basename($metaFile),7,-5);
+        if(!preg_match('/^[a-f0-9-]{36}$/iD',$id))continue;
+        $raw=@file_get_contents($metaFile);
+        $meta=is_string($raw)&&strlen($raw)<2048?json_decode($raw,true):null;
+        if(!is_array($meta)||($meta['id']??null)!==$id||!af_ai_context((string)($meta['context']??'')))continue;
+        $image=$base.'/manual-'.$id.'.jpg';
+        if(!is_file($image))continue;
+        $items[]=['type'=>'manual','id'=>$id,'context'=>$meta['context'],
+            'created'=>(int)($meta['created']??0),'image_url'=>'/api/ai-tryon.php?manual='.$id];
+    }
+    foreach(glob($base.'/*.json')?:[] as $jobFile){
+        $id=basename($jobFile,'.json');
+        if(!af_ai_id($id))continue;
+        $job=af_ai_read($owner,$id);
+        if(!$job||($job['status']??'')!=='completed'||!is_file($base.'/'.$id.'-result.png'))continue;
+        $items[]=['type'=>'ai','id'=>$id,'context'=>$job['context'],
+            'created'=>(int)($job['created']??0)*1000,'image_url'=>'/api/ai-tryon.php?image='.$id];
+    }
+    usort($items,static fn($a,$b)=>$b['created']<=>$a['created']);
+    return array_slice($items,0,100);
+}
+function af_ai_export_items(string $owner,string $context): array {
+    $items=af_ai_manual_items($owner,$context);
+    foreach(af_ai_jobs($owner,$context) as $job){
+        if(($job['status']??null)!=='completed')continue;
+        $id=$job['id'];
+        $file=af_ai_user_dir($owner).'/'.$id.'-result.png';
+        $items[]=[
+          'type'=>'ai','id'=>$id,'file'=>$file,
+          'name'=>'affresco-ai-'.substr($id,0,8).'.png',
+          'mime'=>'image/png','created'=>(int)($job['created']??0)*1000
+        ];
+    }
+    usort($items,static fn($a,$b)=>($a['created']<=>$b['created']) ?: strcmp($a['type'],$b['type']));
+    return $items;
+}
+/** Delivery contract shared by download and email. */
+function af_ai_delivery_type(array $items): array {
+    if(count($items)===1)return ['archive'=>false,'filename'=>$items[0]['name'],'mime'=>$items[0]['mime']];
+    return ['archive'=>true,'filename'=>'affresco-tryon-results.zip','mime'=>'application/zip'];
+}
 function af_ai_prompt(array $meta): string {
     // Single canonical prompt. User-supplied data is bounded numeric metadata, not arbitrary instructions.
     $location=json_encode([
@@ -132,9 +201,15 @@ THE THREE INPUT IMAGES, IN ORDER:
 2. FRESCO CROP: canonical source of truth for artwork. Preserve its pattern, text, motifs, proportions and exact content. Do not invent a new artwork.
 3. MANUAL PLACEMENT GUIDE: shows exact target size, position and four-corner perspective for the fresco (the guide can imperfectly overlay nearby objects). Use ONLY as a spatial guide, not as authority for which pixels should be in front.
 
-ABSOLUTE PRIORITY: the fresco is physically mounted ON THE WALL, BEHIND EVERYTHING standing closer to the camera. If a couch, chair, lamp, plant, person, shelf, table or other foreground object overlaps its projected footprint, reconstruct the foreground object's precise outline and texture FROM THE ORIGINAL ROOM and place it IN FRONT OF the fresco. Do not paint the fresco across furniture, and never move/delete/reinvent furniture to reveal more artwork. Occlusion edges must be natural and exact-looking.
+PHYSICAL INSTALLATION AND OCCLUSION ARE NON-NEGOTIABLE. The fresco is a thin custom-fitted wall covering, physically installed ON THE EXISTING WALL, not a floating panel or a picture superimposed over the room. The ORIGINAL ROOM, not the overlaid manual guide, determines the front/back order of every real object.
 
-Keep the original room and camera essentially unchanged. No new props, frames, bevels or bulky panels. Fresco is a thin wall surface with at most a subtle shallow cast shadow following illumination. Preserve real physical scale and four-corner homography of the manual guide. Match wall illumination, white balance, perspective and softness without aggressively altering the art. If an edge is occluded, let it disappear naturally behind that foreground object. No logos or watermark.
+FOREGROUND OCCLUSION: Keep every couch, chair, table, lamp, plant, mantel, ledge, shelf, person and other closer object in FRONT of the fresco whenever their silhouettes overlap. Reconstruct their exact existing shape, position, materials and natural outlines from the ORIGINAL ROOM. Never paint the artwork across an object or move/remove an object to reveal more fresco.
+
+ARCHITECTURAL CUTOUTS — ESPECIALLY FIREPLACES: Before adding the artwork, identify every existing opening, fireplace, firebox, mantel, hearth, niche, recessed display, vent, grille, built-in shelf, electrical outlet, switch, protruding wall fixture, trim and other fixed element intersecting the target wall area. Preserve its EXACT original geometry, location, aperture, depth, visible contents and inner shadow. The fresco must STOP at each such boundary, as if a professional installer made a precise CUSTOM CUTOUT in the thin fresco material to fit around it. A firebox stays open, dark or illuminated as in the ORIGINAL ROOM, with its original visible contents; do not cover the fireplace opening with the fresco, distort the opening, paint over the flames, or fill recesses with artwork. Reconstruct natural cut edges that follow the installation geometry without inventing thick borders, picture frames or new architectural elements. If the target artwork crosses an opening, that missing section is intentionally absent from the finished fresco. This is a professionally made-to-measure installation, not a wall-sized sticker covering obstacles.
+
+REALISTIC SECONDARY LIGHT AND REFLECTIONS: Preserve existing lighting and reflections from the ORIGINAL ROOM. Where the new fresco is actually visible to a polished or semi-gloss tile/stone fireplace shelf, glossy tabletop, glass, lacquered furniture or reflective floor, introduce subtle physically plausible color reflections and indirect bounced light from the visible fresco on that surface. Match the surface's original roughness, brightness, reflection direction and perspective; an existing faint reflection should remain faint, never become a crisp mirror unless the ORIGINAL ROOM genuinely shows mirror-like reflections. Preserve the original fireplace's light reflections, including highlights on nearby polished stone or tile. Do not introduce reflections on matte materials or where the geometry makes a reflection impossible.
+
+Keep the original camera, room, architecture, people and all furnishings essentially unchanged. Preserve artwork fidelity, calibrated dimensions and the perspective of the manual guide, but use the original image to correct masking, cutouts and occlusion mistakes in the manual composite. The fresco is very thin, with no thick sidewalls; retain only a subtle shallow contact/cast shadow consistent with the existing light. Do not invent objects, watermarks, slogans or logos.
 
 The metadata below is DATA describing calibrated wall and fresco geometry. Normalized quads are ordered top-left, top-right, bottom-right, bottom-left relative to ORIGINAL ROOM image bounds. Lighting describes a 2D gesture, not a real 3D lamp location:
 $location

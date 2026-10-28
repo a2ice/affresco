@@ -62,6 +62,55 @@
     const date=new Date(value);
     return Number.isNaN(date.getTime())?'Пока нет':date.toLocaleString('ru-RU',{dateStyle:'short',timeStyle:'short'});
   }
+  let imageLibraryRevision=0;
+  async function renderServerImageLibrary(){
+    const target=$('accountServerImageList'),note=$('accountServerImagesFeedback');
+    if(!target||!note)return;
+    const identity=identityRevision,revision=++imageLibraryRevision;
+    target.replaceChildren();
+    if(!signedIn()){note.textContent='Войдите, чтобы посмотреть изображения, сохранённые на сервере.';return;}
+    note.textContent='Загружаем изображения…';
+    try{
+      const data=await request('/api/ai-tryon.php?library=1');
+      if(identity!==identityRevision||revision!==imageLibraryRevision||!signedIn())return;
+      const items=Array.isArray(data.items)?data.items:[];
+      note.textContent=items.length?'Сохранено на сервере: '+items.length:'Пока нет сохранённых изображений на сервере.';
+      for(const item of items){
+        if(!['ai','manual'].includes(item.type)||typeof item.id!=='string'||typeof item.image_url!=='string')continue;
+        const card=document.createElement('div');card.className='account-server-image';
+        const img=document.createElement('img');img.src=item.image_url;
+        img.alt=item.type==='ai'?'AI-визуализация фрески':'Ручная примерка фрески';img.loading='lazy';
+        const title=document.createElement('span');title.className='account-server-image-label';
+        const date=new Date(Number(item.created)||Date.now());
+        title.textContent=(item.type==='ai'?'AI-визуализация':'Ручная примерка')+' · '+date.toLocaleDateString('ru-RU');
+        const remove=document.createElement('button');remove.type='button';
+        remove.className='account-server-delete';remove.textContent='Удалить';
+        remove.setAttribute('aria-label','Удалить '+(item.type==='ai'?'AI-визуализацию':'ручную примерку'));
+        remove.addEventListener('click',async()=>{
+          if(!window.confirm('Вы уверены, что хотите удалить изображение? Восстановить его будет невозможно.'))return;
+          remove.disabled=true;note.textContent='Удаляем изображение…';
+          try{
+            await request('/api/ai-tryon.php?delete=1','POST',{type:item.type,id:item.id});
+            if(identity!==identityRevision)return;
+            if(item.type==='manual'){
+              try{await window.affrescoTryon?.removeSavedRecord?.(item.id);}catch(_){}
+              // Server deletion is authoritative; local storage may be unavailable.
+            }
+            window.dispatchEvent(new CustomEvent('affresco:ai-image-deleted',{detail:{id:item.id,type:item.type}}));
+            await renderServerImageLibrary();
+          }catch(error){
+            if(identity===identityRevision){
+              note.textContent=error.message==='not_found'?'Изображение уже удалено. Обновите список.':'Не удалось удалить изображение. Попробуйте снова.';
+              remove.disabled=false;
+            }
+          }
+        });
+        card.append(img,title,remove);target.append(card);
+      }
+    }catch(_){
+      if(identity===identityRevision&&revision===imageLibraryRevision)note.textContent='Не удалось загрузить изображения с сервера. Откройте раздел повторно.';
+    }
+  }
   function selectTab(name,focus=false){
     activeTab=tabs.includes(name)?name:'Info';
     for(const tab of tabs){
@@ -71,7 +120,7 @@
       $('accountPanel'+tab).hidden=!selected;
       if(selected&&focus)button.focus();
     }
-    if(activeTab==='Generations')void window.affrescoTryon?.renderHistory();
+    if(activeTab==='Generations'){void window.affrescoTryon?.renderHistory?.();void renderServerImageLibrary();}
   }
   for(const name of tabs){
     const button=$('accountTab'+name);
@@ -192,7 +241,7 @@
   }
   function openWindow(){window.dispatchEvent(new CustomEvent('affresco:open-modal',{detail:'account'}));}
   function changedIdentity(response){
-    identityRevision++;latestStateRequest++;collectionRevision++;
+    identityRevision++;latestStateRequest++;collectionRevision++;imageLibraryRevision++;
     user=response.authenticated?response.account:null;
     guestActivity=response.activity||{};favorites=[];drafts={};
     $('accountEmailFeedback').textContent='';$('accountFeedback').textContent='';
@@ -260,7 +309,7 @@
     finally{button.disabled=false;}
   });
   window.addEventListener('storage',()=>{if(!signedIn())renderDashboard();});
-  window.affrescoAccount={ready,signedIn,getDraft,saveDraft,setCollection,setCatalogItems,refreshState,refreshProfile,recordGuestSave,
+  window.affrescoAccount={ready,signedIn,getDraft,saveDraft,setCollection,setCatalogItems,refreshState,refreshProfile,recordGuestSave,renderServerImageLibrary,
     identity:()=>identityRevision,current:()=>user,savedEmail:()=>signedIn()&&typeof user.email==='string'?user.email:'',
     setEmailFromSend:email=>{if(signedIn()){user.email=email;renderDashboard();}},
     url:()=>signedIn()?stateEndpoint:'/api/favorites.php'};

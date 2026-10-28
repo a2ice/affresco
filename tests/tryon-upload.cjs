@@ -1,7 +1,7 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),{randomUUID}=require('node:crypto');
 const core=require('../public/assets/js/tryon-core.js');
 const html=fs.readFileSync(require('node:path').join(__dirname,'../public/index.html'),'utf8');
-const images=new Map();let member=null,accepted=0,aiLaunches=0;
+const images=new Map();let member=null,accepted=0,aiLaunches=0,manualUploads=0,zipDownloads=0;
 const dispatched=[];const listeners=new Map();
 class Element{
  constructor(){this.hidden=false;this.disabled=false;this.value='';this.textContent='';this.handlers={};this.classList={add(){},remove(){},toggle(){}};this.width=1000;this.height=700;this.style={};}
@@ -27,6 +27,10 @@ const window={affrescoTryonCore:core,affrescoTryonCompat:{supported:true},affres
  dispatchEvent(event){dispatched.push(event);for(const handler of listeners.get(event.type)||[])handler(event);},
  addEventListener(name,handler){const values=listeners.get(name)||[];values.push(handler);listeners.set(name,values);}};
 vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname,'../public/assets/js/tryon.js'),'utf8'),{window,document,indexedDB,Image:FakeImage,URL:{createObjectURL:()=> 'blob:fixture',revokeObjectURL(){}},crypto:{randomUUID},CustomEvent:class{constructor(type,options={}){this.type=type;this.detail=options.detail;}},FormData:class{append(){}},requestAnimationFrame:fn=>fn(),setTimeout,fetch:async(url,options)=>{
+ if(url.startsWith('/api/ai-tryon-export.php')){
+   if(options?.method==='POST'){manualUploads++;return {ok:true,json:async()=>({accepted:true})};}
+   zipDownloads++;return {ok:true,headers:{get:()=> 'application/zip'},blob:async()=>({size:200})};
+ }
  if(url.startsWith('/api/ai-tryon.php')){
    if(options?.method==='POST'){aiLaunches++;return {ok:true,json:async()=>({accepted:true,id:'b'.repeat(32)})};}
    return {ok:true,json:async()=>({jobs:[{id:'b'.repeat(32),status:'completed',image_url:'/api/ai-tryon.php?image='+'b'.repeat(32)}]})};}
@@ -106,10 +110,23 @@ const delay=()=>new Promise(r=>setTimeout(r,30));
  assert.equal(aiLaunches,1,'Exactly one AI dispatch after successful login');
  assert.equal($('tryonAIToast').hidden,true,'Toast hidden on completed generation');
  assert.equal($('tryonAIResults').hidden,false,'Completed AI result displayed in modal');
+ const firstExport=await window.affrescoTryon.prepareCombinedExport();
+ assert.equal(firstExport.manualCount,1,'Current unsaved manual view joins AI result');
+ assert.equal(manualUploads,1,'Manual source is mirrored once before ZIP/email');
+ assert.equal($('tryonAIZip').textContent,'Скачать все (ZIP)','Manual + AI is one ZIP');
+ await $('tryonAIZip').fire('click');await delay();
+ assert.equal(zipDownloads,1,'Unified ZIP download requested');
+
  for(let i=0;i<13;i++){$('tryonScale').value=50+i;await $('tryonScale').fire('input');await $('tryonSave').fire('click');await delay();}
  assert.equal([...images.values()].filter(r=>r.owner==='account:tester').length,12);
  assert.equal([...images.values()].filter(r=>r.owner==='guest').length,3);
  assert.equal(accepted,17);
+ const collection=await window.affrescoTryon.prepareCombinedExport();
+ assert.equal(collection.manualCount,12,'All twelve saved manual variants are included in export');
+ const currentId=[...images.values()].filter(r=>r.owner==='account:tester').sort((a,b)=>b.created-a.created)[0].id;
+ await window.affrescoTryon.removeSavedRecord(currentId);
+ assert.equal(images.has(currentId),false,'Deleting server-linked manual image clears IndexedDB copy');
+
  indexedDB.open=()=>{const req={};setTimeout(()=>req.onerror?.(),0);return req;};
  await window.affrescoTryon.start({image:'data:image/jpeg;base64,TEST',sku:'6039',width_cm:200,height_cm:200});
  assert.equal($('tryonUploadStep').hidden,true);assert.match($('tryonCompatibilityMessage').textContent,/не разрешает сохранять/);

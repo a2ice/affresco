@@ -90,3 +90,28 @@
   #accountModal .account-activity{font-size:11px;}
   #accountModal .account-collections{min-height:180px;}
 }
+
+/* Unified icon-based tabs: text stays readable and counts are secondary. */
+#accountModal .account-stats>button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:90px;}
+#accountModal .account-stats .account-tab-icon{width:24px;height:24px;display:block;color:#554c43;flex:none;}
+#accountModal .account-stats>button[aria-selected=true] .account-tab-icon{color:#292521;}
+#accountModal .account-stats .account-tab-count{
+  display:inline-block;font:600 11px/1.3 Manrope,sans-serif;color:#766453;
+  min-width:22px;border-radius:12px;background:#eee9e1;padding:2px 6px;
+}
+#accountModal .account-library-title{font:600 14px/1.5 Manrope,sans-serif;margin:26px 0 6px;}
+#accountModal .account-server-image-list{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));margin:14px 0;}
+#accountModal .account-server-image{
+  display:flex;flex-direction:column;min-width:0;background:#fcfbf9;border:1px solid #d7cfc4;padding:8px;gap:7px;
+}
+#accountModal .account-server-image img{width:100%;height:124px;object-fit:contain;background:#eee9e2;}
+#accountModal .account-server-image-label{font:500 12px/1.5 Manrope,sans-serif;color:#554c43;}
+#accountModal .account-server-delete{align-self:flex-end;min-height:44px;padding:8px 12px;border:1px solid #b7ada1;background:#fff;color:#6e372c;font:600 12px/1.4 Manrope,sans-serif;}
+#accountModal .account-server-delete:hover:not(:disabled){background:#f6ebe8;}
+#accountModal .account-server-delete:disabled{opacity:.5;cursor:wait;}
+@media(max-width:480px){
+  #accountModal .account-stats>button{min-height:84px;padding:10px 2px;gap:4px;}
+  #accountModal .account-stats .account-tab-icon{width:21px;height:21px;}
+  #accountModal .account-stats .account-tab-count{font-size:10px;}
+  #accountModal .account-server-image-list{grid-template-columns:repeat(2,minmax(0,1fr));}
+}

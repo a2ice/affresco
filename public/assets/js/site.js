@@ -1478,7 +1478,7 @@
     emailRecipient.value=window.affrescoAccount?.savedEmail()||'';
     $('emailSendFeedback').textContent='';
     $('emailModalTitle').textContent='Отправить AI-варианты';
-    $('emailModalDescription').textContent='Готовые AI-варианты примерки придут одним ZIP-архивом.';
+    $('emailModalDescription').textContent='Отправим все изображения текущей примерки: ручные JPEG и AI-варианты. Один файл — изображением, несколько — одним ZIP-архивом.';
     $('emailBackToEditor').textContent='← Вернуться к примерке';
     $('emailSuccessBack').textContent='Вернуться к примерке';
     setModal(modalEmail);
@@ -1505,6 +1505,7 @@
       const selection=preparedEmailCrop;
       if(!selection)throw new Error('crop_unavailable');
       const aiMail=selection.kind==='ai';
+      if(aiMail)await window.affrescoTryon.prepareCombinedExport(selection.context);
       const reply=await fetch(aiMail?'/api/ai-tryon-export.php':'/api/send-crop.php',{
         method:'POST',credentials:'same-origin',cache:'no-store',
         headers:{'Content-Type':'application/json','X-Affresco-Request':'1'},
@@ -1522,7 +1523,7 @@
       void window.affrescoAccount?.refreshProfile().catch(()=>{});
       if(openDialog===modalEmail&&requestId===emailSendRequest){
         preparedEmailCrop=null;
-        $('emailSuccessDescription').textContent=(selection.kind==='ai'?'Письмо с ZIP-архивом AI-вариантов отправлено на ':selection.kind==='tryon'?'Письмо с примеркой отправлено на ':'Письмо с выбранным кадром отправлено на ')+email+
+        $('emailSuccessDescription').textContent=(selection.kind==='ai'?(result.archive?'Письмо с ZIP-архивом всех примерок отправлено на ':'Письмо с изображением отправлено на '):selection.kind==='tryon'?'Письмо с примеркой отправлено на ':'Письмо с выбранным кадром отправлено на ')+email+
           '. Проверьте входящие и папку «Спам».'+
           (result.email_saved===false?' Адрес в профиле сохранить не удалось.':'');
         emailRecipient.value='';
@@ -1543,7 +1544,11 @@
           mail_unavailable:'Почтовый сервер пока не принимает письма. Попробуйте позже.',
           zip_unavailable:'На сервере пока нет поддержки ZIP-архивов.',
           zip_too_large:'Архив слишком большой для отправки.',
-          ai_no_results:'Готовые AI-варианты не найдены.',
+          ai_no_results:'Сохранённые изображения не найдены.',
+          no_results:'Нет изображений для отправки. Сохраните ручную примерку или создайте AI-вариант.',
+          manual_storage_limit:'На сервере уже много ручных примерок. Удалите ненужные в личном кабинете.',
+          manual_conflict:'Изображение уже привязано к другой примерке. Повторите сохранение.',
+          local_storage:'Не удалось прочитать сохранённые изображения из браузера.',
           login_required:'Для отправки ZIP войдите в аккаунт.',
           ai_storage_unavailable:'Сервер не может прочитать изображения.',
           smtp_not_configured:'SMTP-отправка ещё не настроена. Администратору нужно указать почтовый ящик отправителя.',
