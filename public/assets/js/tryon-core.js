@@ -159,36 +159,55 @@
     const dirX=(forward.x-origin.x)*wallSize.width,dirY=(forward.y-origin.y)*wallSize.height;
     const dirLength=Math.hypot(dirX,dirY);
     if(!Number.isFinite(dirLength)||dirLength<1e-8)return null;
-    // Virtual relief 12 cm; larger gestures represent more oblique illumination.
+    // A nominal 12 cm relief does not imply a 12 cm lateral shadow: the
+    // illumination angle is unknown in this 2D editor. Keep the penumbra near
+    // the artwork (roughly 1–4.6 cm on the wall), even at maximum gesture.
     const strength=clamp(light.strength,0,1);
-    const shiftCm=12*(.25+.95*strength);
-    const du=dirX/dirLength*shiftCm/wallSize.width,dv=dirY/dirLength*shiftCm/wallSize.height;
-    const displaced=frescoQuad.map(p=>{
-      const uv=unproject(wallQuad,p);
-      return uv?project(wallQuad,uv.x+du,uv.y+dv):null;
-    });
-    if(displaced.some(p=>!p||![p.x,p.y].every(v=>Number.isFinite(v)&&Math.abs(v)<Math.max(imageWidth,imageHeight)*30)))return null;
-    const resultCenter=project(wallQuad,origin.x+du,origin.y+dv);
-    const screenShift=Math.hypot(resultCenter.x-center.x,resultCenter.y-center.y);
-    if(!Number.isFinite(screenShift))return null;
+    let shiftCm=12*(.10+.28*strength);
+    const unitU=dirX/dirLength/wallSize.width,unitV=dirY/dirLength/wallSize.height;
+    // A perspective can amplify a tiny wall-plane shift dramatically near the
+    // image horizon. Cap *every corner* in source-image pixels, not just center.
+    const maxShiftPx=Math.min(10,Math.max(3,Math.min(imageWidth,imageHeight)*.012));
+    let displaced=null,screenShift=Infinity;
+    for(let attempt=0;attempt<5;attempt++){
+      displaced=frescoQuad.map(p=>{
+        const uv=unproject(wallQuad,p);
+        return uv?project(wallQuad,uv.x+unitU*shiftCm,uv.y+unitV*shiftCm):null;
+      });
+      if(displaced.some(p=>!p||![p.x,p.y].every(v=>Number.isFinite(v)&&Math.abs(v)<Math.max(imageWidth,imageHeight)*30)))return null;
+      screenShift=Math.max(...displaced.map((p,i)=>Math.hypot(p.x-frescoQuad[i].x,p.y-frescoQuad[i].y)));
+      if(screenShift<=maxShiftPx+.01)break;
+      shiftCm*=.95*maxShiftPx/screenShift;
+    }
+    if(!Number.isFinite(screenShift)||screenShift>maxShiftPx+.1)return null;
     return {
       quad:displaced,
-      opacity:.055+.14*strength,
-      blur:clamp(4+screenShift*.5,5,28),
-      shiftCm
+      opacity:.025+.07*strength,
+      blur:clamp(7+screenShift*.55,7,15),
+      shiftCm,
+      screenShift
     };
   }
   function drawShadow(ctx,frescoQuad,wallQuad,wallSize,light){
     const geometry=shadowProjection(frescoQuad,wallQuad,wallSize,light,ctx.canvas.width,ctx.canvas.height);
     if(!geometry)return;
     ctx.save();
-    // The shadow belongs to the calibrated wall, never to adjacent objects.
+    // The shadow is a soft, faint penumbra on the calibrated wall only.
     ctx.beginPath();
     wallQuad.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));
     ctx.closePath();ctx.clip();
-    ctx.shadowColor='rgba(24,21,18,'+(geometry.opacity*.8)+')';
-    ctx.shadowBlur=geometry.blur;
-    ctx.fillStyle='rgba(24,21,18,'+geometry.opacity+')';
+    if('filter' in ctx){
+      // Blur the *entire mask*; simply setting shadowBlur alongside an opaque
+      // fill leaves a crisp duplicate polygon that looks like a deep box.
+      ctx.filter='blur('+geometry.blur.toFixed(1)+'px)';
+      ctx.fillStyle='rgba(24,21,18,'+geometry.opacity+')';
+    }else{
+      // Compatibility fallback for Canvas 2D implementations without filter:
+      // retain a faint source and let the blurred halo dominate.
+      ctx.shadowColor='rgba(24,21,18,'+geometry.opacity+')';
+      ctx.shadowBlur=geometry.blur*1.5;
+      ctx.fillStyle='rgba(24,21,18,0.012)';
+    }
     ctx.beginPath();
     geometry.quad.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));
     ctx.closePath();ctx.fill();
