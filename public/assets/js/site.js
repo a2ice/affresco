@@ -1396,7 +1396,12 @@
   }
   emailRecipient.addEventListener('input',()=>{
     emailRecipient.setCustomValidity('');
+    emailRecipient.removeAttribute('aria-invalid');
     $('emailSendFeedback').textContent='';
+  });
+  emailRecipient.addEventListener('invalid',()=>{
+    emailRecipient.setAttribute('aria-invalid','true');
+    $('emailSendFeedback').textContent='Укажите полный адрес, например name@example.com.';
   });
   $('sendCrop').addEventListener('click',async()=>{
     if(!currentItem||!imageLoaded){
@@ -1427,6 +1432,7 @@
     if(!preparedEmailCrop || openDialog!==modalEditor)return;
     $('emailSendForm').reset();
     emailRecipient.setCustomValidity('');
+    emailRecipient.removeAttribute('aria-invalid');
     $('emailSendFeedback').textContent='';
     emailRecipient.value=window.affrescoAccount?.savedEmail()||'';
     setModal(modalEmail,$('sendCrop'));
