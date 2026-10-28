@@ -505,7 +505,7 @@
   }
   function combinedCount(){
     // The current manual preview is one export image, even without pressing Save.
-    return aiJobs.filter(j=>j.status==='completed').length+(placing&&room&&crop?1:0);
+    return aiJobs.filter(j=>j.status==='completed').length+(placing&&room&&crop&&deletedManualRevision!==revision?1:0);
   }
   function syncExportLabels(){
     const count=combinedCount();
