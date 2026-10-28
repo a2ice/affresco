@@ -71,9 +71,10 @@ if($method==='POST'&&isset($_GET['callback'])){
            @chmod($file,0600);$job['status']='completed';$job['completed']=time();
        }elseif($status==='failed'){
            $job['status']='failed';$job['error']='generation_failed';
-           af_ai_quota($owner,-1);
        }else{$job['status']='processing';}
        if(!af_ai_write($owner,$job))ai_terminal_error(503,'ai_storage_unavailable');
+       // Refund only after the terminal state is durably persisted: no double refund on retry.
+       if($status==='failed')af_ai_quota($owner,-1);
     });
     af_response(200,['accepted'=>true]);
 }
@@ -161,7 +162,7 @@ curl_exec($ch);$status=curl_getinfo($ch,CURLINFO_HTTP_CODE);curl_close($ch);
 if($status!==204){
     af_ai_lock($owner,static function()use($owner,$created){
         $job=$created;$job['status']='failed';$job['error']='dispatch_failed';
-        af_ai_write($owner,$job);af_ai_quota($owner,-1);
+        if(af_ai_write($owner,$job))af_ai_quota($owner,-1);
     });
     ai_terminal_error(503,'ai_dispatch_unavailable');
 }
