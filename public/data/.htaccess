@@ -1,4 +1,5 @@
-# Prevent HTTP reading of demo account data.
-<Files "accounts.json">
+# Deny HTTP access to demo account and SMTP credential JSON files.
+# PHP can still read these from disk.
+<FilesMatch "^(accounts|mail)\\.json$">
   Require all denied
-</Files>
+</FilesMatch>
