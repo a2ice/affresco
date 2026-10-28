@@ -1399,10 +1399,6 @@
     emailRecipient.removeAttribute('aria-invalid');
     $('emailSendFeedback').textContent='';
   });
-  emailRecipient.addEventListener('invalid',()=>{
-    emailRecipient.setAttribute('aria-invalid','true');
-    $('emailSendFeedback').textContent='Укажите полный адрес, например name@example.com.';
-  });
   $('sendCrop').addEventListener('click',async()=>{
     if(!currentItem||!imageLoaded){
       showFeedback('Сначала дождитесь загрузки фрески.',true);
@@ -1443,13 +1439,13 @@
     if(openDialog!==modalEmail||emailSendBusy)return;
     const email=emailRecipient.value.trim();
     if(!validDeliveryEmail(email)){
-      emailRecipient.setCustomValidity('Укажите полный email, например name@example.com');
-      emailRecipient.reportValidity();
-      $('emailSendFeedback').textContent='Проверьте адрес: нужен домен с точкой, например name@example.com.';
+      emailRecipient.setAttribute('aria-invalid','true');
+      $('emailSendFeedback').textContent='Проверьте адрес: нужен полный email, например name@example.com.';
+      emailRecipient.focus();
       return;
     }
+    emailRecipient.removeAttribute('aria-invalid');
     emailRecipient.setCustomValidity('');
-    if(!emailRecipient.reportValidity())return;
     const requestId=++emailSendRequest;
     emailSendBusy=true;
     emailSendSubmit.disabled=true;
@@ -1472,11 +1468,12 @@
       if(!reply.ok||result?.accepted!==true){
         throw new Error(result?.error||'mail_unavailable');
       }
-      window.affrescoAccount?.setEmailFromSend(email);
+      if(result.email_saved===true)window.affrescoAccount?.setEmailFromSend(email);
       if(openDialog===modalEmail&&requestId===emailSendRequest){
         preparedEmailCrop=null;
-        $('emailSuccessDescription').textContent='Письмо с выбранным кадром принято почтовым сервером для '+email+
-          '. Проверьте входящие и папку «Спам»: доставка может занять некоторое время.';
+        $('emailSuccessDescription').textContent='Письмо с выбранным кадром принято SMTP-сервером для '+email+
+          '. Проверьте входящие и папку «Спам»: доставка может занять некоторое время.'+
+          (result.email_saved===false?' Адрес в профиле сохранить не удалось.':'');
         emailRecipient.value='';
         setModal(modalEmailSuccess);
       }
@@ -1492,7 +1489,11 @@
           send_rate_limit:'За последний час уже отправлено четыре письма. Попробуйте позже.',
           rate_storage_unavailable:'Сервер пока не может проверить лимит отправок. Попробуйте позже.',
           email_storage_unavailable:'Не удалось сохранить email в аккаунте на сервере.',
-          mail_unavailable:'Почтовый сервер пока не принимает письма. Попробуйте позже.'
+          mail_unavailable:'Почтовый сервер пока не принимает письма. Попробуйте позже.',
+          smtp_not_configured:'SMTP-отправка ещё не настроена. Администратору нужно указать почтовый ящик отправителя.',
+          smtp_invalid_config:'Неверные настройки почты отправителя. Сообщите администратору.',
+          smtp_auth_failed:'Почтовый сервер отклонил логин или пароль отправителя. Сообщите администратору.',
+          smtp_unavailable:'Нет соединения с SMTP-сервером или он отклонил письмо. Сообщите администратору.'
         };
         $('emailSendFeedback').textContent=messages[error.message]||
           'Ошибка отправки. Проверьте соединение и попробуйте ещё раз.';
