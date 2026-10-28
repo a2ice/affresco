@@ -246,7 +246,7 @@ ROLE: You are a constrained photograph editor, NOT an interior designer or room 
 TASK: Edit the ORIGINAL ROOM photo by installing ONLY the supplied FRESCO CROP in the wall location marked by MANUAL PLACEMENT GUIDE. Preserve the actual photographed scene. Return one edited photograph of the SAME room.
 PRIMARY GOAL: A convincing real-wall installation at the exact prescribed location, with physically correct layering against existing foreground objects. Automatic foreground interpretation is part of the task; no manual mask is required for normal results.
 
-THREE INPUTS (IN ORDER):
+THREE REFERENCE IMAGES (IN ORDER), PLUS OPTIONAL USER MARKS:
 1. ORIGINAL ROOM is the sole authority for what physically EXISTS: room architecture, camera, window, floor, fixtures, furniture (if any), plants (if any), objects, emptiness, natural light, shadows and materials.
 2. FRESCO CROP supplies the unmodified artwork.
 3. MANUAL PLACEMENT GUIDE supplies the exact four-corner mural geometry, wall perspective, position and scale. It is a placement diagram, NOT an instruction to decorate the room.
@@ -290,6 +290,8 @@ ARCHITECTURAL INTERRUPTIONS:
 - If the targeted wall region contains actual fixed architectural openings or built-in elements in ORIGINAL ROOM, keep them in their exact location, contour and depth, as if the thin wall covering were custom-trimmed around them. Never invent openings or features where there are none.
 
 LIGHT AND REFLECTIONS — ONLY IF PHYSICALLY JUSTIFIED BY ORIGINAL ROOM:
+- Use the supplied lighting data when present (normalized light direction and warm/cold tone) to adapt the surface appearance of the fresco and its very subtle contact shadow. Keep the room's real original lighting, exposure and all object shadows unchanged. If lighting is absent, match the existing wall illumination naturally; do not invent a light source.
+- The wall dimensions and fresco dimensions in centimetres are real installation constraints. Do not reinterpret them or change physical scale to accommodate object overlap. The user-defined four-corner perspective is a spatial constraint, not a style suggestion.
 - Maintain the original natural illumination. Add at most a subtle contact shadow for the thin fresco.
 - The delivery pipeline deliberately protects pixels OUTSIDE the fresco quadrilateral; do not attempt any new reflection or lighting change outside that boundary in this protected-editing mode. Preserving the original furniture and room exactly is more important than a decorative reflection.
 - Only consider small optical changes INSIDE the specified mural footprint; do not invent a table or polished surface to create reflections.
