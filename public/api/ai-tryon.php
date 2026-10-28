@@ -100,6 +100,7 @@ if($method==='GET'&&isset($_GET['context'])){
 }
 if($method!=='POST'){header('Allow: GET, POST');ai_terminal_error(405,'method_not_allowed');}
 af_guard_post();
+if((int)($_SERVER['CONTENT_LENGTH']??0)>8*1048576)ai_terminal_error(413,'request_too_large');
 if(!$cfg||!function_exists('curl_init'))ai_terminal_error(503,'ai_not_configured');
 $meta=isset($_POST['metadata'])&&is_string($_POST['metadata'])&&strlen($_POST['metadata'])<4096?json_decode($_POST['metadata'],true):null;
 $context=is_array($meta)?(string)($meta['context']??''):'';
