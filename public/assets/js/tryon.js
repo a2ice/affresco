@@ -567,7 +567,8 @@
       const filename=ext==='zip'?'affresco-tryon-results.zip':'affresco-tryon.'+ext;
       const url=URL.createObjectURL(blob),link=document.createElement('a');
       link.href=url;link.download=filename;link.hidden=true;document.body.append(link);link.click();
-      setTimeout(()=>{link.remove();URL.revokeObjectURL(url);},60000);
+      const cleanup=setTimeout(()=>{link.remove();URL.revokeObjectURL(url);},60000);
+      cleanup?.unref?.(); // Node test harness; a browser timer is a number.
     }catch(error){aiError(aiMessage(error.message));}
     finally{exportBusy=false;syncExportLabels();$('tryonAIZip').disabled=aiBusy;$('tryonAIEmail').disabled=aiBusy;}
   }
