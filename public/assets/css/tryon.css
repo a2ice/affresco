@@ -90,3 +90,56 @@
 #tryonModal #tryonPlacementActions{margin-top:22px;}
 #tryonModal .tryon-state-row{margin-top:18px;gap:14px 22px;}
 @media(max-width:640px){#tryonModal #tryonTitle{font-size:24px;}#tryonModal .tryon-wall-controls{gap:0;}.tryon-layers button{flex:1;}}
+
+/* Independent photo/workspace coordinate systems. The viewport clips the image only;
+   the controls overlay lives at viewport size and is never clipped by the photo. */
+#tryonModal .tryon-stage{
+  position:relative;
+  height:clamp(290px,54dvh,560px);
+  margin:10px 0 18px;
+  overflow:hidden;
+  touch-action:none;
+  user-select:none;
+  cursor:grab;
+  border:1px solid #d7cfc4;
+  background-color:#e7e1d9;
+  background-image:linear-gradient(45deg,rgba(118,100,83,.035) 25%,transparent 25%,transparent 75%,rgba(118,100,83,.035) 75%),linear-gradient(45deg,rgba(118,100,83,.035) 25%,transparent 25%,transparent 75%,rgba(118,100,83,.035) 75%);
+  background-position:0 0,12px 12px;
+  background-size:24px 24px;
+}
+#tryonModal .tryon-stage.is-panning{cursor:grabbing;}
+#tryonModal .tryon-stage #tryonCanvas{
+  position:absolute;
+  display:block;
+  width:auto;
+  height:auto;
+  max-width:none;
+  max-height:none;
+  object-fit:fill;
+  pointer-events:none;
+  touch-action:none;
+  box-shadow:0 3px 14px rgba(35,28,20,.18);
+}
+#tryonModal .tryon-stage #tryonCanvas:focus-visible{outline:2px solid #766453;outline-offset:2px;}
+#tryonModal .tryon-controls{inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;}
+.tryon-view-tools{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin:5px 0;}
+#tryonModal .tryon-view-tools button{
+  min-height:44px;
+  min-width:44px;
+  border:1px solid #b7ada1;
+  background:#faf9f6;
+  color:#352d24;
+  padding:8px 12px;
+  font:500 12px/1.4 Manrope,sans-serif;
+  cursor:pointer;
+}
+#tryonModal .tryon-view-tools button:hover{background:#eee9e1;}
+#tryonModal .tryon-view-tools button:focus-visible{outline:2px solid #766453;outline-offset:2px;}
+#tryonModal .tryon-view-tools output{font:600 12px/1.4 Manrope,sans-serif;min-width:44px;text-align:center;color:#554c42;}
+#tryonModal .tryon-workspace-hint{margin:4px 0 8px;font-size:12px;line-height:1.5;}
+@media(max-width:640px){
+  #tryonModal .tryon-stage{height:clamp(270px,48dvh,460px);}
+  .tryon-view-tools{gap:5px;}
+  #tryonModal .tryon-view-tools button{padding:8px 9px;}
+  #tryonModal .tryon-workspace-hint{font-size:11px;}
+}
