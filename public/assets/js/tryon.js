@@ -283,11 +283,14 @@
         pinch={view:{...view},center,distance:center.distance};
         drag=null;stage.setPointerCapture(event.pointerId);event.preventDefault();return;
       }
-      if(pointers.size>2)return;
+      if(pointers.size>2){pointers.delete(event.pointerId);return;}
     }
     const p=point(event);
     if(lightMode){
-      if(p.x<0||p.y<0||p.x>canvas.width||p.y>canvas.height)return;
+      if(p.x<0||p.y<0||p.x>canvas.width||p.y>canvas.height){
+        pointers.delete(event.pointerId);
+        return;
+      }
       event.preventDefault();canvas.focus();
       drag={id:event.pointerId,kind:'light',start:p,previous:lighting};
       lighting=core.makeLight(p,p,$('tryonLightTone').value,canvas.width,canvas.height);
