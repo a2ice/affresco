@@ -30,6 +30,37 @@
     dy=clamp(dy,-Math.min(...quad.map(p=>p.y)),height-Math.max(...quad.map(p=>p.y)));
     return quad.map(p=>({x:p.x+dx,y:p.y+dy}));
   }
+  // The wall is an infinite plane in photo coordinates, not a crop of the image.
+  // Retain a generous numerical guard to keep malformed pointer input out of the homography.
+  function freeCorner(quad,index,point,width,height){
+    const limit=20*Math.max(width,height);
+    if(!Number.isInteger(index)||index<0||index>3||![point.x,point.y].every(v=>Number.isFinite(v)&&Math.abs(v)<=limit))return quad;
+    const next=quad.map(p=>({...p}));next[index]={x:point.x,y:point.y};
+    return convex(next)?next:quad;
+  }
+  function freeTranslate(quad,dx,dy,width,height){
+    const limit=20*Math.max(width,height);
+    if(!Number.isFinite(dx)||!Number.isFinite(dy))return quad;
+    const next=quad.map(p=>({x:p.x+dx,y:p.y+dy}));
+    return next.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)&&Math.abs(p.x)<=limit&&Math.abs(p.y)<=limit)?next:quad;
+  }
+  function viewTransform(imageWidth,imageHeight,viewportWidth,viewportHeight,view){
+    const base=.78*Math.min(viewportWidth/imageWidth,viewportHeight/imageHeight);
+    const scale=base*view.zoom;
+    return {scale,x:(viewportWidth-imageWidth*scale)/2+view.panX,y:(viewportHeight-imageHeight*scale)/2+view.panY};
+  }
+  function zoomViewAt(view,ratio,anchor,viewportWidth,viewportHeight){
+    const zoom=clamp(view.zoom*ratio,.08,8),factor=zoom/view.zoom;
+    const ax=anchor.x-viewportWidth/2,ay=anchor.y-viewportHeight/2;
+    return {zoom,panX:ax+(view.panX-ax)*factor,panY:ay+(view.panY-ay)*factor};
+  }
+  function fitQuadView(quad,imageWidth,imageHeight,viewportWidth,viewportHeight){
+    const minX=Math.min(...quad.map(p=>p.x)),maxX=Math.max(...quad.map(p=>p.x));
+    const minY=Math.min(...quad.map(p=>p.y)),maxY=Math.max(...quad.map(p=>p.y));
+    const base=viewTransform(imageWidth,imageHeight,viewportWidth,viewportHeight,{zoom:1,panX:0,panY:0}).scale;
+    const zoom=clamp(Math.min((viewportWidth-64)/(Math.max(1,maxX-minX)*base),(viewportHeight-64)/(Math.max(1,maxY-minY)*base)),.08,8);
+    return {zoom,panX:(imageWidth/2-(minX+maxX)/2)*base*zoom,panY:(imageHeight/2-(minY+maxY)/2)*base*zoom};
+  }
   function resize(quad,percent,width,height){
     const center={x:quad.reduce((n,p)=>n+p.x,0)/4,y:quad.reduce((n,p)=>n+p.y,0)/4};
     const spanX=Math.max(...quad.map(p=>p.x))-Math.min(...quad.map(p=>p.x)),spanY=Math.max(...quad.map(p=>p.y))-Math.min(...quad.map(p=>p.y));
@@ -134,7 +165,7 @@
     }
   }
   function historyLimit(owner){return typeof owner==='string'&&owner.indexOf('account:')===0?12:3;}
-  const api={homography,unproject,maxPlacementPercent,placement,placementQuad,movePlacement,resizePlacement,makeLight,drawLight,controlPoints,historyLimit,presets,wallValue,fits,frame,move,rectangle,convex,corner,translate,resize,project,inside,warp,draw};
+  const api={homography,unproject,maxPlacementPercent,placement,placementQuad,movePlacement,resizePlacement,makeLight,drawLight,controlPoints,historyLimit,presets,wallValue,fits,frame,move,rectangle,convex,corner,translate,freeCorner,freeTranslate,viewTransform,zoomViewAt,fitQuadView,resize,project,inside,warp,draw};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.affrescoTryonCore=api;
 })(typeof window!=='undefined'?window:globalThis);
 
