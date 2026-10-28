@@ -54,7 +54,7 @@
   let selected=true,lightMode=false,lighting=null,layer='wall',wallQuad=null,placed=null,lastWall={width:500,height:275};
   let selection=null,room=null,crop=null,quad=null,placing=false,revision=0,savedRevision=-1,saved=null,busy=false,drag=null,operation=0,historyRequest=0;
   let aiContext=crypto.randomUUID(),aiBusy=false,aiLoginPending=false,aiLoginRevision=-1;
-  let aiPollTimer=null,aiLastShown=null,aiJobs=[],aiRequest=0;
+  let aiPollTimer=null,aiLastShown=null,aiJobs=[],aiRequest=0,manualExport=null,exportBusy=false;
 
   const keyOwner=()=>window.affrescoAccount?.current()?.id?'account:'+window.affrescoAccount.current().id:'guest';
   const open=()=>window.dispatchEvent(new CustomEvent('affresco:open-modal',{detail:'tryon'}));
@@ -188,7 +188,7 @@
   }
   window.addEventListener('resize',()=>{if(room)paint();});
   if(typeof ResizeObserver!=='undefined')new ResizeObserver(()=>{if(room)paint();}).observe(stage);
-  function changed(){revision++;saved=null;feedback('');paint();}
+  function changed(){revision++;saved=null;manualExport=null;feedback('');paint();}
   function summary(){if(selection){$('tryonSummary').textContent='Арт. '+selection.sku+' · Исходный кадр '+cm(selection.width_cm)+' × '+cm(selection.height_cm);$('tryonCopyFeedback').textContent='';}}
   function showStep(which){
     $('tryonUploadStep').hidden=which!=='upload';$('tryonWorkspace').hidden=!['setup','placement'].includes(which);$('tryonSavedStep').hidden=which!=='saved';
@@ -198,10 +198,10 @@
     $('tryonChangeRoom').hidden=!['setup','placement'].includes(which);
     if(which!=='placement')$('tryonControls').innerHTML='';
   }
-  function resetRoom(){aiRequest++;aiContext=crypto.randomUUID();aiBusy=false;aiLoginPending=false;aiJobs=[];aiLastShown=null;
+  function resetRoom(){aiRequest++;aiContext=crypto.randomUUID();aiBusy=false;aiLoginPending=false;aiJobs=[];aiLastShown=null;manualExport=null;
     if(aiPollTimer)clearTimeout(aiPollTimer);aiPollTimer=null;
     $('tryonAIToast').hidden=true;$('tryonAIResults').hidden=true;
-    $('tryonAIGallery').replaceChildren();$('tryonAIError').hidden=true;
+    $('tryonAIGallery').replaceChildren();$('tryonAIError').hidden=true;syncExportLabels();
     view={zoom:1,panX:0,panY:0};pointers.clear();pinch=null;stage.classList.remove('is-panning');wallQuad=null;placed=null;layer='wall';lastWall={width:500,height:275};$('tryonLayerWall').setAttribute('aria-pressed','true');$('tryonLayerFresco').setAttribute('aria-pressed','false');selected=true;lightMode=false;lighting=null;syncLightTools();room=null;quad=null;placing=false;drag=null;saved=null;revision++;savedRevision=-1;$('tryonRoomFile').value='';showStep('upload');feedback('');}
   async function start(value){
     operation++;selection={...value};crop=null;resetRoom();summary();
@@ -405,7 +405,7 @@
     if(saved&&savedRevision===revision&&saved.owner===owner&&saved.tracked)return saved;
     const token=operation;drag=null;lock(true);feedback('Сохраняем примерку…');
     try{
-      let record=saved&&savedRevision===revision&&saved.owner===owner?saved:{id:crypto.randomUUID(),owner,created:Date.now(),image:jpeg(),sku:selection.sku,width_cm:placed.width,height_cm:placed.height,source_width_cm:selection.width_cm,source_height_cm:selection.height_cm,wall_width_cm:lastWall.width,wall_height_cm:lastWall.height,placement_cm:{...placed},wall_quad:wallQuad.map(p=>({x:p.x/canvas.width,y:p.y/canvas.height})),kind:'tryon',tracked:false};
+      let record=saved&&savedRevision===revision&&saved.owner===owner?saved:{id:crypto.randomUUID(),owner,created:Date.now(),image:jpeg(),sku:selection.sku,width_cm:placed.width,height_cm:placed.height,source_width_cm:selection.width_cm,source_height_cm:selection.height_cm,wall_width_cm:lastWall.width,wall_height_cm:lastWall.height,placement_cm:{...placed},wall_quad:wallQuad.map(p=>({x:p.x/canvas.width,y:p.y/canvas.height})),context:aiContext,kind:'tryon',tracked:false};
       // Store a recoverable local JPEG before recording the completed result.
       await store(record);
       if(sceneRevision===revision){saved=record;savedRevision=sceneRevision;}
@@ -489,6 +489,72 @@
     $('tryonAIEmail').disabled=value;
     $('tryonAIZip').disabled=value;
   }
+  function combinedCount(){
+    // The current manual preview is one export image, even without pressing Save.
+    return aiJobs.filter(j=>j.status==='completed').length+(placing&&room&&crop?1:0);
+  }
+  function syncExportLabels(){
+    const count=combinedCount();
+    $('tryonAIZip').hidden=count<1;
+    $('tryonAIEmail').hidden=count<1;
+    $('tryonAIZip').textContent=count===1?'Скачать изображение':'Скачать ZIP ('+count+')';
+    $('tryonAIEmail').textContent=count===1?'Отправить изображение':'Отправить ZIP ('+count+')';
+  }
+  async function removeSavedRecord(id){
+    if(typeof id!=='string')return;
+    const db=await database();
+    await new Promise((resolve,reject)=>{
+      const tx=db.transaction('images','readwrite');
+      tx.objectStore('images').delete(id);
+      tx.oncomplete=()=>{db.close();resolve();};
+      tx.onerror=tx.onabort=()=>{db.close();reject(Error('local_storage'));};
+    });
+    if(saved?.id===id){saved=null;savedRevision=-1;}
+    if(manualExport?.id===id)manualExport=null;
+    void renderHistory();
+  }
+  async function prepareCombinedExport(context=aiContext){
+    if(context!==aiContext||!placing||!validWall()||!window.affrescoAccount?.signedIn())
+      throw Error('login_required');
+    const owner=keyOwner(),identity=window.affrescoAccount.identity();
+    const all=await records(owner);
+    const chosen=all.filter(r=>r.context===context&&r.image?.startsWith('data:image/jpeg;base64,'));
+    if(!manualExport||manualExport.revision!==revision||manualExport.context!==context){
+      const current=saved?.owner===owner&&savedRevision===revision&&saved.context===context
+        ?saved:{id:crypto.randomUUID(),owner,context,created:Date.now(),image:jpeg()};
+      manualExport={...current,revision};
+    }
+    if(!chosen.some(r=>r.id===manualExport.id))chosen.push(manualExport);
+    for(const record of chosen){
+      if(context!==aiContext||identity!==window.affrescoAccount.identity())throw Error('unauthorized');
+      await aiResponse(await fetch('/api/ai-tryon-export.php?manual=1',{
+        method:'POST',credentials:'same-origin',cache:'no-store',
+        headers:{'Content-Type':'application/json','X-Affresco-Request':'1'},
+        body:JSON.stringify({context,id:record.id,created:record.created,image:record.image})
+      }));
+    }
+    void window.affrescoAccount?.renderServerImageLibrary?.();
+    return {context,manualCount:chosen.length};
+  }
+  async function downloadCombined(){
+    if(exportBusy)return;
+    exportBusy=true;$('tryonAIZip').disabled=true;$('tryonAIEmail').disabled=true;
+    $('tryonAIError').hidden=true;
+    try{
+      await prepareCombinedExport();
+      const response=await fetch('/api/ai-tryon-export.php?context='+encodeURIComponent(aiContext),
+        {credentials:'same-origin',cache:'no-store'});
+      if(!response.ok){await aiResponse(response);throw Error('no_results');}
+      const contentType=response.headers?.get('Content-Type')||'';
+      const blob=await response.blob();
+      const ext=contentType.includes('zip')?'zip':contentType.includes('png')?'png':'jpg';
+      const filename=ext==='zip'?'affresco-tryon-results.zip':'affresco-tryon.'+ext;
+      const url=URL.createObjectURL(blob),link=document.createElement('a');
+      link.href=url;link.download=filename;link.hidden=true;document.body.append(link);link.click();
+      setTimeout(()=>{link.remove();URL.revokeObjectURL(url);},60000);
+    }catch(error){aiError(aiMessage(error.message));}
+    finally{exportBusy=false;syncExportLabels();$('tryonAIZip').disabled=aiBusy;$('tryonAIEmail').disabled=aiBusy;}
+  }
   function aiDisplay(jobs,scrollToNewest=false){
     const completed=jobs.filter(j=>j.status==='completed'),target=$('tryonAIGallery');
     $('tryonAIResults').hidden=!jobs.length;
@@ -504,7 +570,7 @@
       cap.textContent='AI-вариант №'+(i+1)+' · Сохранено на сервере';
       figure.append(img,cap);target.append(figure);
     }
-    $('tryonAIZip').hidden=completed.length<1;$('tryonAIEmail').hidden=completed.length<1;
+    syncExportLabels();
     const newest=completed.at(-1);
     if(scrollToNewest&&newest&&!oldIds.has(newest.id)&&!$('tryonModal').hidden){
       const node=target.lastElementChild;
@@ -599,15 +665,16 @@
   }
   $('tryonAIGenerate').addEventListener('click',()=>{void startAI();});
   $('tryonAIRerun').addEventListener('click',()=>{void startAI();});
-  $('tryonAIZip').addEventListener('click',()=>{
-    if(!aiJobs.some(j=>j.status==='completed'))return;
-    const anchor=document.createElement('a');
-    anchor.href='/api/ai-tryon-export.php?context='+encodeURIComponent(aiContext);
-    anchor.download='affresco-ai-results.zip';anchor.click();
-  });
+  $('tryonAIZip').addEventListener('click',()=>{void downloadCombined();});
   $('tryonAIEmail').addEventListener('click',()=>{
-    if(!aiJobs.some(j=>j.status==='completed'))return;
+    if(!placing||exportBusy||aiBusy)return;
     window.dispatchEvent(new CustomEvent('affresco:email-ai-tryon',{detail:{context:aiContext}}));
+  });
+  window.addEventListener('affresco:ai-image-deleted',event=>{
+    if(event.detail?.type==='ai'&&aiJobs.some(j=>j.id===event.detail.id)){
+      aiJobs=aiJobs.filter(j=>j.id!==event.detail.id);
+      void aiStatus();
+    }
   });
   window.addEventListener('affresco:modal-closed',event=>{
     if(event.detail==='login')aiLoginPending=false;
@@ -630,7 +697,7 @@
     $('tryonStorageNote').hidden=!$('tryonStorageNote').textContent;
     void renderHistory();
   });
-  window.affrescoTryon={start,renderHistory};
+  window.affrescoTryon={start,renderHistory,prepareCombinedExport,removeSavedRecord};
   void window.affrescoAccount?.ready.then(()=>renderHistory());
 })();
 
