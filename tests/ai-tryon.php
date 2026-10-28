@@ -1,0 +1,45 @@
+<?php
+declare(strict_types=1);
+// End-to-end-free service contract tests: no GitHub/OpenAI calls, no real credentials.
+$root=sys_get_temp_dir().'/affresco-ai-test-'.bin2hex(random_bytes(6));
+mkdir($root.'/public/api',0700,true);mkdir($root.'/data',0700,true);
+foreach(['_account.php','_ai_tryon.php'] as $name)copy(__DIR__.'/../public/api/'.$name,$root.'/public/api/'.$name);
+require $root.'/public/api/_ai_tryon.php';
+function ai_check(bool $value,string $error): void {if(!$value)throw new RuntimeException($error);}
+function ai_rm(string $path): void {
+ if(is_dir($path)){foreach(scandir($path) as $item){if($item==='.'||$item==='..')continue;ai_rm($path.'/'.$item);}rmdir($path);}
+ elseif(is_file($path))unlink($path);
+}
+try{
+ $account=['id'=>'fixture','login'=>'user','generations_used'=>0,'generations_limit'=>2,'pass'=>'SECRET'];
+ file_put_contents($root.'/data/accounts.json',json_encode([$account]));
+ ai_check(af_ai_quota('fixture',1),'Reserve first generation');
+ ai_check(af_ai_quota('fixture',1),'Reserve second generation');
+ ai_check(!af_ai_quota('fixture',1),'Reject excess paid generation');
+ ai_check(af_ai_quota('fixture',-1),'Refund failed job');
+ ai_check((int)af_find_account(af_accounts(),'fixture')['generations_used']===1,'Quota persisted');
+ $ctx='123e4567-e89b-42d3-a456-426614174000';$id=bin2hex(random_bytes(16));
+ $meta=['wall_cm'=>[500,275],'fresco_cm'=>[180,120],
+    'wall_quad'=>[[0,0],[1,0],[1,1],[0,1]],'fresco_quad'=>[[.2,.2],[.6,.2],[.6,.6],[.2,.6]],
+    'lighting'=>['tone'=>'warm','from'=>[.1,.3],'to'=>[.8,.5]],'orientation'=>'landscape'];
+ $job=['id'=>$id,'context'=>$ctx,'owner'=>'fixture','metadata'=>$meta,'status'=>'pending','created'=>time()-1900];
+ ai_check(af_ai_write('fixture',$job),'Atomic private job write');
+ ai_check(af_ai_read('fixture',$id)['status']==='pending','Read private job');
+ $prompt=af_ai_prompt($meta);
+ foreach(['ORIGINAL ROOM','FRESCO CROP','MANUAL PLACEMENT GUIDE','BEHIND EVERYTHING','couch','foreground'] as $fragment)
+    ai_check(str_contains($prompt,$fragment),'Prompt missing occlusion priority: '.$fragment);
+ ai_check(!str_contains($prompt,'SECRET'),'Prompt leaked account secrets');
+ $cfg=['public_url'=>'https://affresco.a2ice.ru','callback_secret'=>'test-key'];
+ $url=af_ai_signed_url($cfg,$id,'room',time()+600);
+ ai_check(str_starts_with($url,'https://affresco.a2ice.ru/api/ai-tryon.php?'),'Signed reference URL');
+ ai_check(!str_contains($url,'test-key'),'No callback secret in signed URL');
+ ai_check(count(af_ai_jobs('fixture',$ctx))===1,'Owner-context isolation');
+ ai_check(count(af_ai_jobs('other',$ctx))===0,'Other accounts cannot list jobs');
+ $expired=af_ai_expire('fixture',$job);
+ ai_check($expired['status']==='failed','Timed-out job failed');
+ ai_check((int)af_find_account(af_accounts(),'fixture')['generations_used']===0,'Timeout refund');
+ ai_check(af_ai_expire('fixture',$expired)['status']==='failed','Terminal state idempotent');
+ ai_check((int)af_find_account(af_accounts(),'fixture')['generations_used']===0,'No double refund');
+ ai_check(!isset(af_ai_public($job)['metadata']),'Private photo metadata stays out of browser status');
+ echo "PASS: authenticated AI quota, timeout refund, HMAC references, isolated private jobs, single occlusion prompt\n";
+}finally{ai_rm($root);}
