@@ -34,7 +34,7 @@ function af_smtp_config(): array {
     if (!filter_var($host,FILTER_VALIDATE_DOMAIN,FILTER_FLAG_HOSTNAME) ||
         strlen($host)>253 || !filter_var($user,FILTER_VALIDATE_EMAIL) ||
         !filter_var($from,FILTER_VALIDATE_EMAIL) ||
-        !is_int($port) || !in_array($port,[465,587],true) ||
+        !is_int($port) || !in_array($port,[25,465,587],true) ||
         !in_array($security,['starttls','ssl'],true) ||
         ($port===465 && $security!=='ssl') ||
         ($port===587 && $security!=='starttls') ||
