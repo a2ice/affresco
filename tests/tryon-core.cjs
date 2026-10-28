@@ -84,8 +84,10 @@ const shadowLeft=core.shadowProjection(shadowFresco,shadowWall,shadowSize,lightL
 assert.ok(shadowRight&&shadowLeft,'Directional shadows are generated');
 assert.ok(shadowRight.quad[0].x>shadowFresco[0].x,'Right-facing light casts a rightward shadow');
 assert.ok(shadowLeft.quad[0].x<shadowFresco[0].x,'Reversing light reverses the shadow');
-assert.ok(shadowRight.opacity>0&&shadowRight.opacity<.25&&shadowRight.blur>=5);
-assert.ok(shadowRight.shiftCm>0&&shadowRight.shiftCm<20);
+assert.ok(shadowRight.opacity>0&&shadowRight.opacity<=.096,'Soft shadow never gets too dark');
+assert.ok(shadowRight.blur>=7&&shadowRight.blur<=15,'Soft shadow has a bounded penumbra');
+assert.ok(shadowRight.shiftCm>0&&shadowRight.shiftCm<=4.57,'Lateral displacement is not equal to relief thickness');
+assert.ok(shadowRight.screenShift<=9.6+.1,'Source-image corner offset is capped to 1.2% of shorter side');
 assert.equal(core.shadowProjection(shadowFresco,shadowWall,shadowSize,null,1000,800),null);
 assert.equal(core.shadowProjection(shadowFresco,shadowWall,shadowSize,core.makeLight({x:100,y:100},{x:100,y:100},'warm',1000,800),1000,800),null);
 assert.equal(core.shadowProjection(shadowFresco,shadowWall,{width:0,height:275},lightRight,1000,800),null);
@@ -93,22 +95,32 @@ const skewedWall=[{x:-100,y:120},{x:940,y:100},{x:780,y:710},{x:120,y:600}];
 const skewedFresco=core.placementQuad(skewedWall,shadowSize,{x:120,y:65,width:220,height:130});
 const skewedShadow=core.shadowProjection(skewedFresco,skewedWall,shadowSize,lightRight,1000,800);
 assert.ok(skewedShadow&&skewedShadow.quad.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)),'Off-photo perspective remains finite');
+assert.ok(skewedShadow.screenShift<=9.6+.1,'Even skewed/off-photo wall cannot generate a deep detached shadow');
+assert.ok(skewedShadow.opacity<=.096);
 
 function renderShadowOps(light,withPlane=true,segments=12){
  const ops=[];
- const context={canvas:{width:1000,height:800},save(){ops.push('save');},restore(){ops.push('restore');},beginPath(){},closePath(){},moveTo(){},lineTo(){},clip(){ops.push('clip');},transform(){},drawImage(image){ops.push(image==='room'?'room':'texture');},fill(){ops.push('shadow');},createLinearGradient(){return {addColorStop(){}};},fillRect(){ops.push('light-overlay');},stroke(){},setLineDash(){},strokeRect(){}};
+ const context={canvas:{width:1000,height:800},filter:'none',save(){ops.push('save');},restore(){ops.push('restore');},beginPath(){},closePath(){},moveTo(){},lineTo(){},clip(){ops.push('clip');},transform(){},drawImage(image){ops.push(image==='room'?'room':'texture');},fill(){ops.push('shadow');ops.push(this.filter.startsWith('blur(')?'soft-mask':'hard-mask');},createLinearGradient(){return {addColorStop(){}};},fillRect(){ops.push('light-overlay');},stroke(){},setLineDash(){},strokeRect(){}};
  core.draw(context,'room',{width:200,height:100},shadowFresco,false,false,light,segments,withPlane?{quad:shadowWall,size:shadowSize}:null);
  return ops;
 }
 const previewOps=renderShadowOps(lightRight,true,12),jpegOps=renderShadowOps(lightRight,true,24);
 for(const ops of [previewOps,jpegOps]){
  assert.equal(ops.filter(op=>op==='shadow').length,1,'One shadow pass per render');
+ assert.equal(ops.filter(op=>op==='soft-mask').length,1,'Shadow must blur the full mask, not draw a crisp polygon');
+ assert.equal(ops.includes('hard-mask'),false,'No hard shadow silhouette');
  assert.ok(ops.indexOf('room')<ops.indexOf('shadow'),'Wall is drawn before shadow');
  assert.ok(ops.indexOf('shadow')<ops.indexOf('texture'),'Fresco covers its own shadow');
  assert.ok(ops.lastIndexOf('texture')<ops.indexOf('light-overlay'),'Light tint is drawn after fresco');
 }
 assert.equal(renderShadowOps(null,true).includes('shadow'),false,'No light: no shadow');
 assert.equal(renderShadowOps(lightRight,false).includes('shadow'),false,'Legacy render without calibrated wall remains unchanged');
+let fallbackPaint=null;
+const fallbackContext={canvas:{width:1000,height:800},save(){},restore(){},beginPath(){},closePath(){},moveTo(){},lineTo(){},clip(){},fill(){fallbackPaint={fill:this.fillStyle,blur:this.shadowBlur,color:this.shadowColor};}};
+core.drawShadow(fallbackContext,shadowFresco,shadowWall,shadowSize,lightRight);
+assert.equal(fallbackPaint.fill,'rgba(24,21,18,0.012)','Fallback renders only a nearly invisible hard source');
+assert.ok(fallbackPaint.blur>=10&&fallbackPaint.color.startsWith('rgba('),'Fallback blur and shadow color available');
+
 console.log('PASS: virtual thickness, perspective shadow, directional reversal, light-off, preview/export render order');
 
 const controlA=core.controlPoints(moved,.5),controlB=core.controlPoints(moved,2);
