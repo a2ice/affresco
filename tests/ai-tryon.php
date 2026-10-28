@@ -47,7 +47,7 @@ try{
     'FINAL CHECK BEFORE OUTPUT','no extra furniture',
     'INVENTORY BEFORE EDITING','DELETION IS STRICTLY FORBIDDEN',
     'existing bed, bedding, rug, carpet',
-    'outside the fresco footprint must be IDENTICAL',
+    'OUTSIDE the target fresco footprint must be IDENTICAL',
     'server independently enforces this boundary'
  ] as $fragment)
     ai_check(str_contains(strtolower($prompt),strtolower($fragment)),'Missing preservation contract: '.$fragment);
