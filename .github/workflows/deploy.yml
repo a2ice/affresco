@@ -59,6 +59,13 @@ jobs:
           php tests/manual-tryon.php
           php tests/ai-tryon.php
 
+      - name: Verify original-room pixels are protected outside mural
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet --disable-pip-version-check 'Pillow==11.3.0'
+          python3 tests/protected-room-compositing.py
+
   preflight:
     name: Manual credentials presence check (no secret values)
     needs: validate
