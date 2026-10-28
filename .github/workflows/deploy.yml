@@ -156,3 +156,24 @@ jobs:
             **/images/**
 
 
+
+      - name: Verify protected JSON is not publicly downloadable
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://affresco.a2ice.ru/data'
+          for item in accounts mail affresco-ai; do
+            status="$(curl --fail-early --silent --show-error --location --head --max-time 25 --output /dev/null --write-out '%{http_code}' "$base/$item.json" || true)"
+            if [[ "$status" != '403' && "$status" != '404' ]]; then
+              echo "SECURITY FAIL: $item.json returned HTTP $status (expected 403/404)" >&2
+              exit 1
+            fi
+            echo "Private JSON $item.json protected (HTTP $status)"
+          done
+          status="$(curl --silent --show-error --location --head --max-time 25 --output /dev/null --write-out '%{http_code}' "$base/catalog.json")"
+          if [[ "$status" != '200' ]]; then
+            echo "PUBLIC CATALOG FAIL: HTTP $status" >&2
+            exit 1
+          fi
+          echo 'PASS: secret JSON inaccessible; catalog remains accessible'

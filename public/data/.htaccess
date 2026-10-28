@@ -1,4 +1,6 @@
-# Deny HTTP access to account and SMTP credentials.
-<FilesMatch "^(accounts|mail)\.json$">
+# The only JSON document publicly served from /data is catalog.json.
+# All credentials, generation metadata and temporary JSON must be denied.
+# Explicit deny is required when private files are stored under the web root.
+<FilesMatch "^(?!catalog\\.json$).+\\.json(?:\\..*)?$">
   Require all denied
 </FilesMatch>
