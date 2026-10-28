@@ -70,3 +70,5 @@
  .tryon-toolbar{gap:6px;}
 }
 @media(prefers-reduced-motion:reduce){.tryon-upload-icon{transition:none;}}
+
+@media(min-width:641px){#tryonModal #tryonLightCancel{min-width:96px;}}
