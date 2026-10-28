@@ -249,7 +249,8 @@ PRIMARY GOAL: A convincing real-wall installation at the exact prescribed locati
 THREE REFERENCE IMAGES (IN ORDER), PLUS OPTIONAL USER MARKS:
 1. ORIGINAL ROOM is the sole authority for what physically EXISTS: room architecture, camera, window, floor, fixtures, furniture (if any), plants (if any), objects, emptiness, natural light, shadows and materials.
 2. FRESCO CROP supplies the unmodified artwork.
-3. MANUAL PLACEMENT GUIDE supplies the exact four-corner mural geometry, wall perspective, position and scale. It is a placement diagram, NOT an instruction to decorate the room.
+3. MANUAL PLACEMENT GUIDE supplies the exact four-corner mural geometry, wall perspective, position and scale. It is a placement diagram, NOT an instruction to decorate the room. Its already-rendered artwork is a REFERENCE, not a second independent image to add beside or underneath the final fresco.
+THE ALPHA EDIT MASK ON ORIGINAL ROOM (input 1) has one transparent quadrilateral, corresponding to that SAME FOUR-CORNER AREA. Everything opaque is outside the edit. This mask is a constraint, not a cue to extend or straighten the artwork.
 4. USER-MARKED FOREGROUND PROTECTION, when supplied, marks actual object pixels selected by the user in the ORIGINAL ROOM. Those pixels MUST remain the originals, in FRONT of the wall-mounted fresco, even if they fall INSIDE the projected mural quad. Never hallucinate details to replace them.
 
 NON-NEGOTIABLE SCENE PRESERVATION:
@@ -266,6 +267,9 @@ EXACT WALL ARTWORK GEOMETRY (DO NOT GUESS OR IMPROVE):
 - Copy the artwork accurately without reimagining its details, adding extra patterns, changing its proportions or enlarging it.
 - The FULL underlying fresco must have precisely the same position, width, height, physical aspect ratio, perspective and four original projected corners as MANUAL PLACEMENT GUIDE, even if a part is hidden.
 - Do not stretch, widen, expand onto the rest of the wall, cover a larger area, crop away original artwork or relocate the fresco to an aesthetically convenient position.
+- The image has ONLY ONE MURAL: its source artwork must fill exactly the perspective-distorted quadrilateral, with one clean outer boundary. Do NOT leave an upright rectangular version of the original crop behind or in front of the warped version. Never create a second rectangular layer, transparent ghost, double outline, echoed corner, extra border, floating frame, trompe-l'oeil window, duplicate image or translucent filler wedge to reconcile the source's original rectangular shape with the projected perspective.
+- Treat the source image's original rectangle as TEXTURE COORDINATES projected into the four given corners, NOT as an extra physical rectangular object. The four edges of the fresco are the four perspective-projected segments; no distinct axis-aligned rectangular perimeter exists in the output. If an area is outside the four-corner wall footprint, it belongs to ORIGINAL ROOM, not to a partial copy of the artwork.
+- Preserve high-contrast clean artwork edges within the quad. Do not fade in or feather a phantom rectangular expansion into the surrounding wall. The edit-mask polygon and final deterministic composite enforce the same footprint.
 - Preserve the ORIGINAL ROOM's image aspect ratio and framing; never use a different camera shot or make a new interior view.
 
 AUTOMATIC FOREGROUND OCCLUSION — DEFAULT AND REQUIRED, NO USER BRUSH NEEDED:
@@ -299,7 +303,7 @@ LIGHT AND REFLECTIONS — ONLY IF PHYSICALLY JUSTIFIED BY ORIGINAL ROOM:
 
 FINAL CHECK BEFORE OUTPUT:
 A. Compare with ORIGINAL ROOM: is every originally empty region still empty? Are ALL objects and architectural details unchanged and NO new items present?
-B. Compare with MANUAL PLACEMENT GUIDE: is the fresco still at the exact same four corners, size and perspective, even when its edges disappear behind original objects?
+B. Compare with MANUAL PLACEMENT GUIDE and the transparent edit region: is there EXACTLY ONE perspective-correct fresco at those same four corners and nowhere else, without a second faint upright rectangle, halo or translucent extension?
 C. Compare ORIGINAL ROOM and result at all foreground boundaries, especially where an object crosses the mural border. Does each original object remain complete, continuous and in front without moving either it or the mural?
 D. Is any reflection confined to an already existing real reflective surface? If uncertain, omit it.
 If any check fails, correct the EDIT; do not regenerate, decorate or restage the room.
