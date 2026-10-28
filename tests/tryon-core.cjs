@@ -72,6 +72,45 @@ const stops=[];let clipped=0;
 const lightingContext={canvas:{width:1000,height:700},createLinearGradient(...points){assert.deepEqual(points,[100,200,900,200]);return {addColorStop:(at,color)=>stops.push({at,color})};},save(){},restore(){},beginPath(){},closePath(){},moveTo(){},lineTo(){},clip(){clipped++;},fillRect(){}};
 core.drawLight(lightingContext,moved,longLight);
 assert.equal(clipped,1,'Lighting must be clipped to the fresco');assert.equal(stops.length,3);assert.match(stops[0].color,/178,220,255/);assert.match(stops[2].color,/12,30,52/);
+// The relief is virtual (12 cm): all four shadow corners must be projected
+// through the calibrated wall, and the light gesture changes its direction.
+const shadowWall=core.rectangle({x:100,y:120,width:740,height:500});
+const shadowSize={width:500,height:275};
+const shadowFresco=core.placementQuad(shadowWall,shadowSize,{x:120,y:65,width:220,height:130});
+const lightRight=core.makeLight({x:250,y:390},{x:750,y:390},'warm',1000,800);
+const lightLeft=core.makeLight({x:750,y:390},{x:250,y:390},'cold',1000,800);
+const shadowRight=core.shadowProjection(shadowFresco,shadowWall,shadowSize,lightRight,1000,800);
+const shadowLeft=core.shadowProjection(shadowFresco,shadowWall,shadowSize,lightLeft,1000,800);
+assert.ok(shadowRight&&shadowLeft,'Directional shadows are generated');
+assert.ok(shadowRight.quad[0].x>shadowFresco[0].x,'Right-facing light casts a rightward shadow');
+assert.ok(shadowLeft.quad[0].x<shadowFresco[0].x,'Reversing light reverses the shadow');
+assert.ok(shadowRight.opacity>0&&shadowRight.opacity<.25&&shadowRight.blur>=5);
+assert.ok(shadowRight.shiftCm>0&&shadowRight.shiftCm<20);
+assert.equal(core.shadowProjection(shadowFresco,shadowWall,shadowSize,null,1000,800),null);
+assert.equal(core.shadowProjection(shadowFresco,shadowWall,shadowSize,core.makeLight({x:100,y:100},{x:100,y:100},'warm',1000,800),1000,800),null);
+assert.equal(core.shadowProjection(shadowFresco,shadowWall,{width:0,height:275},lightRight,1000,800),null);
+const skewedWall=[{x:-100,y:120},{x:940,y:100},{x:780,y:710},{x:120,y:600}];
+const skewedFresco=core.placementQuad(skewedWall,shadowSize,{x:120,y:65,width:220,height:130});
+const skewedShadow=core.shadowProjection(skewedFresco,skewedWall,shadowSize,lightRight,1000,800);
+assert.ok(skewedShadow&&skewedShadow.quad.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)),'Off-photo perspective remains finite');
+
+function renderShadowOps(light,withPlane=true,segments=12){
+ const ops=[];
+ const context={canvas:{width:1000,height:800},save(){ops.push('save');},restore(){ops.push('restore');},beginPath(){},closePath(){},moveTo(){},lineTo(){},clip(){ops.push('clip');},transform(){},drawImage(image){ops.push(image==='room'?'room':'texture');},fill(){ops.push('shadow');},createLinearGradient(){return {addColorStop(){}};},fillRect(){ops.push('light-overlay');},stroke(){},setLineDash(){},strokeRect(){}};
+ core.draw(context,'room',{width:200,height:100},shadowFresco,false,false,light,segments,withPlane?{quad:shadowWall,size:shadowSize}:null);
+ return ops;
+}
+const previewOps=renderShadowOps(lightRight,true,12),jpegOps=renderShadowOps(lightRight,true,24);
+for(const ops of [previewOps,jpegOps]){
+ assert.equal(ops.filter(op=>op==='shadow').length,1,'One shadow pass per render');
+ assert.ok(ops.indexOf('room')<ops.indexOf('shadow'),'Wall is drawn before shadow');
+ assert.ok(ops.indexOf('shadow')<ops.indexOf('texture'),'Fresco covers its own shadow');
+ assert.ok(ops.lastIndexOf('texture')<ops.indexOf('light-overlay'),'Light tint is drawn after fresco');
+}
+assert.equal(renderShadowOps(null,true).includes('shadow'),false,'No light: no shadow');
+assert.equal(renderShadowOps(lightRight,false).includes('shadow'),false,'Legacy render without calibrated wall remains unchanged');
+console.log('PASS: virtual thickness, perspective shadow, directional reversal, light-off, preview/export render order');
+
 const controlA=core.controlPoints(moved,.5),controlB=core.controlPoints(moved,2);
 assert.equal(controlA.length,4);assert.equal(controlB.length,4);
 assert.equal(controlA[0].x,50);assert.equal(controlB[0].x,200);
