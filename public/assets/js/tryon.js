@@ -53,6 +53,9 @@
   }
   let selected=true,lightMode=false,lighting=null,layer='wall',wallQuad=null,placed=null,lastWall={width:500,height:275};
   let selection=null,room=null,crop=null,quad=null,placing=false,revision=0,savedRevision=-1,saved=null,busy=false,drag=null,operation=0,historyRequest=0;
+  let aiContext=crypto.randomUUID(),aiBusy=false,aiLoginPending=false,aiLoginRevision=-1;
+  let aiPollTimer=null,aiLastShown=null,aiJobs=[],aiRequest=0;
+
   const keyOwner=()=>window.affrescoAccount?.current()?.id?'account:'+window.affrescoAccount.current().id:'guest';
   const open=()=>window.dispatchEvent(new CustomEvent('affresco:open-modal',{detail:'tryon'}));
   const feedback=(message,error=false)=>{$('tryonFeedback').textContent=message;$('tryonFeedback').classList.toggle('is-error',error);};
@@ -133,6 +136,7 @@
       :'Размещение: '+cm(placed.width)+' × '+cm(placed.height)+'. Максимум — размер исходного кадра и границы стены.';
     $('tryonFit').classList.toggle('is-warning',invalid);
     for(const id of ['tryonBegin','tryonSave','tryonDownload','tryonEmail'])$(id).disabled=busy||invalid;
+    $('tryonAIGenerate').disabled=busy||aiBusy||invalid||!placing;
     $('tryonLayerWall').disabled=busy;$('tryonLayerFresco').disabled=busy||!placing;
     $('tryonScale').disabled=busy||invalid||layer!=='fresco';
     return invalid;
@@ -194,7 +198,11 @@
     $('tryonChangeRoom').hidden=!['setup','placement'].includes(which);
     if(which!=='placement')$('tryonControls').innerHTML='';
   }
-  function resetRoom(){view={zoom:1,panX:0,panY:0};pointers.clear();pinch=null;stage.classList.remove('is-panning');wallQuad=null;placed=null;layer='wall';lastWall={width:500,height:275};$('tryonLayerWall').setAttribute('aria-pressed','true');$('tryonLayerFresco').setAttribute('aria-pressed','false');selected=true;lightMode=false;lighting=null;syncLightTools();room=null;quad=null;placing=false;drag=null;saved=null;revision++;savedRevision=-1;$('tryonRoomFile').value='';showStep('upload');feedback('');}
+  function resetRoom(){aiRequest++;aiContext=crypto.randomUUID();aiBusy=false;aiLoginPending=false;aiJobs=[];aiLastShown=null;
+    if(aiPollTimer)clearTimeout(aiPollTimer);aiPollTimer=null;
+    $('tryonAIToast').hidden=true;$('tryonAIResults').hidden=true;
+    $('tryonAIGallery').replaceChildren();$('tryonAIError').hidden=true;
+    view={zoom:1,panX:0,panY:0};pointers.clear();pinch=null;stage.classList.remove('is-panning');wallQuad=null;placed=null;layer='wall';lastWall={width:500,height:275};$('tryonLayerWall').setAttribute('aria-pressed','true');$('tryonLayerFresco').setAttribute('aria-pressed','false');selected=true;lightMode=false;lighting=null;syncLightTools();room=null;quad=null;placing=false;drag=null;saved=null;revision++;savedRevision=-1;$('tryonRoomFile').value='';showStep('upload');feedback('');}
   async function start(value){
     operation++;selection={...value};crop=null;resetRoom();summary();
     $('tryonPreset').value='standard';$('tryonWallWidth').value=500;$('tryonWallHeight').value=275;$('tryonBack').hidden=false;
@@ -389,7 +397,7 @@
     if(image.length>=2900000)throw Error('image_export');
     return image;
   }
-  function lock(value){busy=value;for(const id of ['tryonZoomIn','tryonZoomOut','tryonFitPhoto','tryonFitWall','tryonSave','tryonDownload','tryonEmail','tryonChangeRoom','tryonPreset','tryonWallWidth','tryonWallHeight','tryonScale','tryonBack','tryonHandle','tryonResetPerspective','tryonApply','tryonLightToggle','tryonLightTone','tryonLightCancel','tryonLayerWall','tryonLayerFresco'])$(id).disabled=value;syncLightTools();}
+  function lock(value){busy=value;for(const id of ['tryonAIGenerate','tryonZoomIn','tryonZoomOut','tryonFitPhoto','tryonFitWall','tryonSave','tryonDownload','tryonEmail','tryonChangeRoom','tryonPreset','tryonWallWidth','tryonWallHeight','tryonScale','tryonBack','tryonHandle','tryonResetPerspective','tryonApply','tryonLightToggle','tryonLightTone','tryonLightCancel','tryonLayerWall','tryonLayerFresco'])$(id).disabled=value;syncLightTools();}
   async function save(){
     if(busy||!placing||!validWall())return null;
     await window.affrescoAccount?.ready;
@@ -448,7 +456,180 @@
       }
     }catch(_){if(owner===keyOwner()&&request===historyRequest)target.textContent='История примерок на этом устройстве недоступна.';}
   }
-  window.addEventListener('affresco:auth-changed',()=>{operation++;saved=null;$('tryonStorageNote').textContent=storageNote();$('tryonStorageNote').hidden=!$('tryonStorageNote').textContent;void renderHistory();});
+
+  const aiMessages={
+    login_required:'Для AI-генерации войдите в личный кабинет.',
+    ai_not_configured:'AI-генерация пока не подключена на сервере. Сообщите администратору.',
+    ai_storage_unavailable:'Сервер не может сохранить изображения. Попробуйте позднее.',
+    ai_in_progress:'Дождитесь окончания текущей генерации.',
+    ai_context_limit:'Для одной примерки доступно не более шести AI-вариантов.',
+    ai_quota_exceeded:'Ваш лимит AI-генераций исчерпан.',
+    ai_dispatch_unavailable:'Не удалось запустить AI в GitHub. Попробуйте позже.',
+    dispatch_failed:'Не удалось запустить обработку. Попробуйте ещё раз.',
+    generation_timeout:'Генерация заняла слишком много времени. Попробуйте ещё раз.',
+    generation_failed:'Не удалось сгенерировать изображение. Попробуйте ещё раз.',
+    invalid_image:'Не удалось подготовить фото для генерации.',
+    invalid_request:'Проверьте размеры стены и размещение фрески.',
+    zip_unavailable:'ZIP-архивы временно недоступны на сервере.',
+    zip_too_large:'Архив получился слишком большим.',
+    smtp_unavailable:'Почтовый сервер сейчас недоступен.',
+    smtp_not_configured:'Отправка писем ещё не настроена.',
+    unauthorized:'Сессия завершилась. Войдите ещё раз.'
+  };
+  const aiMessage=code=>aiMessages[code]||'Не удалось выполнить запрос AI. Проверьте подключение и повторите попытку.';
+  function aiError(message){
+    $('tryonAIResults').hidden=false;
+    $('tryonAIError').textContent=message;
+    $('tryonAIError').hidden=false;
+  }
+  function aiSetBusy(value){
+    aiBusy=value;$('tryonAIToast').hidden=!value;
+    $('tryonAIRerun').disabled=value||!placing;
+    $('tryonAIGenerate').disabled=value||busy||!placing||!validWall();
+    $('tryonAIEmail').disabled=value;
+    $('tryonAIZip').disabled=value;
+  }
+  function aiDisplay(jobs,scrollToNewest=false){
+    const completed=jobs.filter(j=>j.status==='completed'),target=$('tryonAIGallery');
+    $('tryonAIResults').hidden=!jobs.length;
+    const oldIds=new Set(aiJobs.filter(j=>j.status==='completed').map(j=>j.id));
+    aiJobs=jobs;
+    target.replaceChildren();
+    for(let i=0;i<completed.length;i++){
+      const job=completed[i],figure=document.createElement('figure'),img=document.createElement('img');
+      img.src=job.image_url;img.alt='AI-вариант примерки №'+(i+1);
+      img.loading='lazy';
+      img.addEventListener('error',()=>aiError('Готовое AI-изображение не загрузилось с сервера. Обновите страницу и попробуйте снова.'),{once:true});
+      const cap=document.createElement('figcaption');
+      cap.textContent='AI-вариант №'+(i+1)+' · Сохранено на сервере';
+      figure.append(img,cap);target.append(figure);
+    }
+    $('tryonAIZip').hidden=completed.length<1;$('tryonAIEmail').hidden=completed.length<1;
+    const newest=completed.at(-1);
+    if(scrollToNewest&&newest&&!oldIds.has(newest.id)&&!$('tryonModal').hidden){
+      const node=target.lastElementChild;
+      if(node){
+        const image=node.querySelector('img');
+        const reveal=()=>requestAnimationFrame(()=>node.scrollIntoView({block:'start',behavior:window.matchMedia?.('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'}));
+        if(image){
+          image.loading='eager';
+          if(image.complete&&image.naturalWidth>0)reveal();
+          else image.addEventListener('load',reveal,{once:true});
+        }else reveal();
+      }
+      aiLastShown=newest.id;
+    }
+  }
+  async function aiResponse(response){
+    let data={};try{data=await response.json();}catch(_){}
+    if(!response.ok)throw Error(data.error||'ai_dispatch_unavailable');
+    return data;
+  }
+  async function aiStatus(token=aiRequest){
+    if(token!==aiRequest)return;
+    try{
+      const data=await aiResponse(await fetch('/api/ai-tryon.php?context='+encodeURIComponent(aiContext),{credentials:'same-origin',cache:'no-store'}));
+      if(token!==aiRequest)return;
+      const pending=data.jobs.some(j=>['pending','processing'].includes(j.status));
+      const last=data.jobs.at(-1);
+      aiDisplay(data.jobs,true);
+      if(last?.status==='failed')aiError(aiMessage(last.error));
+      if(!pending){aiSetBusy(false);return;}
+      aiSetBusy(true);
+    }catch(error){if(token!==aiRequest)return;aiSetBusy(false);aiError(aiMessage(error.message));return;}
+    aiPollTimer=setTimeout(()=>{void aiStatus(token);},3500);
+  }
+  function aiToBlob(source){
+    return new Promise((resolve,reject)=>{
+      source.toBlob(blob=>blob?resolve(blob):reject(Error('invalid_image')),'image/jpeg',.86);
+    });
+  }
+  async function aiInputs(){
+    if(!placing||!crop||!room||!quad||!wallQuad||!validWall())throw Error('invalid_request');
+    const source=document.createElement('canvas');
+    const width=crop.naturalWidth||crop.width,height=crop.naturalHeight||crop.height;
+    const factor=Math.min(1,1600/width,1600/height);
+    source.width=Math.max(50,Math.round(width*factor));source.height=Math.max(50,Math.round(height*factor));
+    const sourceContext=source.getContext('2d');
+    sourceContext.drawImage(crop,0,0,source.width,source.height);
+    const manual=document.createElement('canvas');
+    manual.width=canvas.width;manual.height=canvas.height;
+    core.draw(manual.getContext('2d',{alpha:false}),room,crop,quad,false,false,lighting,24,{quad:wallQuad,size:lastWall});
+    const form=new FormData();
+    form.append('room',await aiToBlob(room),'room.jpg');
+    form.append('fresco',await aiToBlob(source),'fresco.jpg');
+    form.append('guide',await aiToBlob(manual),'guide.jpg');
+    const normalized=points=>points.map(p=>[p.x/canvas.width,p.y/canvas.height]);
+    form.append('metadata',JSON.stringify({
+      context:aiContext,
+      wall_cm:[lastWall.width,lastWall.height],
+      fresco_cm:[placed.width,placed.height],
+      wall_quad:normalized(wallQuad),fresco_quad:normalized(quad),
+      lighting:lighting?{from:[lighting.from.x,lighting.from.y],to:[lighting.to.x,lighting.to.y],tone:lighting.tone}:null,
+      orientation:canvas.height>canvas.width?'portrait':'landscape'
+    }));
+    return form;
+  }
+  async function startAI(){
+    if(busy||aiBusy||!placing||!validWall())return;
+    await window.affrescoAccount?.ready;
+    if(!window.affrescoAccount?.signedIn()){
+      aiLoginPending=true;aiLoginRevision=operation;
+      window.dispatchEvent(new CustomEvent('affresco:open-modal',{detail:'login'}));
+      return;
+    }
+    const token=++aiRequest,context=aiContext,identity=window.affrescoAccount.identity();
+    $('tryonAIError').hidden=true;
+    aiBusy=true;$('tryonAIGenerate').disabled=true;$('tryonAIRerun').disabled=true;
+    // The persistent toast appears only after server confirms GitHub dispatch.
+    $('tryonAIToast').hidden=true;
+    try{
+      const payload=await aiInputs();
+      if(token!==aiRequest||context!==aiContext||identity!==window.affrescoAccount.identity())throw Error('unauthorized');
+      const data=await aiResponse(await fetch('/api/ai-tryon.php',{
+        method:'POST',credentials:'same-origin',cache:'no-store',headers:{'X-Affresco-Request':'1'},body:payload
+      }));
+      if(token!==aiRequest)return;
+      if(!data.accepted||!data.id)throw Error('ai_dispatch_unavailable');
+      await aiStatus(token);
+    }catch(error){
+      if(token!==aiRequest)return;
+      aiSetBusy(false);aiError(aiMessage(error.message));
+    }
+  }
+  $('tryonAIGenerate').addEventListener('click',()=>{void startAI();});
+  $('tryonAIRerun').addEventListener('click',()=>{void startAI();});
+  $('tryonAIZip').addEventListener('click',()=>{
+    if(!aiJobs.some(j=>j.status==='completed'))return;
+    const anchor=document.createElement('a');
+    anchor.href='/api/ai-tryon-export.php?context='+encodeURIComponent(aiContext);
+    anchor.download='affresco-ai-results.zip';anchor.click();
+  });
+  $('tryonAIEmail').addEventListener('click',()=>{
+    if(!aiJobs.some(j=>j.status==='completed'))return;
+    window.dispatchEvent(new CustomEvent('affresco:email-ai-tryon',{detail:{context:aiContext}}));
+  });
+  window.addEventListener('affresco:modal-closed',event=>{
+    if(event.detail==='login')aiLoginPending=false;
+  });
+
+  window.addEventListener('affresco:auth-changed',()=>{
+    const resume=aiLoginPending&&window.affrescoAccount?.signedIn()&&aiLoginRevision===operation;
+    aiLoginPending=false;
+    operation++;saved=null;
+    if(aiBusy||aiJobs.length){
+      aiRequest++;if(aiPollTimer)clearTimeout(aiPollTimer);aiPollTimer=null;
+      aiJobs=[];aiSetBusy(false);$('tryonAIGallery').replaceChildren();
+      $('tryonAIResults').hidden=true;$('tryonAIError').hidden=true;
+    }
+    if(resume){
+      // Let account.js finish its own focus transition before reopening try-on.
+      setTimeout(()=>{if(window.affrescoAccount?.signedIn()){open();void startAI();}},0);
+    }
+    $('tryonStorageNote').textContent=storageNote();
+    $('tryonStorageNote').hidden=!$('tryonStorageNote').textContent;
+    void renderHistory();
+  });
   window.affrescoTryon={start,renderHistory};
   void window.affrescoAccount?.ready.then(()=>renderHistory());
 })();

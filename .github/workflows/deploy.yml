@@ -57,6 +57,7 @@ jobs:
           node tests/tryon-core.cjs
           node tests/tryon-upload.cjs
           php tests/manual-tryon.php
+          php tests/ai-tryon.php
 
   preflight:
     name: Manual credentials presence check (no secret values)

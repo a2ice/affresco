@@ -1,7 +1,8 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),{randomUUID}=require('node:crypto');
 const core=require('../public/assets/js/tryon-core.js');
 const html=fs.readFileSync(require('node:path').join(__dirname,'../public/index.html'),'utf8');
-const images=new Map();let member=null,accepted=0;
+const images=new Map();let member=null,accepted=0,aiLaunches=0;
+const dispatched=[];const listeners=new Map();
 class Element{
  constructor(){this.hidden=false;this.disabled=false;this.value='';this.textContent='';this.handlers={};this.classList={add(){},remove(){},toggle(){}};this.width=1000;this.height=700;this.style={};}
  addEventListener(k,fn){(this.handlers[k]??=[]).push(fn);}
@@ -11,6 +12,7 @@ class Element{
  click(){this.clicks=(this.clicks||0)+1;}focus(){}append(){}replaceChildren(){}setPointerCapture(){}
  getContext(){return {canvas:this,createLinearGradient(){return {addColorStop(){}};},drawImage(){},fillRect(){},save(){},restore(){},beginPath(){},closePath(){},moveTo(){},lineTo(){},clip(){},transform(){},fill(){},stroke(){},setLineDash(){},strokeRect(){}};}
  toDataURL(){return 'data:image/jpeg;base64,TEST';}
+ toBlob(callback){callback({size:1000,type:'image/jpeg'});}
 }
 const els=new Map([...html.matchAll(/\bid="([^"]+)"/g)].map(m=>[m[1],new Element()]));
 const $=id=>els.get(id);$('accountPanelGenerations').hidden=true;
@@ -21,8 +23,15 @@ const db={close(){},transaction(){
 }};
 const indexedDB={open(){const req={result:db};setTimeout(()=>req.onsuccess?.(),0);return req;}};
 class FakeImage{set src(v){this.naturalWidth=1000;this.naturalHeight=700;setTimeout(()=>this.onload(),0);}}
-const window={affrescoTryonCore:core,affrescoTryonCompat:{supported:true},affrescoAccount:{ready:Promise.resolve(),current:()=>member,identity:()=>member?'account':'guest',refreshProfile:async()=>{}},dispatchEvent(){},addEventListener(){}};
-vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname,'../public/assets/js/tryon.js'),'utf8'),{window,document,indexedDB,Image:FakeImage,URL:{createObjectURL:()=> 'blob:fixture',revokeObjectURL(){}},crypto:{randomUUID},CustomEvent:class{},requestAnimationFrame:fn=>fn(),setTimeout,fetch:async()=>{accepted++;return {ok:true,json:async()=>({accepted:true})};}});
+const window={affrescoTryonCore:core,affrescoTryonCompat:{supported:true},affrescoAccount:{ready:Promise.resolve(),current:()=>member,signedIn:()=>!!member,identity:()=>member?'account':'guest',refreshProfile:async()=>{}},
+ dispatchEvent(event){dispatched.push(event);for(const handler of listeners.get(event.type)||[])handler(event);},
+ addEventListener(name,handler){const values=listeners.get(name)||[];values.push(handler);listeners.set(name,values);}};
+vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname,'../public/assets/js/tryon.js'),'utf8'),{window,document,indexedDB,Image:FakeImage,URL:{createObjectURL:()=> 'blob:fixture',revokeObjectURL(){}},crypto:{randomUUID},CustomEvent:class{constructor(type,options={}){this.type=type;this.detail=options.detail;}},FormData:class{append(){}},requestAnimationFrame:fn=>fn(),setTimeout,fetch:async(url,options)=>{
+ if(url.startsWith('/api/ai-tryon.php')){
+   if(options?.method==='POST'){aiLaunches++;return {ok:true,json:async()=>({accepted:true,id:'b'.repeat(32)})};}
+   return {ok:true,json:async()=>({jobs:[{id:'b'.repeat(32),status:'completed',image_url:'/api/ai-tryon.php?image='+'b'.repeat(32)}]})};}
+ accepted++;return {ok:true,json:async()=>({accepted:true})};
+}});
 const delay=()=>new Promise(r=>setTimeout(r,30));
 (async()=>{
  await window.affrescoTryon.start({image:'data:image/jpeg;base64,TEST',sku:'6039',width_cm:200,height_cm:200});
@@ -82,7 +91,21 @@ const delay=()=>new Promise(r=>setTimeout(r,30));
  assert.equal(accepted,4,'Viewport-only change must not count a new generation');
  await $('tryonFitPhoto').fire('click');
 
- member={id:'tester'};
+ // A guest click opens login without dispatching a paid AI request.
+ await $('tryonAIGenerate').fire('click');await delay();
+ assert.equal(aiLaunches,0,'Guest cannot launch AI generation');
+ assert.ok(dispatched.some(e=>e.type==='affresco:open-modal'&&e.detail==='login'),'Login modal requested');
+ // Closing the login popup cancels the pending AI intent.
+ window.dispatchEvent({type:'affresco:modal-closed',detail:'login'});
+ member={id:'tester'};window.dispatchEvent({type:'affresco:auth-changed'});await delay();
+ assert.equal(aiLaunches,0,'Canceled login cannot launch paid AI generation later');
+ member=null;window.dispatchEvent({type:'affresco:auth-changed'});
+ await $('tryonAIGenerate').fire('click');await delay();
+ // Successful login resumes the new intent without a second click.
+ member={id:'tester'};window.dispatchEvent({type:'affresco:auth-changed'});await delay();
+ assert.equal(aiLaunches,1,'Exactly one AI dispatch after successful login');
+ assert.equal($('tryonAIToast').hidden,true,'Toast hidden on completed generation');
+ assert.equal($('tryonAIResults').hidden,false,'Completed AI result displayed in modal');
  for(let i=0;i<13;i++){$('tryonScale').value=50+i;await $('tryonScale').fire('input');await $('tryonSave').fire('click');await delay();}
  assert.equal([...images.values()].filter(r=>r.owner==='account:tester').length,12);
  assert.equal([...images.values()].filter(r=>r.owner==='guest').length,3);
