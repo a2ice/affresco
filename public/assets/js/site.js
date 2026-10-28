@@ -1388,6 +1388,16 @@
     }
     return output;
   }
+  function validDeliveryEmail(value){
+    // type=email by itself accepts domains without a dot (a2ice@yandex).
+    // Match the PHP endpoint's expectation of a complete mail domain.
+    return value.length<=254 &&
+      /^[^\\s@]+@(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)+[A-Za-z]{2,63}$/.test(value);
+  }
+  emailRecipient.addEventListener('input',()=>{
+    emailRecipient.setCustomValidity('');
+    $('emailSendFeedback').textContent='';
+  });
   $('sendCrop').addEventListener('click',async()=>{
     if(!currentItem||!imageLoaded){
       showFeedback('Сначала дождитесь загрузки фрески.',true);
@@ -1416,6 +1426,7 @@
     await window.affrescoAccount?.ready;
     if(!preparedEmailCrop || openDialog!==modalEditor)return;
     $('emailSendForm').reset();
+    emailRecipient.setCustomValidity('');
     $('emailSendFeedback').textContent='';
     emailRecipient.value=window.affrescoAccount?.savedEmail()||'';
     setModal(modalEmail,$('sendCrop'));
@@ -1424,8 +1435,15 @@
   $('emailSendForm').addEventListener('submit',async event=>{
     event.preventDefault();
     if(openDialog!==modalEmail||emailSendBusy)return;
-    if(!emailRecipient.reportValidity())return;
     const email=emailRecipient.value.trim();
+    if(!validDeliveryEmail(email)){
+      emailRecipient.setCustomValidity('Укажите полный email, например name@example.com');
+      emailRecipient.reportValidity();
+      $('emailSendFeedback').textContent='Проверьте адрес: нужен домен с точкой, например name@example.com.';
+      return;
+    }
+    emailRecipient.setCustomValidity('');
+    if(!emailRecipient.reportValidity())return;
     const requestId=++emailSendRequest;
     emailSendBusy=true;
     emailSendSubmit.disabled=true;
@@ -1462,7 +1480,9 @@
           crop_unavailable:'Не удалось получить выбранный фрагмент. Повторите попытку.',
           image_export_failed:'Браузер не смог подготовить изображение.',
           image_too_large:'Слишком большой кадр. Попробуйте уменьшить область выделения.',
-          invalid_email:'Проверьте адрес электронной почты.',
+          invalid_email:'Проверьте адрес: укажите полный email с доменом, например name@example.com.',
+          invalid_request:'Данные кадра не прошли проверку сервера. Откройте редактор и попробуйте снова.',
+          invalid_image:'Не удалось проверить JPEG-вложение. Выберите кадр повторно.',
           send_rate_limit:'За последний час уже отправлено четыре письма. Попробуйте позже.',
           rate_storage_unavailable:'Сервер пока не может проверить лимит отправок. Попробуйте позже.',
           email_storage_unavailable:'Не удалось сохранить email в аккаунте на сервере.',
