@@ -16,7 +16,7 @@
   <link rel="stylesheet" href="/assets/css/editorial.css?v=favorites-popup-20261028">
   <link rel="stylesheet" href="/assets/css/account.css?v=favorites-finish-20261028-2">
   <script src="/assets/js/account.js?v=favorites-numeric-sku-20261028" defer></script>
-  <script src="/assets/js/site.js?v=mail-validation-rate-fallback-20261028-2" defer></script>
+  <script src="/assets/js/site.js?v=smtp-mail-inline-validation-20261028" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#content">Перейти к содержимому</a>
@@ -273,7 +273,7 @@
       <span class="eyebrow">ВАШ КАДР</span>
       <h2 id="emailModalTitle">Отправить кадр</h2>
       <p id="emailModalDescription">Мы отправим выбранный кадр фрески на вашу электронную почту во вложении JPEG.</p>
-      <form id="emailSendForm" method="post" action="/api/send-crop.php">
+      <form id="emailSendForm" method="post" action="/api/send-crop.php" novalidate>
         <div class="field-group">
           <label for="emailRecipient">Электронная почта</label>
           <input id="emailRecipient" name="email" type="email" aria-describedby="emailSendFeedback" pattern="[^@ ]+@(?:[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?[.])+[A-Za-z]{2,63}" autocomplete="email" inputmode="email" placeholder="name@example.com" maxlength="254" required>
