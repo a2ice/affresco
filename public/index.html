@@ -17,9 +17,9 @@
   <link rel="stylesheet" href="/assets/css/account.css?v=cabinet-cross-20261028">
   <script src="/assets/js/tryon-compat.js?v=tryon-upload-20261028" defer></script>
   <script src="/assets/js/account.js?v=cabinet-cross-20261028" defer></script>
-  <link rel="stylesheet" href="/assets/css/tryon.css?v=foreground-mask-20261028">
+  <link rel="stylesheet" href="/assets/css/tryon.css?v=foreground-depth-20261029">
   <script src="/assets/js/tryon-core.js?v=soft-shadow-20261028" defer></script>
-  <script src="/assets/js/tryon.js?v=foreground-mask-20261028" defer></script>
+  <script src="/assets/js/tryon.js?v=foreground-depth-20261029" defer></script>
   <script src="/assets/js/site.js?v=unified-export-20261028" defer></script>
 </head>
 <body>
@@ -419,11 +419,12 @@
         <div class="tryon-foreground-tools" id="tryonForegroundTools" hidden>
           <button type="button" id="tryonProtectToggle" aria-pressed="false" aria-controls="tryonProtectHint">Защитить предметы</button>
           <label for="tryonProtectBrush">Кисть</label>
-          <input id="tryonProtectBrush" type="range" min="12" max="120" step="4" value="48" aria-label="Размер кисти для защиты предметов"/>
+          <input id="tryonProtectBrush" type="range" min="3" max="80" step="1" value="12" aria-label="Диаметр кисти для защиты предметов в пикселях"/>
+          <output id="tryonProtectBrushValue" for="tryonProtectBrush" aria-live="off">12 px</output>
           <button type="button" id="tryonProtectUndo">Отменить мазок</button>
           <button type="button" id="tryonProtectClear">Очистить маску</button>
         </div>
-        <p class="tryon-foreground-hint" id="tryonProtectHint" role="status" hidden>На исходном фото закрасьте только те части реальных предметов, которые должны остаться перед фреской: например, изголовье, подушки или тумбу. Красная область будет восстановлена из оригинала. Для масштабирования используйте два пальца; кнопка «Защитить предметы» вернёт к примерке.</p>
+        <p class="tryon-foreground-hint" id="tryonProtectHint" role="status" hidden>AI автоматически учитывает предметы перед стеной. Кисть — дополнительная точная коррекция, только если нужно защитить сложные детали. Отмеченные пиксели восстановятся из оригинала. Увеличьте фото для аккуратной разметки; двумя пальцами меняйте масштаб, кнопка «Готово» возвращает к примерке.</p>
         <p class="tryon-note tryon-workspace-hint">Углы стены можно вынести за фото. Потяните за свободное поле, чтобы переместить вид; двумя пальцами — масштаб. Ctrl + колесо мыши — масштаб.</p>
         <div class="tryon-stage" id="tryonStage" aria-label="Рабочее поле фотографии с областью вне кадра"><canvas id="tryonCanvas" tabindex="0" aria-label="Стена и фреска. Углы можно вынести за фото. Стрелки — перемещение; клавиши 1–4 — выбор угла; 0 — слой целиком."></canvas><svg id="tryonControls" class="tryon-controls" aria-hidden="true" focusable="false"></svg></div>
         <div id="tryonSetupActions"><p class="tryon-note">Отметьте четыре угла одной прямоугольной стены. Ширина — нижняя сторона, высота — левая.</p><button type="button" class="button button-primary" id="tryonBegin">Подтвердить стену</button></div>
