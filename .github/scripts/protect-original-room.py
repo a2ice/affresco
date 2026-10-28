@@ -53,7 +53,7 @@ def composite(original_path: str, generated_path: str, manifest_path: str, outpu
                 radius = stroke.get("radius")
                 points = stroke.get("points")
                 if (not isinstance(radius, (float, int)) or not math.isfinite(radius) or
-                    not .002 <= radius <= .15 or not isinstance(points, list) or
+                    not .00025 <= radius <= .15 or not isinstance(points, list) or
                     not 1 <= len(points) <= 128):
                     raise ValueError("Invalid foreground stroke")
                 total += len(points)
