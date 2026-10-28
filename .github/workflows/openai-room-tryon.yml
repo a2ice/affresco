@@ -67,6 +67,13 @@ jobs:
             url="$(jq -r ".references[$i]" manifest.json)"
             curl -fsSL "$url" -o "reference-$i.jpg"
           done
+          # OpenAI receives the original room as input 0. Transparency in
+          # this mask indicates the ONLY region it should edit: the exact
+          # perspective quadrilateral, minus user-protected foreground.
+          python3 .github/scripts/protect-original-room.py \
+            --make-edit-mask --original reference-0.jpg \
+            --manifest manifest.json --output edit-mask.png
+          file edit-mask.png | grep -q 'PNG image data'
           model="$(jq -r '.openai.model' manifest.json)"
           size="$(jq -r '.openai.size' manifest.json)"
           quality="$(jq -r '.openai.quality' manifest.json)"
@@ -78,6 +85,7 @@ jobs:
             -F "image[]=@reference-0.jpg;type=image/jpeg" \
             -F "image[]=@reference-1.jpg;type=image/jpeg" \
             -F "image[]=@reference-2.jpg;type=image/jpeg" \
+            -F "mask=@edit-mask.png;type=image/png" \
             --form-string "prompt=$prompt" \
             -F "size=$size" -F "quality=$quality" -F "output_format=png")"
           if [[ "$status" -lt 200 || "$status" -ge 300 ]]; then
