@@ -75,7 +75,8 @@
     ctx.restore();
   }
   function syncProtectTools(){
-    $('tryonForegroundTools').hidden=!placing;
+    $('tryonForegroundTools').hidden=!placing||!maskDockOpen;
+    $('tryonMaskDock').hidden=!placing;
     $('tryonProtectToggle').setAttribute('aria-pressed',String(maskMode));
     $('tryonProtectToggle').textContent=maskMode?'Готово':'Защитить предметы';
     $('tryonProtectHint').hidden=!maskMode;
@@ -483,6 +484,23 @@
   $('tryonProtectBrush').addEventListener('input',()=>{
     $('tryonProtectBrushValue').textContent=String($('tryonProtectBrush').value)+' px';
   });
+  stage.append($('tryonForegroundTools'),$('tryonProtectHint'));
+  $('tryonMaskDock').addEventListener('click',()=>{
+    maskDockOpen=!maskDockOpen;syncProtectTools();
+    $('tryonMaskDock').setAttribute('aria-expanded',String(maskDockOpen));
+  });
+  $('tryonSceneSearch').addEventListener('input',()=>{void renderScenePicker();});
+  $('tryonScenePickerClose').addEventListener('click',()=>{setSceneMode(null);paint();});
+  $('tryonChangeFresco').addEventListener('click',()=>{
+    setSceneMode(pickerVisible?null:'picker');void renderScenePicker();paint();
+  });
+  $('tryonEditCrop').addEventListener('click',()=>{
+    if(!selection)return;setSceneMode('crop');paint();
+    window.dispatchEvent(new CustomEvent('affresco:tryon-crop-item',{detail:{...selection,name:selection.sku}}));
+  });
+  $('tryonUploadOwnFresco').addEventListener('click',()=>{
+    window.dispatchEvent(new CustomEvent('affresco:open-own-fresco',{detail:'tryon'}));
+  });
   $('tryonProtectToggle').addEventListener('click',()=>{
     if(busy||!placing)return;
     maskMode=!maskMode;lightMode=false;drag=null;pointers.clear();pinch=null;
@@ -515,6 +533,7 @@
   }
   stage.addEventListener('pointerdown',event=>{
     if(busy||!room||!wallQuad||!validWall())return;
+    if(event.target?.closest?.('button,input'))return;
     if(event.pointerType==='touch'){
       pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
       if(pointers.size===2){
@@ -546,14 +565,20 @@
       lighting=core.makeLight(p,p,$('tryonLightTone').value,canvas.width,canvas.height);
       stage.setPointerCapture(event.pointerId);paint();return;
     }
-    const activeQuad=layer==='wall'?wallQuad:quad;
-    if(!activeQuad)return;
     const radius=24/scene().scale;
-    const index=selected?activeQuad.findIndex(c=>Math.hypot(c.x-p.x,c.y-p.y)<=radius):-1;
-    if(index<0&&!core.inside(activeQuad,p)){
-      selected=false;drag={id:event.pointerId,kind:'pan',x:event.clientX,y:event.clientY,panX:view.panX,panY:view.panY};
+    const nearLayer=q=>q?.some(c=>Math.hypot(c.x-p.x,c.y-p.y)<=radius);
+    const target=placing&&quad&&(core.inside(quad,p)||selected&&layer==='fresco'&&nearLayer(quad))?'fresco':
+      core.inside(wallQuad,p)||selected&&layer==='wall'&&nearLayer(wallQuad)?'wall':null;
+    if(!target){
+      selected=false;
+      $('tryonLayerWall').setAttribute('aria-pressed','false');
+      $('tryonLayerFresco').setAttribute('aria-pressed','false');
+      drag={id:event.pointerId,kind:'pan',x:event.clientX,y:event.clientY,panX:view.panX,panY:view.panY};
       stage.classList.add('is-panning');
     }else{
+      if(target!==layer)setLayer(target);
+      const activeQuad=layer==='wall'?wallQuad:quad;
+      const index=activeQuad.findIndex(c=>Math.hypot(c.x-p.x,c.y-p.y)<=radius);
       selected=true;$('tryonHandle').value=index<0?'layer':String(index);
       drag={...p,id:event.pointerId,index,kind:'geometry'};
     }
@@ -588,9 +613,9 @@
     const p=point(event);
     if(drag.kind==='light')lighting=core.makeLight(drag.start,p,$('tryonLightTone').value,canvas.width,canvas.height);
     else{
-      if(layer==='wall')wallQuad=drag.index>=0
+      if(layer==='wall'){wallConfirmed=false;wallQuad=drag.index>=0
         ?core.freeCorner(wallQuad,drag.index,p,canvas.width,canvas.height)
-        :core.freeTranslate(wallQuad,p.x-drag.x,p.y-drag.y,canvas.width,canvas.height);
+        :core.freeTranslate(wallQuad,p.x-drag.x,p.y-drag.y,canvas.width,canvas.height);}
       else{
         const current=core.unproject(wallQuad,p),previous=core.unproject(wallQuad,drag);
         if(current&&previous){
@@ -615,7 +640,7 @@
     const index=drag.kind==='geometry'?drag.index:-1;
     drag=null;stage.classList.remove('is-panning');
     if(index>=0)keepCornerVisible(index);
-    paint();
+    rememberScene();paint();
   }
   stage.addEventListener('pointerup',stopDrag);
   stage.addEventListener('pointercancel',stopDrag);
@@ -632,6 +657,7 @@
   $('tryonResetPerspective').addEventListener('click',()=>{if(!busy)showRestoreDialog();});
   $('tryonRestoreCancel').addEventListener('click',()=>{$('tryonRestoreDialog').hidden=true;});
   $('tryonRestoreConfirm').addEventListener('click',()=>{$('tryonRestoreDialog').hidden=true;restoreInitial();});
+  window.addEventListener('affresco:restore-tryon',()=>showRestoreDialog());
   $('tryonApply').addEventListener('click',()=>{if(busy)return;selected=false;lightMode=false;drag=null;paint();});
   $('tryonLightToggle').addEventListener('click',()=>{if(busy||!placing)return;if(maskMode)maskMode=false;const enable=!lightMode;if(enable&&layer!=='fresco')setLayer('fresco');lightMode=enable;if(lightMode)selected=false;drag=null;paint();});
   $('tryonLightTone').addEventListener('change',()=>{if(lighting){lighting={...lighting,tone:$('tryonLightTone').value==='cold'?'cold':'warm'};changed();}else syncLightTools();});
