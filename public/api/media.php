@@ -11,7 +11,7 @@ if (!in_array($kind,['room','fresco'],true)) af_response(422,['error'=>'invalid_
 $method=$_SERVER['REQUEST_METHOD']??'GET';
 if (!in_array($method,['GET','POST'],true)) af_response(405,['error'=>'method_not_allowed']);
 $owner=$account?'account:'.(string)$account['id']:'guest:'.session_id();
-$root=af_private_root().'/.affresco-user-media';
+$root=dirname(af_account_state_file('media-storage')).'/.affresco-user-media';
 $folder=$root.'/'.hash('sha256',$owner);
 function af_media_items(?array $account,string $kind):array {
     $items=$account!==null?($account['media_assets']??[]):($_SESSION['affresco_media_assets']??[]);
