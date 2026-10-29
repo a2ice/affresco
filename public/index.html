@@ -261,6 +261,11 @@
                   <label for="ownFrescoWidth">Ширина, см <input type="number" min="30" max="1000" step="any" id="ownFrescoWidth" inputmode="decimal" required></label>
                   <label for="ownFrescoHeight">Высота, см <input type="number" min="30" max="1000" step="any" id="ownFrescoHeight" inputmode="decimal" required></label>
                 </div>
+                <p id="ownFrescoQuota" class="own-fresco-quota" role="status" hidden></p>
+                <fieldset id="ownFrescoReplaceGroup" class="own-fresco-replace-group" hidden>
+                  <legend>Какую фреску заменить?</legend>
+                  <div id="ownFrescoReplaceList" class="own-fresco-replace-list" role="radiogroup" aria-label="Выберите фреску для замены"></div>
+                </fieldset>
                 <p id="ownFrescoError" role="alert" hidden></p>
                 <button type="button" id="ownFrescoAdd" class="button button-primary">Применить</button>
               </div>
@@ -396,6 +401,10 @@
           <p class="account-note">Личные изображения текущего аккаунта или гостевой сессии. Здесь можно удалить загруженную фреску.</p>
           <p id="accountOwnFrescoFeedback" class="account-note" role="status" aria-live="polite"></p>
           <div id="accountOwnFrescoList" class="account-server-image-list"></div>
+          <h4 class="account-library-title">Мои комнаты</h4>
+          <p class="account-note">Исходные фотографии комнат хранятся отдельно от готовых примерок. Удаление освободит место для нового фото.</p>
+          <p id="accountOwnRoomFeedback" class="account-note" role="status" aria-live="polite"></p>
+          <div id="accountOwnRoomList" class="account-server-image-list"></div>
         </section>
       </div>
       <p id="accountFeedback" class="feedback" role="status" aria-live="polite"></p>

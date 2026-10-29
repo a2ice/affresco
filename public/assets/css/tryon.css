@@ -283,3 +283,17 @@ body.has-ux-step-nav:not(.ux-step-nav-collapsed) #pickerModal .modal-panel{paddi
   .affresco-step-nav .affresco-step-badge{padding:8px 10px;font-size:11px}
   .editor-upload-own{margin:8px 12px}
 }
+
+/* Personal uploads: explicit replacement, with a readable 1–3 item chooser. */
+.own-fresco-dialog-panel .own-fresco-quota{font:500 12px/1.55 Manrope,sans-serif;color:#71523e;margin:0 0 12px}
+.own-fresco-dialog-panel .own-fresco-replace-group{border:0;padding:0;margin:0 0 12px;min-width:0}
+.own-fresco-dialog-panel .own-fresco-replace-group legend{font:600 12px/1.4 Manrope,sans-serif;margin-bottom:8px}
+.own-fresco-replace-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.own-fresco-replace-choice{display:flex;position:relative;flex-direction:column;gap:5px;min-width:0;padding:6px;border:1px solid #ccc1b4;background:#fff;cursor:pointer;font:500 11px/1.35 Manrope,sans-serif}
+.own-fresco-replace-choice:has(input:checked){border-color:#3f3831;box-shadow:inset 0 0 0 1px #3f3831;background:#f3eee7}
+.own-fresco-replace-choice:focus-within{outline:2px solid #5a4837;outline-offset:2px}
+.own-fresco-replace-choice input{position:absolute;top:7px;left:7px;accent-color:#3f3831}
+.own-fresco-replace-choice img{width:100%;height:68px;object-fit:cover;background:#eee9e2}
+.own-fresco-replace-choice span{overflow-wrap:anywhere}
+.tryon-room-card .tryon-room-replace{display:block;width:100%;min-height:44px;margin-top:5px;border:1px solid #c9bbaa;background:#fff;color:#4d4238;font:600 11px/1.3 Manrope,sans-serif}
+.tryon-room-card .tryon-room-replace:hover:not(:disabled){background:#ece4da}

@@ -117,6 +117,8 @@ $name=trim((string)($_POST['name']??''));
 if($name===''&&$kind==='fresco')$name='Моя фреска';
 if($name==='')$name='Фото интерьера';
 if(strlen($name)>255)$name=substr($name,0,255);
+$replaceId=trim((string)($_POST['replace_id']??''));
+if($replaceId!==''&&preg_match('/^[a-f0-9]{32}$/D',$replaceId)!==1)af_response(422,['error'=>'invalid_replace_id']);
 $width=null;$height=null;$sku=null;
 if($kind==='fresco'){
     $width=filter_var($_POST['width_cm']??null,FILTER_VALIDATE_FLOAT);
@@ -132,18 +134,24 @@ if($kind==='fresco'){$entry['width_cm']=$width;$entry['height_cm']=$height;$entr
 $target=af_media_safe_file($folder,$id);
 if(!move_uploaded_file($upload['tmp_name'],$target))af_response(503,['error'=>'storage_unavailable']);
 @chmod($target,0600);
-$replaced=[];
-$rows=af_media_update($account,static function(array $items)use($entry,$kind,$account,&$replaced):?array {
+$replacedId=null;$rejection=null;
+$rows=af_media_update($account,static function(array $items)use($entry,$kind,$account,$replaceId,&$replacedId,&$rejection):?array {
     $selected=array_values(array_filter($items,static fn($x)=>is_array($x)&&($x['kind']??'')===$kind));
     $limit=$account?3:1;
-    if(count($selected)>=$limit){
-        if($account)return null; // explicit limit for account
-        $replaced=$selected;  // guest replaces older upload
-        $items=array_values(array_filter($items,static fn($x)=>!is_array($x)||($x['kind']??'')!==$kind));
+    if($replaceId!==''){
+        $found=false;
+        foreach($items as $index=>$row){
+            if(is_array($row)&&($row['kind']??'')===$kind&&($row['id']??'')===$replaceId){
+                unset($items[$index]);$found=true;$replacedId=$replaceId;break;
+            }
+        }
+        if(!$found){$rejection='replace_target_not_found';return null;}
+    } elseif(count($selected)>=$limit){
+        $rejection='media_limit_reached';return null;
     }
     $items[]=$entry;
-    return $items;
+    return array_values($items);
 });
-if($rows===null){@unlink($target);af_response(409,['error'=>'media_limit_or_storage_unavailable']);}
-foreach($replaced as $old)if(is_string($old['id']??null))@unlink(af_media_safe_file($folder,$old['id']));
-af_response(201,['item'=>af_media_meta($entry),'limit'=>$account?3:1]);
+if($rows===null){@unlink($target);af_response($rejection?409:503,['error'=>$rejection??'storage_unavailable']);}
+if($replacedId!==null)@unlink(af_media_safe_file($folder,$replacedId));
+af_response(201,['item'=>af_media_meta($entry),'replaced_id'=>$replacedId,'limit'=>$account?3:1]);

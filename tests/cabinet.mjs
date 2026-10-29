@@ -43,6 +43,15 @@ const context=vm.createContext({document,localStorage,Date,Map,CustomEvent:class
   if(url==='/api/account-state.php')return {ok:true,json:async()=>({scope:'account',items:['6247'],drafts:{6247:{}},account:{...member,updates_count:8}})};
   return {ok:true,json:async()=>({scope:'guest',items:['6039']})};
 }});
+const personalFiles={
+  fresco:[{kind:'fresco',id:'f'.repeat(32),name:'Личная фреска',url:'/api/media.php?kind=fresco&id='+'f'.repeat(32)}],
+  room:[{kind:'room',id:'r'.repeat(32),name:'Личная комната',url:'/api/media.php?kind=room&id='+'r'.repeat(32)}]
+};
+context.window.affrescoMediaLibrary={
+  all:async kind=>[...personalFiles[kind]],
+  limit:()=>authenticated?3:1,
+  remove:async(kind,id)=>{const i=personalFiles[kind].findIndex(item=>item.id===id);if(i<0)throw Error('not_found');personalFiles[kind].splice(i,1);return {deleted:true};}
+};
 vm.runInContext(fs.readFileSync(new URL('../public/assets/js/account.js',import.meta.url),'utf8'),context);
 const api=context.window.affrescoAccount,$=id=>elements.get(id);
 await api.ready;
@@ -73,6 +82,9 @@ assert.match(html,/class="account-tab-icon"/,'Cabinet uses matching pictogram ic
 await $('accountTabGenerations').fire('click');
 await new Promise(resolve=>setTimeout(resolve,0));
 assert.equal($('accountServerImageList').children.length,2,'Both AI and manual images appear in cabinet');
+assert.equal($('accountOwnFrescoList').children.length,1,'Uploaded fresco appears in cabinet');
+assert.equal($('accountOwnRoomList').children.length,1,'Uploaded room source appears in cabinet');
+assert.equal($('accountOwnRoomList').children[0].children[2].textContent,'×');
 const firstDelete=$('accountServerImageList').children[0].children[2];
 assert.equal(firstDelete.textContent,'×','Deletion is a cross on account image thumbnail');
 await firstDelete.fire('click');
@@ -81,6 +93,12 @@ confirmDeletion=true;
 await firstDelete.fire('click');
 assert.equal(serverItems.length,1,'Confirmation deletes only selected image');
 assert.ok(events.some(event=>event.type==='affresco:ai-image-deleted'),'Gallery is informed of deletion');
+await $('accountOwnRoomList').children[0].children[2].fire('click');
+assert.equal(personalFiles.room.length,0,'Cabinet delete removes the source room');
+assert.ok(events.some(event=>event.type==='affresco:room-library-changed'),'Room editor is notified');
+await $('accountOwnFrescoList').children[0].children[2].fire('click');
+assert.equal(personalFiles.fresco.length,0,'Cabinet delete removes the personal fresco');
+assert.ok(events.some(event=>event.type==='affresco:own-fresco-changed'),'Fresco catalog is notified');
 
 await $('logoutButton').fire('click');
 assert.equal(api.signedIn(),false);assert.equal($('accountEmail').value,'');

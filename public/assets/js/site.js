@@ -1697,13 +1697,32 @@
 
 
   const ownDialog=$('ownFrescoDialog'),ownFile=$('ownFrescoFile'),ownPreview=$('ownFrescoPreview');
-  let ownDialogURL=null,ownFilesCount=0;
+  let ownDialogURL=null,ownFilesCount=0,ownEntries=[],ownReplaceId=null;
+  function renderOwnReplacement(){
+    const limit=media?.limit?.()||1,full=ownEntries.length>=limit;
+    const group=$('ownFrescoReplaceGroup'),list=$('ownFrescoReplaceList'),quota=$('ownFrescoQuota'),submit=$('ownFrescoAdd');
+    group.hidden=!full;quota.hidden=!full;list.replaceChildren();
+    if(!full){ownReplaceId=null;submit.textContent='Применить';submit.disabled=false;return;}
+    quota.textContent='Лимит '+limit+' '+(limit===1?'изображение':'изображения')+' исчерпан. Выберите сохранённую фреску: она будет удалена после успешной загрузки новой.';
+    if(!ownEntries.some(item=>item.id===ownReplaceId))ownReplaceId=ownEntries.length===1?ownEntries[0].id:null;
+    for(const entry of ownEntries){
+      const label=document.createElement('label');label.className='own-fresco-replace-choice';
+      const radio=document.createElement('input');radio.type='radio';radio.name='own-fresco-replace';radio.value=entry.id;radio.checked=entry.id===ownReplaceId;
+      const image=document.createElement('img');image.src=entry.url;image.alt='';
+      const name=document.createElement('span');name.textContent=entry.name||'Моя фреска';
+      label.append(radio,image,name);list.append(label);
+      radio.addEventListener('change',()=>{ownReplaceId=entry.id;submit.disabled=false;});
+    }
+    submit.textContent='Заменить текущее';
+    submit.disabled=!ownReplaceId;
+  }
   async function refreshOwnFrescoes(){
     if(!media)return;
     try{
       const entries=await media.all('fresco');
-      ownFilesCount=entries.length;
+      ownFilesCount=entries.length;ownEntries=entries;
       ownFrescoes=entries.map(item=>({...item,image:item.url,isOwn:true}));
+      if(!ownDialog.hidden)renderOwnReplacement();
       window.affrescoTryon?.sceneItems?.([...ownFrescoes,...items]);
       if(openDialog===modalPicker)updatePickerResults();
       if(items.length||ownFrescoes.length)resetAndRenderCatalog();
@@ -1712,7 +1731,7 @@
     }
   }
   function closeOwnDialog(){
-    ownDialog.hidden=true;
+    ownDialog.hidden=true;ownReplaceId=null;
     if(ownDialogURL){URL.revokeObjectURL(ownDialogURL);ownDialogURL=null;}
   }
   $('ownFrescoClose').addEventListener('click',closeOwnDialog);
@@ -1724,13 +1743,14 @@
     if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>12*1024*1024){
       showCatalogToast('Выберите JPEG, PNG или WebP до 12 МБ.');ownFile.value='';return;
     }
+    closeOwnDialog();
     await refreshOwnFrescoes();
     ownDialogURL=URL.createObjectURL(file);
     ownPreview.src=ownDialogURL;
     $('ownFrescoName').value='Моя фреска №'+(ownFilesCount+1);
     $('ownFrescoWidth').value='';$('ownFrescoHeight').value='';
     $('ownFrescoError').hidden=true;
-    ownDialog.hidden=false;$('ownFrescoName').focus();
+    ownDialog.hidden=false;renderOwnReplacement();$('ownFrescoName').focus();
   });
   async function addOwnFresco(){
     const file=ownFile.files?.[0],w=Number($('ownFrescoWidth').value),h=Number($('ownFrescoHeight').value);
@@ -1741,6 +1761,8 @@
     if(!$('ownFrescoWidth').value||!$('ownFrescoHeight').value||!Number.isFinite(w)||!Number.isFinite(h)||w<30||h<30||w>1000||h>1000){
       error.textContent='Обязательно укажите ширину и высоту от 30 до 1000 см.';error.hidden=false;return;
     }
+    const replacing=ownEntries.length>=(media?.limit?.()||1),replaceId=replacing?ownReplaceId:null;
+    if(replacing&&!replaceId){error.textContent='Выберите фреску, которую хотите заменить.';error.hidden=false;return;}
     $('ownFrescoAdd').disabled=true;
     try{
       const img=new Image(),url=URL.createObjectURL(file);
@@ -1753,22 +1775,24 @@
       const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.86));
       if(!blob)throw Error('image_encoding');
       const name=$('ownFrescoName').value.trim()||'Моя фреска №'+(ownFilesCount+1);
-      const savedItem=await media.put('fresco',blob,{name,width_cm:w,height_cm:h});
+      const savedItem=await media.put('fresco',blob,{name,width_cm:w,height_cm:h,replace_id:replaceId});
       ownFile.value='';closeOwnDialog();
       await refreshOwnFrescoes();
       const selected=ownFrescoes.find(item=>item.id===savedItem.id);
       if(selected){openEditor(selected,$('ownFrescoTrigger'));if(ownUploadConstraint){cropConstraint=ownUploadConstraint;validateCropWallFit();}}
       $('ownFrescoAddedBadge').hidden=false;
-      showCatalogToast('Изображение добавлено в каталог');
+      showCatalogToast(replaceId?'Фреска заменена':'Изображение добавлено в каталог');
     }catch(e){
       error.textContent=({
-        media_limit_or_storage_unavailable:'Достигнут лимит изображений (гость — 1, аккаунт — 3).',
+        media_limit_reached:'Достигнут лимит. Выберите изображение для замены.',
+        replace_target_not_found:'Выбранная фреска уже удалена. Закройте окно и загрузите файл снова.',
+        media_limit_or_storage_unavailable:'Не удалось сохранить изображение.',
         image_size:'Разрешение изображения не поддерживается.',
         invalid_dimensions:'Проверьте физические размеры.',
         storage_unavailable:'Не удалось сохранить изображение на сервере.'
       })[e.message]||'Не удалось сохранить изображение. Повторите попытку.';
       error.hidden=false;
-    }finally{$('ownFrescoAdd').disabled=false;}
+    }finally{if(!ownDialog.hidden)renderOwnReplacement();else $('ownFrescoAdd').disabled=false;}
   }
   $('ownFrescoAdd').addEventListener('click',()=>{void addOwnFresco();});
   window.addEventListener('affresco:open-own-fresco',event=>{
