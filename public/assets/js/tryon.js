@@ -427,7 +427,7 @@
     $('tryonCompatibilityMessage').hidden=true;
     $('tryonUploadZone').disabled=true;
     const token=operation;open();
-    try{await storageAvailable();if(token===operation){$('tryonUploadZone').disabled=false;await prune(keyOwner());await renderRoomSessions();const id=readSession(ROOM_KEY);if(id&&media){const entry=await media.get('room',id);if(entry&&token===operation)await loadRoom(entry.blob,entry);}}}
+    try{await storageAvailable();if(token===operation){$('tryonUploadZone').disabled=false;await prune(keyOwner());await renderRoomSessions();const id=readSession(ROOM_KEY);const embedded=Boolean(document.documentElement?.classList?.contains?.('affresco-embed'));if(id&&media&&!embedded){const entry=await media.get('room',id);if(entry&&token===operation)await loadRoom(entry.blob,entry);}}}
     catch(_){if(token===operation){showStep('unsupported');$('tryonCompatibilityMessage').textContent='Браузер не разрешает сохранять примерки на этом устройстве. Разрешите хранение данных сайта или попробуйте другой браузер.';$('tryonCompatibilityMessage').hidden=false;}}
   }
   async function loadRoom(file,stored=null){
