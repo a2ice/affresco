@@ -241,3 +241,8 @@
 #tryonModal .tryon-personal-row .tryon-scene-row{flex:1;min-width:0}
 #tryonModal .tryon-personal-row>button:last-child{width:44px;flex:0 0 44px;border:0;background:#fff7f5;color:#8b463a;cursor:pointer}
 #tryonModal #tryonScenePickerClose{position:absolute;right:-17px;top:-17px;width:34px;height:34px;border:1px solid #c5b8a6;background:#fcfaf6;border-radius:50%;font-size:21px;z-index:10}
+
+/* Keep the fixed 20px breadcrumb from covering primary editor actions. */
+body.has-ux-step-nav:not(.ux-step-nav-collapsed) #tryonModal .tryon-footer{padding-bottom:68px}
+body.has-ux-step-nav:not(.ux-step-nav-collapsed) #editorModal .editor-settings-footer{padding-bottom:68px}
+body.has-ux-step-nav:not(.ux-step-nav-collapsed) #pickerModal .modal-panel{padding-bottom:62px}
