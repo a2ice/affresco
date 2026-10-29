@@ -131,7 +131,14 @@ const delay=()=>new Promise(r=>setTimeout(r,30));
  assert.equal($('tryonProtectUndo').disabled,false,'Mark was saved as foreground stroke');
  await $('tryonProtectToggle').fire('click');
  assert.equal($('tryonProtectToggle')['aria-pressed'],'false','Painting completed');
- // Configure illumination before the request to verify that it reaches OpenAI.\n await $('tryonLightToggle').fire('click');\n await $('tryonStage').fire('pointerdown',{clientX:200,clientY:300,pointerId:201});\n await $('tryonStage').fire('pointermove',{clientX:700,clientY:300,pointerId:201});\n await $('tryonStage').fire('pointerup',{pointerId:201});\n $('tryonLightTone').value='warm';await $('tryonLightTone').fire('change');\n await $('tryonLightToggle').fire('click');\n // A guest click opens login without dispatching a paid AI request.
+ // Configure illumination before the request to verify that it reaches OpenAI.
+ await $('tryonLightToggle').fire('click');
+ await $('tryonStage').fire('pointerdown',{clientX:200,clientY:300,pointerId:201});
+ await $('tryonStage').fire('pointermove',{clientX:700,clientY:300,pointerId:201});
+ await $('tryonStage').fire('pointerup',{pointerId:201});
+ $('tryonLightTone').value='warm';await $('tryonLightTone').fire('change');
+ await $('tryonLightToggle').fire('click');
+ // A guest click opens login without dispatching a paid AI request.
  await $('tryonAIGenerate').fire('click');await delay();
  assert.equal(aiLaunches,0,'Guest cannot launch AI generation');
  assert.ok(dispatched.some(e=>e.type==='affresco:open-modal'&&e.detail==='login'),'Login modal requested');
