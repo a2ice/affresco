@@ -15,6 +15,7 @@
     form.append('action','upload');form.append('kind',kind);
     form.append('image',blob,kind+'.jpg');
     form.append('name',details.name||'');
+    if(details.replace_id)form.append('replace_id',String(details.replace_id));
     if(kind==='fresco'){
       form.append('width_cm',String(details.width_cm));
       form.append('height_cm',String(details.height_cm));
