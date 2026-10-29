@@ -217,7 +217,8 @@
     if(!item||busy||!placing)return false;
     const width=Number(item.width_cm),height=Number(item.height_cm);
     if(!Number.isFinite(width)||!Number.isFinite(height)||width<30||height<30){
-      feedback('Укажите ширину и высоту фрески в сантиметрах.',true);return false;
+      feedback('Укажите ширину и высоту фрески в сантиметрах.',true);
+      window.dispatchEvent(new CustomEvent('affresco:tryon-crop-item',{detail:{...item}}));return false;
     }
     if(width>lastWall.width||height>lastWall.height){
       unresolvedOversize=true;feedback('Размер фрески больше допустимого.',true);checkFit();
@@ -710,7 +711,7 @@
   }
   function lock(value){busy=value;for(const id of ['tryonAIGenerate','tryonZoomIn','tryonZoomOut','tryonFitPhoto','tryonFitWall','tryonSave','tryonDownload','tryonEmail','tryonChangeRoom','tryonPreset','tryonWallWidth','tryonWallHeight','tryonScale','tryonBack','tryonHandle','tryonResetPerspective','tryonApply','tryonLightToggle','tryonLightTone','tryonLightCancel','tryonLayerWall','tryonLayerFresco'])$(id).disabled=value;syncLightTools();}
   async function save(){
-    if(busy||!placing||!validWall())return null;
+    if(busy||!placing||!validWall()||!wallConfirmed||unresolvedOversize)return null;
     await window.affrescoAccount?.ready;
     const owner=keyOwner(),identity=window.affrescoAccount?.identity(),sceneRevision=revision;
     if(saved&&savedRevision===revision&&saved.owner===owner&&saved.tracked)return saved;
@@ -952,7 +953,7 @@
     });
   }
   async function aiInputs(){
-    if(!placing||!crop||!room||!quad||!wallQuad||!validWall())throw Error('invalid_request');
+    if(!placing||!crop||!room||!quad||!wallQuad||!validWall()||!wallConfirmed||unresolvedOversize)throw Error('invalid_request');
     const source=document.createElement('canvas');
     const width=crop.naturalWidth||crop.width,height=crop.naturalHeight||crop.height;
     const factor=Math.min(1,1600/width,1600/height);
@@ -1042,7 +1043,7 @@
     void renderHistory();
   });
   window.affrescoTryon={start,renderHistory,prepareCombinedExport,removeSavedRecord,
-    rememberScene,sceneItems(items){sceneCatalog=items||[];},changeFresco(item){return replaceFresco(item);}};
+    rememberScene,wallLimits(){return {...lastWall};},sceneItems(items){sceneCatalog=items||[];},changeFresco(item){return replaceFresco(item);}};
   void window.affrescoAccount?.ready.then(()=>renderHistory());
 })();
 
