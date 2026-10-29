@@ -69,7 +69,7 @@ const delay=()=>new Promise(r=>setTimeout(r,30));
 
  
  assert.equal($('tryonLayerWall').textContent,'Подтвердить стену','Confirmation is integrated in the wall tab');
- await $('tryonBegin').fire('click');
+ await $('tryonLayerWall').fire('click'); // User confirms directly using the wall tab.
  assert.equal($('tryonLayerFresco')['aria-pressed'],'true');
  await $('tryonLayerWall').fire('click');assert.equal($('tryonScale').disabled,true);
  await $('tryonLayerFresco').fire('click');assert.equal($('tryonScale').disabled,false);
