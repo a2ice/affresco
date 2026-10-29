@@ -371,7 +371,7 @@
     };
     const flag=document.createElement('span');
     flag.className='catalog-label';
-    flag.textContent='Выбрать фреску';
+    flag.textContent=item.isOwn?'Моя фреска':'Выбрать фреску';
     figure.append(photo,flag);
     open.append(figure);
     open.addEventListener('click',()=>openEditor(item,open));
@@ -435,8 +435,8 @@
     favoriteButton.dataset.favoriteSku=item.sku;
     favoriteButton.innerHTML=heartSvg;
     favoriteButton.addEventListener('click',()=>void toggleFavorite(item.sku));
-    card.append(content,favoriteButton);
-    updateFavoriteButton(favoriteButton,item.sku);
+    card.append(content);
+    if(!item.isOwn){card.append(favoriteButton);updateFavoriteButton(favoriteButton,item.sku);}
     return card;
   }
   function awaitCardImage(card) {
@@ -459,7 +459,7 @@
     });
   }
   function catalogItems(){
-    const source=favoritesOnly?items.filter(item=>favorites.has(item.sku)):items;
+    const source=favoritesOnly?items.filter(item=>favorites.has(item.sku)):[...ownFrescoes,...items];
     if(!catalogSearchQuery)return source;
     return source.filter(item=>matchesCatalogQuery(item,catalogSearchQuery));
   }
@@ -1031,7 +1031,7 @@
       window.affrescoAccount?.setCatalogItems(items);
       window.affrescoTryon?.sceneItems?.(items);
       catalogGrid.replaceChildren();
-      if (items.length===0) {
+      if (items.length===0 && ownFrescoes.length===0) {
         catalogStatus.textContent='Пока нет изображений';
         stopHeroLoading();
         catalogMessage('Как только изображения по артикулам появятся в /Images/catalog/ на FTP, карточки автоматически появятся здесь. Также поддерживается /Images/каталог/.');
@@ -1652,6 +1652,7 @@
       }));
       window.affrescoTryon?.sceneItems?.([...ownFrescoes,...items]);
       if(openDialog===modalPicker)updatePickerResults();
+      if(items.length||ownFrescoes.length)resetAndRenderCatalog();
     }catch(_){}
   }
   async function addOwnFresco(){
