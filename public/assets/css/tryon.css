@@ -174,3 +174,54 @@
 @media(max-width:640px){#tryonModal .tryon-foreground-tools{gap:6px;}#tryonModal .tryon-foreground-tools button{padding:7px 9px;}}
 
 #tryonModal .tryon-foreground-tools[hidden],#tryonModal .tryon-foreground-hint[hidden]{display:none;}
+
+/* Session workspace: persistence, compact navigation and contextual editing. */
+.affresco-step-nav[hidden],.tryon-room-sessions[hidden],
+.tryon-scene-fresco-tools[hidden],.tryon-scene-picker[hidden],
+.tryon-placement-info[hidden],.tryon-restore-dialog[hidden]{display:none!important}
+.affresco-step-nav{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:1300;display:flex;align-items:center;gap:3px;padding:5px;background:#f9f7f3;border:1px solid #bfb3a6;box-shadow:0 6px 25px #0003;max-width:calc(100vw - 20px)}
+.affresco-step-nav button{background:transparent;border:0;font:600 12px/1.4 Manrope,sans-serif;color:#50453b;padding:10px 14px;min-height:44px;cursor:pointer}
+.affresco-step-nav button:focus-visible{outline:2px solid #715b4c;outline-offset:1px}
+.affresco-step-nav.is-collapsed #affrescoStepBack{display:none}
+.affresco-step-nav.is-collapsed #affrescoStepCollapse{transform:rotate(180deg)}
+.tryon-room-sessions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0 18px}
+.tryon-room-card{position:relative;min-width:0;border:1px solid #cfc5b8;background:#f5f2ed;padding:6px}
+.tryon-room-card button.tryon-room-select{border:0;background:transparent;width:100%;font:500 12px Manrope,sans-serif;cursor:pointer;text-align:left;color:#4e453a}
+.tryon-room-card img{display:block;width:100%;height:96px;object-fit:cover;margin-bottom:5px}
+.tryon-room-card .tryon-room-delete{position:absolute;right:5px;top:5px;width:36px;height:36px;border:1px solid #ddd;background:#fff;color:#703e38;cursor:pointer}
+.tryon-room-card .tryon-room-empty{display:flex;justify-content:center;align-items:center;height:96px;font-size:25px}
+.own-fresco-upload{padding:12px;margin-bottom:14px;border:1px solid #d2c9bd;background:#f9f7f4}
+.own-fresco-upload>label{display:block;font-weight:700;font-size:12px;margin-bottom:8px}
+.own-fresco-upload input[type=file]{width:100%;font-size:12px;margin-bottom:8px}
+.own-fresco-upload .field-row{display:flex;gap:8px;margin-bottom:8px}
+.own-fresco-upload .field-row label{flex:1;font-size:12px;min-width:0}
+.own-fresco-upload .field-row input{display:block;width:100%;margin-top:4px}
+#ownFrescoError:not([hidden]){color:#a53e2f;font-size:12px}
+.tryon-placement-info{font:500 12px/1.6 Manrope,sans-serif;color:#776b5d;padding:7px 0 12px}
+.tryon-placement-info .tryon-fit{margin:0 0 6px}
+.tryon-placement-size label{display:block;margin-bottom:8px}
+.tryon-placement-size input{width:100%}
+#tryonModal .tryon-scene-fresco-tools{position:absolute;z-index:8;display:flex;gap:4px;transform:translate(-100%,-8px)}
+#tryonModal .tryon-scene-fresco-tools button,#tryonModal .tryon-mask-dock button{min-width:44px;min-height:44px;background:#fff;border:1px solid #bfb1a3;cursor:pointer;display:grid;place-items:center;padding:9px}
+#tryonModal .tryon-scene-fresco-tools button svg,#tryonModal .tryon-mask-dock svg{width:22px;height:22px}
+#tryonModal .tryon-stage.is-fresco-picking .tryon-controls polygon{stroke:#3c8a57!important}
+#tryonModal .tryon-stage.is-fresco-editing .tryon-controls polygon{stroke:#bd4239!important}
+#tryonModal .tryon-scene-picker{position:absolute;z-index:9;top:15px;right:10px;width:min(280px,90%);max-height:min(430px,80%);display:flex;flex-direction:column;border:1px solid #bdb2a5;background:#fcfaf6;box-shadow:0 6px 28px #0003}
+#tryonModal .tryon-scene-picker-head{position:sticky;top:0;display:flex;border-bottom:1px solid #dad2c7;background:#fcfaf6;flex:none}
+#tryonModal .tryon-scene-picker-head input{flex:1;min-width:0;border:0;background:transparent;padding:12px}
+#tryonModal .tryon-scene-picker-head button{width:44px;border:0;border-left:1px solid #dad2c7;background:transparent;font-size:24px}
+#tryonModal .tryon-scene-results{overflow-y:auto;min-height:50px;flex:1}
+#tryonModal .tryon-scene-row{display:flex;align-items:center;gap:10px;width:100%;padding:7px;border:0;border-bottom:1px solid #e8e0d5;background:transparent;text-align:left;cursor:pointer;font-size:12px}
+#tryonModal .tryon-scene-row:hover{background:#f3eee6}
+#tryonModal .tryon-scene-row img{width:55px;height:65px;object-fit:cover}
+#tryonModal .tryon-scene-row.is-too-large{animation:tryon-invalid-size .5s ease}
+@keyframes tryon-invalid-size{0%,100%{background:transparent}40%{background:rgba(192,35,35,.37)}}
+#tryonModal #tryonUploadOwnFresco{border:0;border-top:1px solid #d0c5b7;background:#f5f1eb;padding:12px;min-height:44px;cursor:pointer}
+#tryonModal .tryon-mask-dock{position:absolute;bottom:12px;right:12px;z-index:8}
+#tryonModal .tryon-foreground-tools{position:absolute;z-index:11;bottom:62px;right:12px;max-width:290px;background:#fcfaf6;border:1px solid #c9bcae;padding:12px;box-shadow:0 5px 20px #0003}
+#tryonModal .tryon-foreground-hint{position:absolute;z-index:10;bottom:62px;left:12px;max-width:300px;padding:10px;background:#fffdf8}
+#tryonModal .tryon-restore-dialog{position:fixed;inset:0;background:#0007;z-index:1500;display:grid;place-items:center;padding:20px}
+#tryonModal .tryon-restore-dialog>div{max-width:430px;width:100%;background:#fcfaf6;padding:24px;border:1px solid #bfb3a6}
+#tryonModal .tryon-restore-dialog>div>div{display:flex;justify-content:flex-end;gap:8px}
+#tryonModal .tryon-restore-dialog button{padding:10px 18px;min-height:44px;border:1px solid #ab9d8e;background:#fff}
+@media(max-width:640px){.tryon-room-sessions{gap:5px}.tryon-room-card img{height:65px}.tryon-foreground-hint{display:none}.affresco-step-nav{bottom:20px}}
