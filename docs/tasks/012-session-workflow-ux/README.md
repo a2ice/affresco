@@ -39,4 +39,4 @@
 
 ## Статус
 
-Рабочая ветка `feat/session-tryon-editor-workflow-20261029`, [PR #27](https://github.com/a2ice/affresco/pull/27). CI должен быть зелёным до merge. Производственный deploy только после выполнения CI и подтверждения GitHub Actions.
+Рабочая ветка `feat/session-tryon-editor-workflow-20261029`, [PR #27](https://github.com/a2ice/affresco/pull/27). [CI workflow #40855057742](https://github.com/a2ice/affresco/actions/runs/40855057742): Validate deployable files **PASS** (JS/PHP синтаксис, кабинет, account, crop/tryon, IndexedDB session, mask protection). Производственный FTPS не запускался из feature-ветки. Следующий шаг: удалить временную feature-ветку из `push.branches` deploy.yml, merge в main и проверить production Actions; затем ручная визуальная приёмка владельца. Независимая E2E пока заблокирована отсутствием доступного удалённого Windows-компьютера.
