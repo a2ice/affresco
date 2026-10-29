@@ -1,48 +1,40 @@
-/* Browser-only session media library. No room or personal fresco uploads to the server. */
+/* Private server-backed media. Session cookie for guests, account ID for members. */
 (()=>{
   'use strict';
-  const KEY='affresco:tryon-session:v1';
-  let session;
-  try{session=sessionStorage.getItem(KEY);if(!session){session=crypto.randomUUID();sessionStorage.setItem(KEY,session);}}
-  catch(_){session=crypto.randomUUID();}
-  function db(){
-    return new Promise((resolve,reject)=>{
-      const request=indexedDB.open('affresco-tryon-session-media',1);
-      request.onupgradeneeded=()=>{const db=request.result;if(!db.objectStoreNames.contains('media'))db.createObjectStore('media',{keyPath:'key'});};
-      request.onsuccess=()=>resolve(request.result);
-      request.onerror=()=>reject(request.error||Error('storage'));
-    });
-  }
+  const base='/api/media.php';
+  const signedIn=()=>Boolean(window.affrescoAccount?.signedIn?.());
+  const errorFrom=async res=>{const data=await res.json().catch(()=>({}));throw Error(data.error||'media_unavailable');};
   async function all(kind){
-    const database=await db();
-    return new Promise((resolve,reject)=>{
-      const tx=database.transaction('media');
-      const req=tx.objectStore('media').getAll();
-      req.onsuccess=()=>resolve((req.result||[]).filter(x=>x.session===session&&x.kind===kind).sort((a,b)=>a.created-b.created));
-      req.onerror=()=>reject(req.error);
-      tx.oncomplete=()=>database.close();
-      tx.onerror=()=>database.close();
-    });
+    const res=await fetch(base+'?kind='+encodeURIComponent(kind),{credentials:'same-origin',cache:'no-store'});
+    if(!res.ok)return errorFrom(res);
+    const body=await res.json();
+    return body.items||[];
   }
   async function put(kind,blob,details={}){
-    const list=await all(kind),limit=kind==='room'?3:12;
-    if(list.length>=limit)throw Error('session_limit');
-    const data={...details,session,kind,id:crypto.randomUUID(),created:Date.now(),blob};
-    data.key=session+':'+kind+':'+data.id;
-    const database=await db();
-    await new Promise((resolve,reject)=>{
-      const tx=database.transaction('media','readwrite');tx.objectStore('media').put(data);
-      tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
-    });database.close();
-    return data;
+    const form=new FormData();
+    form.append('action','upload');form.append('kind',kind);
+    form.append('image',blob,kind+'.jpg');
+    form.append('name',details.name||'');
+    if(kind==='fresco'){
+      form.append('width_cm',String(details.width_cm));
+      form.append('height_cm',String(details.height_cm));
+    }
+    const res=await fetch(base+'?kind='+encodeURIComponent(kind),{
+      method:'POST',headers:{'X-Affresco-Request':'1'},
+      credentials:'same-origin',body:form
+    });
+    if(!res.ok)return errorFrom(res);
+    return (await res.json()).item;
   }
   async function remove(kind,id){
-    const database=await db();
-    await new Promise((resolve,reject)=>{
-      const tx=database.transaction('media','readwrite');tx.objectStore('media').delete(session+':'+kind+':'+id);
-      tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
-    });database.close();
+    const form=new FormData();form.append('action','delete');form.append('kind',kind);form.append('id',id);
+    const res=await fetch(base+'?kind='+encodeURIComponent(kind),{
+      method:'POST',headers:{'X-Affresco-Request':'1'},credentials:'same-origin',body:form
+    });
+    if(!res.ok)return errorFrom(res);
+    return res.json();
   }
   async function get(kind,id){return (await all(kind)).find(x=>x.id===id)||null;}
-  window.affrescoMediaLibrary={all,put,remove,get,session};
+  function imageUrl(item){return item.url;}
+  window.affrescoMediaLibrary={all,put,remove,get,imageUrl,limit:()=>signedIn()?3:1};
 })();

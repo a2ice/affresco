@@ -246,3 +246,42 @@
 body.has-ux-step-nav:not(.ux-step-nav-collapsed) #tryonModal .tryon-footer{padding-bottom:68px}
 body.has-ux-step-nav:not(.ux-step-nav-collapsed) #editorModal .editor-settings-footer{padding-bottom:68px}
 body.has-ux-step-nav:not(.ux-step-nav-collapsed) #pickerModal .modal-panel{padding-bottom:62px}
+
+/* Acceptance fixes: clean horizontal step trail; no white floating cards. */
+.affresco-step-nav{
+  width:max-content;max-width:calc(100vw - 24px);padding:5px 10px;
+  border-radius:8px;background:#ded3c4;box-shadow:0 7px 22px #0003;
+  display:flex;align-items:center;gap:6px;white-space:nowrap;
+}
+.affresco-step-badges{display:flex;align-items:center;gap:6px;min-width:0;overflow-x:auto;scrollbar-width:thin}
+.affresco-step-nav .affresco-step-badge{
+  flex-shrink:0;background:#24211e;color:#fff;border:1px solid #24211e;
+  border-radius:8px;min-height:36px;padding:7px 13px;font:600 12px/1.35 Manrope,sans-serif;
+  cursor:pointer;
+}
+.affresco-step-nav .affresco-step-badge[aria-current=step]{background:#5d5045;border-color:#5d5045;cursor:default;opacity:1}
+.affresco-step-nav .affresco-step-badge:hover:not([disabled]){background:#44403a}
+.affresco-step-nav #affrescoStepCollapse{flex-shrink:0;color:#2b2520;background:transparent;border:0;font-size:18px;min-width:33px;padding:8px}
+.affresco-step-nav.is-collapsed .affresco-step-badges{display:none}
+.affresco-step-nav.is-collapsed #affrescoStepCollapse{transform:rotate(180deg)}
+.tryon-room-sessions[hidden],.own-fresco-dialog[hidden],.own-fresco-added[hidden]{display:none!important}
+.editor-upload-own{display:flex;gap:12px;justify-content:flex-start;align-items:center;flex-wrap:wrap;margin:10px 0 0 18px}
+.editor-upload-own>button{border:0;background:transparent;padding:7px 0;color:#604c3c;text-decoration:underline;font-size:12px;cursor:pointer}
+.own-fresco-added{display:inline-flex;border-radius:8px;background:#292624;color:#fff;font:600 11px/1.4 Manrope,sans-serif;padding:7px 12px}
+.own-fresco-dialog{position:fixed;inset:0;z-index:1605;display:grid;place-items:center;background:#0008;padding:16px}
+.own-fresco-dialog-panel{position:relative;background:#fcfaf6;border:1px solid #bdb0a2;padding:22px;width:min(420px,100%);max-height:min(740px,calc(100vh - 32px));overflow-y:auto;box-shadow:0 18px 60px #0003}
+.own-fresco-dialog-panel>h3{margin:0 0 14px;font-size:21px;font-family:Georgia,serif}
+.own-fresco-dialog-panel>img{width:100%;height:190px;object-fit:contain;background:#eee9e2;margin-bottom:12px}
+.own-fresco-dialog-panel>label{display:block;font-size:12px;margin:0 0 6px}
+.own-fresco-dialog-panel>input{width:100%;height:44px;padding:8px;margin-bottom:14px;border:1px solid #c8bcad;background:#fff}
+.own-fresco-dialog-panel .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.own-fresco-dialog-panel .field-row label{font-size:12px}
+.own-fresco-dialog-panel .field-row input{display:block;width:100%;height:44px;margin-top:5px;border:1px solid #c8bcad;padding:8px;background:#fff}
+.own-fresco-dialog-panel #ownFrescoClose{position:absolute;top:9px;right:10px;background:transparent;border:0;font-size:27px;min-width:44px;min-height:44px;cursor:pointer}
+.own-fresco-dialog-panel #ownFrescoAdd{width:100%;min-height:44px}
+.own-fresco-dialog-panel #ownFrescoError:not([hidden]){color:#9c3229;font-size:12px;margin:8px 0}
+@media(max-width:640px){
+  .affresco-step-nav{max-width:calc(100vw - 18px);bottom:20px}
+  .affresco-step-nav .affresco-step-badge{padding:8px 10px;font-size:11px}
+  .editor-upload-own{margin:8px 12px}
+}

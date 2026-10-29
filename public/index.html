@@ -22,14 +22,14 @@
   <link rel="stylesheet" href="/assets/css/site.css">
   <link rel="stylesheet" href="/assets/css/editorial.css?v=favorites-popup-20261028">
   <link rel="stylesheet" href="/assets/css/account.css?v=cabinet-cross-20261028">
-  <script src="/assets/js/tryon-library.js?v=session-flow-20261029" defer></script>
+  <script src="/assets/js/tryon-library.js?v=server-media-20261029" defer></script>
    <script src="/assets/js/tryon-compat.js?v=tryon-upload-20261028" defer></script>
   <script src="/assets/js/account.js?v=cabinet-cross-20261028" defer></script>
-  <link rel="stylesheet" href="/assets/css/tryon.css?v=session-flow-20261029">
+  <link rel="stylesheet" href="/assets/css/tryon.css?v=acceptance-ux-20261029">
   <link rel="stylesheet" href="/assets/css/embed.css?v=case-study-20261029">
   <script src="/assets/js/tryon-core.js?v=soft-shadow-20261028" defer></script>
-  <script src="/assets/js/tryon.js?v=session-flow-20261029" defer></script>
-  <script src="/assets/js/site.js?v=session-flow-20261029" defer></script>
+  <script src="/assets/js/tryon.js?v=acceptance-ux-20261029" defer></script>
+  <script src="/assets/js/site.js?v=acceptance-ux-20261029" defer></script>
 </head>
 <body>
   <p id="tryonGlobalNotice" class="tryon-compatibility" role="status" hidden></p>
@@ -245,10 +245,26 @@
       <div class="editor-layout">
         <div class="editor-preview">
           <div class="crop-shell"><div class="crop-viewport" id="cropViewport" aria-label="Редактор кадра: перемещайте рамку по изображению"><div class="crop-image-clip"><img class="crop-image" id="cropImage" alt="Выбранная фреска для кадрирования" draggable="false"></div><div class="crop-dim-layer" id="cropDimLayer" aria-hidden="true"><span class="crop-dim crop-dim-top" id="cropDimTop"></span><span class="crop-dim crop-dim-right" id="cropDimRight"></span><span class="crop-dim crop-dim-bottom" id="cropDimBottom"></span><span class="crop-dim crop-dim-left" id="cropDimLeft"></span></div><div class="crop-selection" id="cropSelection" role="group" aria-label="Рамка кадрирования с восемью маркерами"><button class="crop-handle crop-handle-n" data-crop-handle="n" type="button" aria-label="Изменить кадр: верхний край"></button><button class="crop-handle crop-handle-ne" data-crop-handle="ne" type="button" aria-label="Изменить кадр: правый верхний угол"></button><button class="crop-handle crop-handle-e" data-crop-handle="e" type="button" aria-label="Изменить кадр: правый край"></button><button class="crop-handle crop-handle-se" data-crop-handle="se" type="button" aria-label="Изменить кадр: правый нижний угол"></button><button class="crop-handle crop-handle-s" data-crop-handle="s" type="button" aria-label="Изменить кадр: нижний край"></button><button class="crop-handle crop-handle-sw" data-crop-handle="sw" type="button" aria-label="Изменить кадр: левый нижний угол"></button><button class="crop-handle crop-handle-w" data-crop-handle="w" type="button" aria-label="Изменить кадр: левый край"></button><button class="crop-handle crop-handle-nw" data-crop-handle="nw" type="button" aria-label="Изменить кадр: левый верхний угол"></button></div><div class="media-loader" id="cropLoader" role="status" aria-label="Загрузка фрески" hidden><span class="loading-ring" aria-hidden="true"></span></div></div></div>
+          <div class="editor-upload-own"><button type="button" id="ownFrescoTrigger">Загрузить своё изображение</button><span class="own-fresco-added" id="ownFrescoAddedBadge" hidden>Изображение добавлено в каталог</span></div>
         </div>
         <div class="editor-settings">
           <div class="editor-settings-body">
-            <div class="own-fresco-upload"><label for="ownFrescoFile">Своя фреска</label><input type="file" accept="image/jpeg,image/png,image/webp" id="ownFrescoFile"><div class="field-row"><label>Ширина, см<input type="number" min="30" max="1000" id="ownFrescoWidth" inputmode="decimal"></label><label>Высота, см<input type="number" min="30" max="1000" id="ownFrescoHeight" inputmode="decimal"></label></div><button type="button" id="ownFrescoAdd" class="button button-secondary">Добавить в мои фрески</button><p id="ownFrescoError" role="alert" hidden></p></div>
+            <input type="file" accept="image/jpeg,image/png,image/webp" id="ownFrescoFile" hidden>
+            <div class="own-fresco-dialog" id="ownFrescoDialog" role="dialog" aria-modal="true" aria-labelledby="ownFrescoTitle" hidden>
+              <div class="own-fresco-dialog-panel">
+                <button type="button" id="ownFrescoClose" aria-label="Закрыть окно загрузки">×</button>
+                <h3 id="ownFrescoTitle">Моя фреска</h3>
+                <img id="ownFrescoPreview" alt="Предпросмотр собственной фрески">
+                <label for="ownFrescoName">Название (необязательно)</label>
+                <input type="text" id="ownFrescoName" maxlength="100" placeholder="Моя фреска №1">
+                <div class="field-row">
+                  <label for="ownFrescoWidth">Ширина, см <input type="number" min="30" max="1000" step="any" id="ownFrescoWidth" inputmode="decimal" required></label>
+                  <label for="ownFrescoHeight">Высота, см <input type="number" min="30" max="1000" step="any" id="ownFrescoHeight" inputmode="decimal" required></label>
+                </div>
+                <p id="ownFrescoError" role="alert" hidden></p>
+                <button type="button" id="ownFrescoAdd" class="button button-primary">Применить</button>
+              </div>
+            </div>
             <div class="field-group">
               <span class="field-label">Формат кадра</span>
               <div class="segment" role="group" aria-label="Выбор соотношения сторон">
@@ -385,7 +401,7 @@
       </div>
     </div>
   </div>
-  <div class="affresco-step-nav" id="affrescoStepNav" hidden><button type="button" id="affrescoStepBack">← К предыдущему шагу</button><button type="button" id="affrescoStepCollapse" aria-label="Свернуть навигацию" aria-expanded="true">⌄</button></div>
+  <nav class="affresco-step-nav" id="affrescoStepNav" aria-label="Этапы примерки" hidden><div id="affrescoStepBadges" class="affresco-step-badges"></div><button type="button" id="affrescoStepCollapse" aria-label="Свернуть навигацию" aria-expanded="true">⌄</button></nav>
   <div class="modal" id="tryonModal" hidden>
     <div class="modal-panel tryon-panel" role="dialog" aria-modal="true" aria-labelledby="tryonTitle">
       <button class="modal-close" type="button" aria-label="Закрыть примерку" data-close>×</button>
@@ -419,7 +435,7 @@
             <div class="field-group"><label for="tryonWallHeight">Высота стены, см</label><input id="tryonWallHeight" type="number" inputmode="decimal" min="30" max="5000" step="any" required></div>
           </div>
         </div>
-        <div class="tryon-layers" role="group" aria-label="Активный слой"><button type="button" id="tryonLayerWall" aria-pressed="true">Подтвердить стену</button><button type="button" id="tryonLayerFresco" aria-pressed="false" disabled>Фреска</button></div>
+        <div class="tryon-layers" role="group" aria-label="Активный слой"><button type="button" id="tryonLayerWall" aria-pressed="true">Стена</button><button type="button" id="tryonLayerFresco" aria-pressed="false" disabled>Фреска</button></div>
         <div id="tryonPlacementInfo" class="tryon-placement-info" hidden><p id="tryonFit" class="tryon-fit" role="status" aria-live="polite"></p><div class="tryon-placement-size"><label for="tryonScale">Размер фрески: <span id="tryonScaleValue"></span></label><input id="tryonScale" type="range" min="1" max="100" value="100" step="0.1"></div></div>
         <div class="tryon-view-tools" role="group" aria-label="Масштаб рабочего поля">
           <button type="button" id="tryonZoomOut" aria-label="Уменьшить масштаб">−</button>
@@ -446,7 +462,7 @@
           <div class="tryon-scene-picker" id="tryonScenePicker" hidden><div class="tryon-scene-picker-head"><input type="search" id="tryonSceneSearch" placeholder="Название или SKU" aria-label="Поиск фресок" autocomplete="off"><button type="button" id="tryonScenePickerClose" aria-label="Закрыть выбор фрески">×</button></div><div id="tryonSceneResults" class="tryon-scene-results"></div><button type="button" id="tryonUploadOwnFresco">Загрузить свою фреску</button></div>
           <div class="tryon-mask-dock"><button type="button" id="tryonMaskDock" title="Защитить предметы" aria-label="Настроить защиту предметов" aria-expanded="false" aria-controls="tryonForegroundTools"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m5 18 9-9 4 4-9 9H5v-4ZM13 10l3-3 4 4-3 3M16 4l4 4"/></svg></button></div>
         </div>
-        <div id="tryonSetupActions" hidden><button type="button" class="button button-primary" id="tryonBegin" tabindex="-1">Подтвердить стену</button></div>
+        
         <div id="tryonPlacementActions" hidden><input id="tryonHandle" type="hidden" value="layer"></div>
         
       </div>
@@ -459,8 +475,7 @@
       <div id="tryonAIToast" class="tryon-ai-toast" role="status" aria-live="polite" hidden><span class="tryon-ai-loader" aria-hidden="true"></span>AI-генерация началась. Ожидаем результат…</div>
       <div id="tryonSavedStep" hidden><img id="tryonSavedImage" alt="Сохранённая примерка фрески в комнате"><p id="tryonSavedMeta" class="tryon-note"></p></div>
       <div class="tryon-restore-dialog" id="tryonRestoreDialog" role="alertdialog" aria-modal="true" aria-labelledby="tryonRestoreTitle" hidden><div><h3 id="tryonRestoreTitle">Вернуть исходное состояние?</h3><p>Состояние примерки будет возвращено к исходному.</p><div><button type="button" id="tryonRestoreConfirm">Применить</button><button type="button" id="tryonRestoreCancel">Отмена</button></div></div></div>
-      <div class="tryon-state-row"><button type="button" class="text-link" id="tryonChangeRoom" hidden>Выбрать другое фото</button><p id="tryonFeedback" class="tryon-feedback" role="status" aria-live="polite"></p></div>
-      <button type="button" id="tryonBack" class="modal-back">← Вернуться к кадру</button>
+      <div class="tryon-state-row"><p id="tryonFeedback" class="tryon-feedback" role="status" aria-live="polite"></p></div>
       </div>
       <footer id="tryonFooter" class="tryon-footer" hidden>
         <div id="tryonFooterPlacement" class="tryon-toolbar">
