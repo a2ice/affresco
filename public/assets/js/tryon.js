@@ -222,7 +222,8 @@
       window.dispatchEvent(new CustomEvent('affresco:tryon-crop-item',{detail:{...item}}));return false;
     }
     if(width>lastWall.width||height>lastWall.height){
-      unresolvedOversize=true;feedback('Размер фрески больше допустимого.',true);checkFit();
+      unresolvedOversize=true;feedback('Размер фрески больше допустимого.',true);
+      window.dispatchEvent(new CustomEvent('affresco:toast',{detail:'Размер фрески больше допустимого'}));checkFit();
       window.dispatchEvent(new CustomEvent('affresco:tryon-crop-item',{detail:{...item}}));return false;
     }
     try{
@@ -344,9 +345,9 @@
     $('tryonLayerWall').textContent=wallConfirmed?'Стена':'Подтвердить стену';
     for(const id of ['tryonApply','tryonDownload','tryonEmail'])$(id).disabled=busy||invalid||!wallConfirmed||unresolvedOversize;
     $('tryonFit').classList.toggle('is-warning',invalid);
-    for(const id of ['tryonBegin','tryonSave','tryonDownload','tryonEmail'])$(id).disabled=busy||invalid||!wallConfirmed;
+    for(const id of ['tryonBegin','tryonSave','tryonDownload','tryonEmail'])$(id).disabled=busy||invalid||!wallConfirmed||unresolvedOversize;
     $('tryonProtectToggle').disabled=busy||invalid||!placing;
-    $('tryonAIGenerate').disabled=busy||aiBusy||invalid||!placing||!wallConfirmed;
+    $('tryonAIGenerate').disabled=busy||aiBusy||invalid||!placing||!wallConfirmed||unresolvedOversize;
     $('tryonLayerWall').disabled=busy;$('tryonLayerFresco').disabled=busy||!placing;
     $('tryonScale').disabled=busy||invalid||layer!=='fresco';
     return invalid;
