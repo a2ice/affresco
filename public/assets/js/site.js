@@ -247,10 +247,9 @@
   mobileNav.querySelectorAll('a').forEach(a => a.addEventListener('click',closeMenu));
   window.addEventListener('resize', () => { if (window.innerWidth > 800) closeMenu(); });
 
-  const stepNav=$('affrescoStepNav'),stepBadges=$('affrescoStepBadges'),stepCollapse=$('affrescoStepCollapse');
+  const stepNav=$('affrescoStepNav'),stepBadges=$('affrescoStepBadges');
   const stepLabels={catalog:'Выбор фрески',crop:'Кадрирование',room:'Фото комнаты',tryon:'Примерка'};
-  let navCollapsed=false,tryonStep='room',stepTrail=[];
-  try{navCollapsed=sessionStorage.getItem('affresco:step-nav-collapsed')==='1';}catch(_){}
+  let tryonStep='room',stepTrail=[];
   function goStage(stage){
     const index=stepTrail.indexOf(stage);
     if(index>=0)stepTrail=stepTrail.slice(0,index+1);
@@ -266,10 +265,6 @@
     const visible=[modalPicker,modalEditor,modalTryon].includes(openDialog);
     stepNav.hidden=!visible;
     document.body.classList.toggle('has-ux-step-nav',visible);
-    document.body.classList.toggle('ux-step-nav-collapsed',navCollapsed);
-    stepNav.classList.toggle('is-collapsed',navCollapsed);
-    stepCollapse.setAttribute('aria-expanded',String(!navCollapsed));
-    stepCollapse.setAttribute('aria-label',navCollapsed?'Развернуть навигацию':'Свернуть навигацию');
     if(!visible)return;
     const stage=openDialog===modalPicker?'catalog':openDialog===modalEditor?'crop':tryonStep;
     // Keep only the visited path; future steps are never shown pre-emptively.
@@ -290,7 +285,6 @@
       stepBadges.append(button);
     }
   }
-  stepCollapse.addEventListener('click',()=>{navCollapsed=!navCollapsed;try{sessionStorage.setItem('affresco:step-nav-collapsed',navCollapsed?'1':'0');}catch(_){}updateStepNav();});
   window.addEventListener('affresco:tryon-step',event=>{
     tryonStep=event.detail?.step==='upload'?'room':'tryon';
     if(openDialog===modalTryon)updateStepNav();
