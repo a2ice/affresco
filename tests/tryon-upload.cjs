@@ -1,7 +1,7 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),{randomUUID}=require('node:crypto');
 const core=require('../public/assets/js/tryon-core.js');
 const html=fs.readFileSync(require('node:path').join(__dirname,'../public/index.html'),'utf8');
-const images=new Map();let member=null,accepted=0,aiLaunches=0,manualUploads=0,zipDownloads=0,aiMaskPayload=null;
+const images=new Map();let member=null,accepted=0,aiLaunches=0,manualUploads=0,zipDownloads=0,aiMaskPayload=null,aiFormPayload=null;
 const dispatched=[];const listeners=new Map();
 class Element{
  constructor(){this.hidden=false;this.disabled=false;this.value='';this.textContent='';this.dataset={};this.children=[];this.handlers={};this.classList={add(){},remove(){},toggle(){}};this.width=1000;this.height=700;this.style={};}
@@ -32,7 +32,7 @@ vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname,'../publi
    zipDownloads++;return {ok:true,headers:{get:()=> 'application/zip'},blob:async()=>({size:200})};
  }
  if(url.startsWith('/api/ai-tryon.php')){
-   if(options?.method==='POST'){aiLaunches++;aiMaskPayload=JSON.parse(options.body.fields.get('metadata'));return {ok:true,json:async()=>({accepted:true,id:'b'.repeat(32)})};}
+   if(options?.method==='POST'){aiLaunches++;aiFormPayload=options.body;aiMaskPayload=JSON.parse(options.body.fields.get('metadata'));return {ok:true,json:async()=>({accepted:true,id:'b'.repeat(32)})};}
    return {ok:true,json:async()=>({jobs:[{id:'b'.repeat(32),status:'completed',image_url:'/api/ai-tryon.php?image='+'b'.repeat(32)}]})};}
  accepted++;return {ok:true,json:async()=>({accepted:true})};
 }});
@@ -131,6 +131,13 @@ const delay=()=>new Promise(r=>setTimeout(r,30));
  assert.equal($('tryonProtectUndo').disabled,false,'Mark was saved as foreground stroke');
  await $('tryonProtectToggle').fire('click');
  assert.equal($('tryonProtectToggle')['aria-pressed'],'false','Painting completed');
+ // Configure illumination before the request to verify that it reaches OpenAI.
+ await $('tryonLightToggle').fire('click');
+ await $('tryonStage').fire('pointerdown',{clientX:200,clientY:300,pointerId:201});
+ await $('tryonStage').fire('pointermove',{clientX:700,clientY:300,pointerId:201});
+ await $('tryonStage').fire('pointerup',{pointerId:201});
+ $('tryonLightTone').value='warm';await $('tryonLightTone').fire('change');
+ await $('tryonLightToggle').fire('click');
  // A guest click opens login without dispatching a paid AI request.
  await $('tryonAIGenerate').fire('click');await delay();
  assert.equal(aiLaunches,0,'Guest cannot launch AI generation');
@@ -144,6 +151,13 @@ const delay=()=>new Promise(r=>setTimeout(r,30));
  // Successful login resumes the new intent without a second click.
  member={id:'tester'};window.dispatchEvent({type:'affresco:auth-changed'});await delay();
  assert.equal(aiLaunches,1,'Exactly one AI dispatch after successful login');
+ assert.deepEqual([...aiFormPayload.fields.keys()],['room','fresco','guide','metadata'],'AI upload includes all three reference images and metadata');
+ for(const slot of ['room','fresco','guide'])assert.equal(aiFormPayload.fields.get(slot).type,'image/jpeg',slot+' is a JPEG reference');
+ assert.equal(aiMaskPayload.context.length,36,'Generation stays attached to the current scene');
+ for(const field of ['wall_cm','fresco_cm'])assert.ok(aiMaskPayload[field].length===2&&aiMaskPayload[field].every(Number.isFinite),field+' reaches server as centimetres');
+ for(const field of ['wall_quad','fresco_quad'])assert.ok(aiMaskPayload[field].length===4&&aiMaskPayload[field].every(p=>p.length===2&&p.every(Number.isFinite)),field+' reaches server as four projected corners');
+ assert.equal(aiMaskPayload.lighting.tone,'warm','Light temperature reaches server');
+ assert.ok(['from','to'].every(key=>aiMaskPayload.lighting[key].length===2&&aiMaskPayload.lighting[key].every(v=>Number.isFinite(v)&&v>=0&&v<=1)),'Normalized light direction reaches server');
  assert.equal(aiMaskPayload.occlusion_strokes.length,1,'Signed job includes one manually marked foreground mask');
  assert.ok(aiMaskPayload.occlusion_strokes[0].radius<.002,'3px brush maps to sub-2px image radius');
  assert.equal(aiMaskPayload.occlusion_strokes[0].points.length,2,'Mask stroke records original-room coordinates');
