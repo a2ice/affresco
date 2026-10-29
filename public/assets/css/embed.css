@@ -18,8 +18,12 @@ html.affresco-embed,
   background: #f8f6f2;
 }
 .affresco-embed #tryonModal .tryon-scroll { padding-top: clamp(26px, 4vw, 48px); }
+/* The fixed bottom "← К кадрированию" is a standalone Affresco step bar,
+   outside #tryonModal. The parent A2ICE dialog owns embed navigation. */
+.affresco-embed #affrescoStepNav,
 .affresco-embed #tryonModal .modal-close,
 .affresco-embed #tryonBack { display: none !important; }
+.affresco-embed body.has-ux-step-nav:not(.ux-step-nav-collapsed) #tryonModal .tryon-footer { padding-bottom: 0; }
 .affresco-embed #tryonModal h2 { padding-right: 0; }
 .affresco-embed #tryonUploadZone:focus-visible { outline: 2px solid #8c6550; outline-offset: 3px; }
 /* Keep account, login and email dialogs working when invoked from the demo. */
