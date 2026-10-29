@@ -15,12 +15,13 @@
   <link rel="stylesheet" href="/assets/css/site.css">
   <link rel="stylesheet" href="/assets/css/editorial.css?v=favorites-popup-20261028">
   <link rel="stylesheet" href="/assets/css/account.css?v=cabinet-cross-20261028">
-  <script src="/assets/js/tryon-compat.js?v=tryon-upload-20261028" defer></script>
+  <script src="/assets/js/tryon-library.js?v=session-flow-20261029" defer></script>
+   <script src="/assets/js/tryon-compat.js?v=tryon-upload-20261028" defer></script>
   <script src="/assets/js/account.js?v=cabinet-cross-20261028" defer></script>
-  <link rel="stylesheet" href="/assets/css/tryon.css?v=foreground-depth-20261029">
+  <link rel="stylesheet" href="/assets/css/tryon.css?v=session-flow-20261029">
   <script src="/assets/js/tryon-core.js?v=soft-shadow-20261028" defer></script>
-  <script src="/assets/js/tryon.js?v=foreground-depth-20261029" defer></script>
-  <script src="/assets/js/site.js?v=unified-export-20261028" defer></script>
+  <script src="/assets/js/tryon.js?v=session-flow-20261029" defer></script>
+  <script src="/assets/js/site.js?v=session-flow-20261029" defer></script>
 </head>
 <body>
   <p id="tryonGlobalNotice" class="tryon-compatibility" role="status" hidden></p>
@@ -239,6 +240,7 @@
         </div>
         <div class="editor-settings">
           <div class="editor-settings-body">
+            <div class="own-fresco-upload"><label for="ownFrescoFile">Своя фреска</label><input type="file" accept="image/jpeg,image/png,image/webp" id="ownFrescoFile"><div class="field-row"><label>Ширина, см<input type="number" min="30" max="1000" id="ownFrescoWidth" inputmode="decimal"></label><label>Высота, см<input type="number" min="30" max="1000" id="ownFrescoHeight" inputmode="decimal"></label></div><button type="button" id="ownFrescoAdd" class="button button-secondary">Добавить в мои фрески</button><p id="ownFrescoError" role="alert" hidden></p></div>
             <div class="field-group">
               <span class="field-label">Формат кадра</span>
               <div class="segment" role="group" aria-label="Выбор соотношения сторон">
@@ -375,6 +377,7 @@
       </div>
     </div>
   </div>
+  <div class="affresco-step-nav" id="affrescoStepNav" hidden><button type="button" id="affrescoStepBack">← К предыдущему шагу</button><button type="button" id="affrescoStepCollapse" aria-label="Свернуть навигацию" aria-expanded="true">⌄</button></div>
   <div class="modal" id="tryonModal" hidden>
     <div class="modal-panel tryon-panel" role="dialog" aria-modal="true" aria-labelledby="tryonTitle">
       <button class="modal-close" type="button" aria-label="Закрыть примерку" data-close>×</button>
@@ -390,6 +393,7 @@
           <strong>Загрузите фото комнаты</strong><span id="tryonUploadHint">Нажмите на иконку или перетащите фото сюда</span><span>JPEG, PNG или WebP · до 15 МБ</span>
         </button>
         <input type="file" id="tryonRoomFile" accept="image/jpeg,image/png,image/webp" hidden>
+        <div class="tryon-room-sessions" id="tryonRoomSessions" aria-label="Фотографии в текущей сессии"></div>
         <p class="tryon-note">Выберите фото, на котором хорошо видна нужная стена.</p>
       </div>
       <div id="tryonWorkspace" hidden>
@@ -407,8 +411,8 @@
             <div class="field-group"><label for="tryonWallHeight">Высота стены, см</label><input id="tryonWallHeight" type="number" inputmode="decimal" min="30" max="5000" step="any" required></div>
           </div>
         </div>
-        <div class="tryon-layers" role="group" aria-label="Активный слой"><button type="button" id="tryonLayerWall" aria-pressed="true">Стена</button><button type="button" id="tryonLayerFresco" aria-pressed="false" disabled>Фреска</button></div>
-        <p id="tryonFit" class="tryon-fit" role="status" aria-live="polite"></p>
+        <div class="tryon-layers" role="group" aria-label="Активный слой"><button type="button" id="tryonLayerWall" aria-pressed="true">Подтвердить стену</button><button type="button" id="tryonLayerFresco" aria-pressed="false" disabled>Фреска</button></div>
+        <div id="tryonPlacementInfo" class="tryon-placement-info" hidden><p id="tryonFit" class="tryon-fit" role="status" aria-live="polite"></p><div class="tryon-placement-size"><label for="tryonScale">Размер фрески: <span id="tryonScaleValue"></span></label><input id="tryonScale" type="range" min="1" max="100" value="100" step="0.1"></div></div>
         <div class="tryon-view-tools" role="group" aria-label="Масштаб рабочего поля">
           <button type="button" id="tryonZoomOut" aria-label="Уменьшить масштаб">−</button>
           <output id="tryonZoomValue" aria-live="off">100%</output>
@@ -426,14 +430,16 @@
         </div>
         <p class="tryon-foreground-hint" id="tryonProtectHint" role="status" hidden>AI автоматически учитывает предметы перед стеной. Кисть — дополнительная точная коррекция, только если нужно защитить сложные детали. Отмеченные пиксели восстановятся из оригинала. Увеличьте фото для аккуратной разметки; двумя пальцами меняйте масштаб, кнопка «Готово» возвращает к примерке.</p>
         <p class="tryon-note tryon-workspace-hint">Углы стены можно вынести за фото. Потяните за свободное поле, чтобы переместить вид; двумя пальцами — масштаб. Ctrl + колесо мыши — масштаб.</p>
-        <div class="tryon-stage" id="tryonStage" aria-label="Рабочее поле фотографии с областью вне кадра"><canvas id="tryonCanvas" tabindex="0" aria-label="Стена и фреска. Углы можно вынести за фото. Стрелки — перемещение; клавиши 1–4 — выбор угла; 0 — слой целиком."></canvas><svg id="tryonControls" class="tryon-controls" aria-hidden="true" focusable="false"></svg></div>
-        <div id="tryonSetupActions"><p class="tryon-note">Отметьте четыре угла одной прямоугольной стены. Ширина — нижняя сторона, высота — левая.</p><button type="button" class="button button-primary" id="tryonBegin">Подтвердить стену</button></div>
-        <div id="tryonPlacementActions" hidden>
-          <input id="tryonHandle" type="hidden" value="layer">
-          <div class="field-group"><label for="tryonScale">Размер фрески <span id="tryonScaleValue"></span></label><input id="tryonScale" type="range" min="1" max="100" value="100" step="0.1"></div>
-          
-          
+        <div class="tryon-stage" id="tryonStage" aria-label="Рабочее поле фотографии с областью вне кадра"><canvas id="tryonCanvas" tabindex="0" aria-label="Стена и фреска. Углы можно вынести за фото. Стрелки — перемещение; клавиши 1–4 — выбор угла; 0 — слой целиком."></canvas><svg id="tryonControls" class="tryon-controls" aria-hidden="true" focusable="false"></svg>
+          <div class="tryon-scene-fresco-tools" id="tryonSceneFrescoTools" hidden>
+            <button type="button" id="tryonChangeFresco" title="Изменить фреску" aria-label="Изменить фреску"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="2"/><path d="m4 18 5-5 4 4 3-3 4 4"/></svg></button>
+            <button type="button" id="tryonEditCrop" title="Кроп-редактор" aria-label="Кроп-редактор"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="m8 8 11 11M8 16 19 5"/></svg></button>
+          </div>
+          <div class="tryon-scene-picker" id="tryonScenePicker" hidden><div class="tryon-scene-picker-head"><input type="search" id="tryonSceneSearch" placeholder="Название или SKU" aria-label="Поиск фресок" autocomplete="off"><button type="button" id="tryonScenePickerClose" aria-label="Закрыть выбор фрески">×</button></div><div id="tryonSceneResults" class="tryon-scene-results"></div><button type="button" id="tryonUploadOwnFresco">Загрузить свою фреску</button></div>
+          <div class="tryon-mask-dock"><button type="button" id="tryonMaskDock" title="Защитить предметы" aria-label="Настроить защиту предметов" aria-expanded="false" aria-controls="tryonForegroundTools"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m5 18 9-9 4 4-9 9H5v-4ZM13 10l3-3 4 4-3 3M16 4l4 4"/></svg></button></div>
         </div>
+        <div id="tryonSetupActions" hidden><button type="button" class="button button-primary" id="tryonBegin" tabindex="-1">Подтвердить стену</button></div>
+        <div id="tryonPlacementActions" hidden><input id="tryonHandle" type="hidden" value="layer"></div>
         
       </div>
       <section id="tryonAIResults" class="tryon-ai-results" aria-label="AI-визуализации" hidden>
@@ -444,6 +450,7 @@
       </section>
       <div id="tryonAIToast" class="tryon-ai-toast" role="status" aria-live="polite" hidden><span class="tryon-ai-loader" aria-hidden="true"></span>AI-генерация началась. Ожидаем результат…</div>
       <div id="tryonSavedStep" hidden><img id="tryonSavedImage" alt="Сохранённая примерка фрески в комнате"><p id="tryonSavedMeta" class="tryon-note"></p></div>
+      <div class="tryon-restore-dialog" id="tryonRestoreDialog" role="alertdialog" aria-modal="true" aria-labelledby="tryonRestoreTitle" hidden><div><h3 id="tryonRestoreTitle">Вернуть исходное состояние?</h3><p>Состояние примерки будет возвращено к исходному.</p><div><button type="button" id="tryonRestoreConfirm">Применить</button><button type="button" id="tryonRestoreCancel">Отмена</button></div></div></div>
       <div class="tryon-state-row"><button type="button" class="text-link" id="tryonChangeRoom" hidden>Выбрать другое фото</button><p id="tryonFeedback" class="tryon-feedback" role="status" aria-live="polite"></p></div>
       <button type="button" id="tryonBack" class="modal-back">← Вернуться к кадру</button>
       </div>
