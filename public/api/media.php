@@ -116,7 +116,7 @@ if(($info[2]??null)!==IMAGETYPE_JPEG)af_response(422,['error'=>'jpeg_required'])
 $name=trim((string)($_POST['name']??''));
 if($name===''&&$kind==='fresco')$name='Моя фреска';
 if($name==='')$name='Фото интерьера';
-if(mb_strlen($name)>100)$name=mb_substr($name,0,100);
+if(strlen($name)>255)$name=substr($name,0,255);
 $width=null;$height=null;$sku=null;
 if($kind==='fresco'){
     $width=filter_var($_POST['width_cm']??null,FILTER_VALIDATE_FLOAT);
