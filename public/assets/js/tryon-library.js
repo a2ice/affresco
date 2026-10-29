@@ -3,7 +3,16 @@
   'use strict';
   const base='/api/media.php';
   const signedIn=()=>Boolean(window.affrescoAccount?.signedIn?.());
-  const errorFrom=async res=>{const data=await res.json().catch(()=>({}));throw Error(data.error||'media_unavailable');};
+  const errorFrom=async res=>{
+    const data=await res.json().catch(()=>({}));
+    const code=typeof data.error==='string'?data.error:
+      res.status===413?'image_too_large':
+      res.status===403?'request_rejected':
+      res.status>=500?'server_unavailable':'media_unavailable';
+    const error=new Error(code);
+    error.status=res.status;
+    throw error;
+  };
   async function all(kind){
     const res=await fetch(base+'?kind='+encodeURIComponent(kind),{credentials:'same-origin',cache:'no-store'});
     if(!res.ok)return errorFrom(res);
