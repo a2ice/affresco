@@ -225,12 +225,14 @@
     }
     try{
       const image=await imageFrom(item.image);
-      changeSnapshot={selection:{...selection},placed:placed?{...placed}:null,crop};
+      if(!changeSnapshot)changeSnapshot={selection:{...selection},placed:placed?{...placed}:null,crop};
       const previous=placed?{...placed}:null;
       selection={image:item.image,sku:String(item.sku),width_cm:width,height_cm:height};
       crop=image;placed=null;rebuildPlacement(100);
       if(previous){placed=core.placement(selection,lastWall,100,previous);quad=core.placementQuad(wallQuad,lastWall,placed);}
-      unresolvedOversize=false;setSceneMode(null);summary();changed();return true;
+      unresolvedOversize=false;setSceneMode(null);summary();changed();
+      window.dispatchEvent(new CustomEvent('affresco:tryon-current-art',{detail:{...item}}));
+      return true;
     }catch(_){feedback('Не удалось открыть фреску.',true);return false;}
   }
   async function renderScenePicker(){
@@ -281,13 +283,11 @@
   }
   function restoreInitial(){
     if(!initialSnapshot)return;
-    if(changeSnapshot){
-      selection={...changeSnapshot.selection};crop=changeSnapshot.crop;
-      changeSnapshot=null;unresolvedOversize=false;summary();
-    }else if(data.selection){
-      selection={...data.selection};crop=initialCrop||crop;unresolvedOversize=false;summary();
-    }
     const data=initialSnapshot;
+    if(data.selection){
+      selection={...data.selection};crop=initialCrop||crop;
+      changeSnapshot=null;unresolvedOversize=false;summary();
+    }
     wallQuad=data.wallQuad.map(p=>({...p}));lastWall={...data.lastWall};wallConfirmed=data.wallConfirmed;
     placed=data.placed?{...data.placed}:null;placing=data.placing;layer=data.layer;
     lighting=data.lighting;foregroundStrokes=data.foregroundStrokes||[];selected=true;
