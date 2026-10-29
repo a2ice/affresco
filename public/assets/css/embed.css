@@ -23,7 +23,12 @@ html.affresco-embed,
 .affresco-embed #affrescoStepNav,
 .affresco-embed #tryonModal .modal-close,
 .affresco-embed #tryonBack { display: none !important; }
-.affresco-embed body.has-ux-step-nav:not(.ux-step-nav-collapsed) #tryonModal .tryon-footer { padding-bottom: 0; }
+/* Preserve breathing room below the sticky toolbar inside the framed demo.
+   Override the standalone breadcrumb compensation only in embedded mode. */
+.affresco-embed #tryonModal .tryon-footer,
+.affresco-embed body.has-ux-step-nav:not(.ux-step-nav-collapsed) #tryonModal .tryon-footer {
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
+}
 .affresco-embed #tryonModal h2 { padding-right: 0; }
 .affresco-embed #tryonUploadZone:focus-visible { outline: 2px solid #8c6550; outline-offset: 3px; }
 /* Keep account, login and email dialogs working when invoked from the demo. */
@@ -33,4 +38,6 @@ html.affresco-embed,
 @media (max-width: 640px) {
   .affresco-embed #tryonModal .tryon-panel { height: 100dvh; max-height: 100dvh; }
   .affresco-embed #tryonModal .tryon-scroll { padding: 28px 16px 16px; }
+  .affresco-embed #tryonModal .tryon-footer,
+  .affresco-embed body.has-ux-step-nav:not(.ux-step-nav-collapsed) #tryonModal .tryon-footer { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
 }
