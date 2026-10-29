@@ -141,7 +141,7 @@
   const ROOM_KEY='affresco:last-room';
   let activeRoomId=null,wallConfirmed=false,sceneMode=null,initialSnapshot=null;
   let sceneCatalog=[],ownFrescoItems=[],changeSnapshot=null;
-  let pickerVisible=false,maskDockOpen=false;
+  let pickerVisible=false,maskDockOpen=false,unresolvedOversize=false;
   const readSession=(key)=>{try{return sessionStorage.getItem(key);}catch(_){return null;}};
   const setSession=(key,value)=>{try{sessionStorage.setItem(key,value);}catch(_){}};
   function stateSnapshot(){
@@ -211,6 +211,59 @@
     pickerVisible=value==='picker';
     $('tryonScenePicker').hidden=!pickerVisible;
   }
+
+  async function replaceFresco(item){
+    if(!item||busy||!placing)return false;
+    const width=Number(item.width_cm),height=Number(item.height_cm);
+    if(!Number.isFinite(width)||!Number.isFinite(height)||width<30||height<30){
+      feedback('Укажите ширину и высоту фрески в сантиметрах.',true);return false;
+    }
+    if(width>lastWall.width||height>lastWall.height){
+      unresolvedOversize=true;feedback('Размер фрески больше допустимого.',true);checkFit();
+      window.dispatchEvent(new CustomEvent('affresco:tryon-crop-item',{detail:{...item}}));return false;
+    }
+    try{
+      const image=await imageFrom(item.image);
+      changeSnapshot={selection:{...selection},placed:placed?{...placed}:null,crop};
+      const previous=placed?{...placed}:null;
+      selection={image:item.image,sku:String(item.sku),width_cm:width,height_cm:height};
+      crop=image;placed=null;rebuildPlacement(100);
+      if(previous){placed=core.placement(selection,lastWall,100,previous);quad=core.placementQuad(wallQuad,lastWall,placed);}
+      unresolvedOversize=false;setSceneMode(null);summary();changed();return true;
+    }catch(_){feedback('Не удалось открыть фреску.',true);return false;}
+  }
+  async function renderScenePicker(){
+    const target=$('tryonSceneResults');target.replaceChildren();
+    let own=[];
+    if(media)try{
+      own=(await media.all('fresco')).map(item=>({
+        ...item,image:URL.createObjectURL(item.blob),isOwn:true
+      }));
+    }catch(_){}
+    ownFrescoItems=own;
+    const query=$('tryonSceneSearch').value.trim().toLocaleLowerCase('ru');
+    const items=[...own,...sceneCatalog].filter(item=>
+      !query||String(item.sku).toLocaleLowerCase('ru').includes(query)||
+      String(item.name||'').toLocaleLowerCase('ru').includes(query)).slice(0,70);
+    for(const item of items){
+      const button=document.createElement('button');button.type='button';button.className='tryon-scene-row';
+      const img=document.createElement('img');img.src=item.image;img.alt='';
+      const text=document.createElement('span');text.textContent=(item.name||'Фреска')+' · '+item.sku;
+      button.append(img,text);
+      button.addEventListener('click',async()=>{
+        if(Number(item.width_cm)>lastWall.width||Number(item.height_cm)>lastWall.height){
+          button.classList.add('is-too-large');
+          feedback('Размер фрески больше допустимого.',true);
+          await new Promise(resolve=>setTimeout(resolve,500));
+          button.classList.remove('is-too-large');
+          unresolvedOversize=true;checkFit();
+          window.dispatchEvent(new CustomEvent('affresco:tryon-crop-item',{detail:{...item}}));return;
+        }
+        await replaceFresco(item);
+      });target.append(button);
+    }
+    if(!items.length)target.textContent='Фрески не найдены.';
+  }
   function syncSceneButtons(){
     const visible=placing&&selected&&layer==='fresco'&&!maskMode&&!lightMode&&quad;
     const buttons=$('tryonSceneFrescoTools');
@@ -227,6 +280,10 @@
   }
   function restoreInitial(){
     if(!initialSnapshot)return;
+    if(changeSnapshot){
+      selection={...changeSnapshot.selection};crop=changeSnapshot.crop;
+      changeSnapshot=null;unresolvedOversize=false;summary();
+    }
     const data=initialSnapshot;
     wallQuad=data.wallQuad.map(p=>({...p}));lastWall={...data.lastWall};wallConfirmed=data.wallConfirmed;
     placed=data.placed?{...data.placed}:null;placing=data.placing;layer=data.layer;
@@ -266,6 +323,7 @@
     $('tryonPlacementInfo').hidden=!placing;
     $('tryonFit').title='* Относительно выделенной области стены';
     $('tryonLayerWall').textContent=wallConfirmed?'Стена':'Подтвердить стену';
+    for(const id of ['tryonApply','tryonDownload','tryonEmail'])$(id).disabled=busy||invalid||!wallConfirmed||unresolvedOversize;
     $('tryonFit').classList.toggle('is-warning',invalid);
     for(const id of ['tryonBegin','tryonSave','tryonDownload','tryonEmail'])$(id).disabled=busy||invalid||!wallConfirmed;
     $('tryonProtectToggle').disabled=busy||invalid||!placing;
@@ -339,7 +397,7 @@
     if(aiPollTimer)clearTimeout(aiPollTimer);aiPollTimer=null;
     $('tryonAIToast').hidden=true;$('tryonAIResults').hidden=true;
     $('tryonAIGallery').replaceChildren();$('tryonAIError').hidden=true;syncExportLabels();
-    activeRoomId=null;wallConfirmed=false;initialSnapshot=null;setSceneMode(null);
+    activeRoomId=null;wallConfirmed=false;initialSnapshot=null;unresolvedOversize=false;setSceneMode(null);
     view={zoom:1,panX:0,panY:0};pointers.clear();pinch=null;stage.classList.remove('is-panning');wallQuad=null;placed=null;layer='wall';lastWall={width:500,height:275};$('tryonLayerWall').setAttribute('aria-pressed','true');$('tryonLayerFresco').setAttribute('aria-pressed','false');selected=true;lightMode=false;lighting=null;syncLightTools();room=null;quad=null;placing=false;drag=null;saved=null;revision++;savedRevision=-1;$('tryonRoomFile').value='';showStep('upload');feedback('');}
   async function start(value){
     operation++;selection={...value};crop=null;resetRoom();summary();
@@ -378,7 +436,7 @@
       placing=false;wallConfirmed=false;layer='wall';selected=true;rebuildPlacement(100);
       const restored=activeRoomId&&restoreScene(activeRoomId);
       showStep(restored&&placing?'placement':'setup');feedback('');setLayer(restored&&layer==='fresco'?'fresco':'wall');
-      if(!initialSnapshot)initialSnapshot=JSON.parse(JSON.stringify(stateSnapshot()));
+      initialSnapshot=JSON.parse(JSON.stringify(stateSnapshot()));
       rememberScene();void renderRoomSessions();
     }catch(err){if(token===operation)feedback(err?.message==='session_limit'?'В сессии уже три фотографии. Удалите одну из миниатюр, чтобы добавить новую.':'Не удалось открыть фото или сохранить его в браузере.',true);}
     finally{if(url)URL.revokeObjectURL(url);$('tryonRoomFile').value='';}
