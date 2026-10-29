@@ -46,7 +46,7 @@ const delay=()=>new Promise(r=>setTimeout(r,30));
  await $('tryonUploadZone').fire('drop',{dataTransfer:{files:[{type:'image/png',size:1000}]}});await delay();
  assert.equal($('tryonWorkspace').hidden,false);
  assert.equal($('tryonPreset').value,'standard');assert.equal(Number($('tryonWallWidth').value),500);assert.equal(Number($('tryonWallHeight').value),275);
- assert.equal($('tryonLayerFresco').disabled,true);assert.equal($('tryonFooter').hidden,true,'Cannot place before wall confirmation');
+ assert.equal($('tryonLayerFresco').disabled,false);assert.equal($('tryonFooter').hidden,false,'Wall is editable immediately without confirmation');
  assert.match($('tryonControls').innerHTML,/500 см/);
  // Wall corners may leave the photo while remaining manipulable inside the padded viewport.
  await $('tryonStage').fire('pointerdown',{clientX:188,clientY:142,pointerId:8,pointerType:'mouse'});
@@ -68,8 +68,8 @@ const delay=()=>new Promise(r=>setTimeout(r,30));
  await $('tryonFitPhoto').fire('click');assert.equal($('tryonZoomValue').textContent,'100%');
 
  
- assert.equal($('tryonLayerWall').textContent,'Подтвердить стену','Confirmation is integrated in the wall tab');
- await $('tryonLayerWall').fire('click'); // User confirms directly using the wall tab.
+ assert.equal($('tryonLayerWall').textContent,'Стена','No wall confirmation controls');
+ await $('tryonLayerFresco').fire('click');
  assert.equal($('tryonLayerFresco')['aria-pressed'],'true');
  assert.equal($('tryonLayerWall').textContent,'Стена','Wall confirmation returns to layer switch');
  assert.match($('tryonFit').textContent,/Расположение фрески/,'Physical position shown above scene');
@@ -78,7 +78,7 @@ const delay=()=>new Promise(r=>setTimeout(r,30));
  $('tryonWallWidth').value=150;await $('tryonWallWidth').fire('input');
  assert.equal($('tryonPreset').value,'custom');assert.ok(Number($('tryonScale').max)<=75);
  $('tryonPreset').value='standard';await $('tryonPreset').fire('change');
- await $('tryonLayerFresco').fire('click'); // Wall geometry stays valid without extra confirmation.
+ await $('tryonLayerFresco').fire('click'); // Continue editing after wall size change.
 
  assert.equal($('tryonFooter').hidden,false);assert.match($('tryonControls').innerHTML,/width="12" height="12"/);
  await $('tryonApply').fire('click');assert.equal($('tryonControls').innerHTML,'');
