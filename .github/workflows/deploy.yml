@@ -55,6 +55,7 @@ jobs:
           php tests/account-activity.php
           php tests/mail-quota.php
           node tests/tryon-core.cjs
+          node tests/tryon-session.cjs
           node tests/tryon-upload.cjs
           php tests/manual-tryon.php
           php tests/ai-tryon.php
