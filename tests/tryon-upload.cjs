@@ -73,6 +73,25 @@ const delay=()=>new Promise(r=>setTimeout(r,30));
  assert.equal($('tryonLayerFresco')['aria-pressed'],'true');
  assert.equal($('tryonLayerWall').textContent,'Стена','Wall confirmation returns to layer switch');
  assert.match($('tryonFit').textContent,/Расположение фрески/,'Physical position shown above scene');
+ // Picker labels must stay visible in a narrow panel and keep full-value tooltips.
+ window.affrescoTryon.sceneItems([{
+   image:'data:image/jpeg;base64,TEST',
+   sku:'136023-long-catalog-article-identifier',
+   name:'Тихая гармония с очень длинным названием фрески',
+   width_cm:180,height_cm:120
+ }]);
+ await $('tryonChangeFresco').fire('click');
+ const pickerEntry=$('tryonSceneResults').children[0];
+ assert.equal(pickerEntry.className,'tryon-scene-row');
+ const labelGroup=pickerEntry.children[1];
+ assert.equal(labelGroup.className,'tryon-scene-row-details');
+ assert.equal(labelGroup.children.length,2,'Name and SKU rendered on separate lines');
+ assert.equal(labelGroup.children[0].title,'Тихая гармония с очень длинным названием фрески');
+ assert.equal(labelGroup.children[1].title,'Артикул: 136023-long-catalog-article-identifier');
+ assert.match(labelGroup.children[0].textContent,/…$/,'Long name shortened for UI');
+ assert.match(labelGroup.children[1].textContent,/Арт\./,'SKU label shown under name');
+ await $('tryonChangeFresco').fire('click');
+
  await $('tryonLayerWall').fire('click');assert.equal($('tryonScale').disabled,true);
  await $('tryonLayerFresco').fire('click');assert.equal($('tryonScale').disabled,false);
  $('tryonWallWidth').value=150;await $('tryonWallWidth').fire('input');
