@@ -248,23 +248,53 @@
   mobileNav.querySelectorAll('a').forEach(a => a.addEventListener('click',closeMenu));
   window.addEventListener('resize', () => { if (window.innerWidth > 800) closeMenu(); });
 
-  const stepNav=$('affrescoStepNav'),stepBack=$('affrescoStepBack'),stepCollapse=$('affrescoStepCollapse');
-  let navCollapsed=false;
+  const stepNav=$('affrescoStepNav'),stepBadges=$('affrescoStepBadges'),stepCollapse=$('affrescoStepCollapse');
+  const stepLabels={catalog:'Выбор фрески',crop:'Кадрирование',room:'Фото комнаты',tryon:'Примерка'};
+  let navCollapsed=false,tryonStep='room',stepTrail=[];
   try{navCollapsed=sessionStorage.getItem('affresco:step-nav-collapsed')==='1';}catch(_){}
+  function goStage(stage){
+    const index=stepTrail.indexOf(stage);
+    if(index>=0)stepTrail=stepTrail.slice(0,index+1);
+    if(stage==='catalog'){setModal(modalPicker);updatePickerResults();}
+    else if(stage==='crop')setModal(modalEditor);
+    else if(stage==='room'){
+      window.affrescoTryon?.goToRoomSelection?.();tryonStep='room';setModal(modalTryon);
+    }
+    else if(stage==='tryon')setModal(modalTryon);
+    updateStepNav();
+  }
   function updateStepNav(){
-    stepNav.hidden=![modalPicker,modalEditor,modalTryon].includes(openDialog);
-    document.body.classList.toggle('has-ux-step-nav',!stepNav.hidden);
+    const visible=[modalPicker,modalEditor,modalTryon].includes(openDialog);
+    stepNav.hidden=!visible;
+    document.body.classList.toggle('has-ux-step-nav',visible);
     document.body.classList.toggle('ux-step-nav-collapsed',navCollapsed);
     stepNav.classList.toggle('is-collapsed',navCollapsed);
     stepCollapse.setAttribute('aria-expanded',String(!navCollapsed));
     stepCollapse.setAttribute('aria-label',navCollapsed?'Развернуть навигацию':'Свернуть навигацию');
-    stepBack.textContent=openDialog===modalTryon?'← К кадрированию':openDialog===modalEditor?'← К выбору фрески':'← К каталогу';
+    if(!visible)return;
+    const stage=openDialog===modalPicker?'catalog':openDialog===modalEditor?'crop':tryonStep;
+    // Keep only the visited path; future steps are never shown pre-emptively.
+    const existing=stepTrail.indexOf(stage);
+    if(existing>=0)stepTrail=stepTrail.slice(0,existing+1);
+    else if(stage==='catalog')stepTrail=['catalog'];
+    else {
+      const needed=stage==='crop'?['catalog','crop']:stage==='room'?['catalog','crop','room']:['catalog','crop','room','tryon'];
+      stepTrail=needed;
+    }
+    stepBadges.replaceChildren();
+    for(const entry of stepTrail){
+      const button=document.createElement('button');
+      button.type='button';button.className='affresco-step-badge';
+      button.textContent=stepLabels[entry];
+      if(entry===stage){button.setAttribute('aria-current','step');button.disabled=true;}
+      else button.addEventListener('click',()=>goStage(entry));
+      stepBadges.append(button);
+    }
   }
   stepCollapse.addEventListener('click',()=>{navCollapsed=!navCollapsed;try{sessionStorage.setItem('affresco:step-nav-collapsed',navCollapsed?'1':'0');}catch(_){}updateStepNav();});
-  stepBack.addEventListener('click',()=>{
-    if(openDialog===modalTryon){window.affrescoTryon?.rememberScene?.();setModal(modalEditor);}
-    else if(openDialog===modalEditor){setModal(modalPicker);updatePickerResults();}
-    else if(openDialog===modalPicker)setModal(null);
+  window.addEventListener('affresco:tryon-step',event=>{
+    tryonStep=event.detail?.step==='upload'?'room':'tryon';
+    if(openDialog===modalTryon)updateStepNav();
   });
   function setModal(modal, trigger=null) {
     // A response from a window that was closed must not reopen the success
