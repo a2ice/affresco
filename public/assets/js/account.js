@@ -111,37 +111,41 @@
       if(identity===identityRevision&&revision===imageLibraryRevision)note.textContent='Не удалось загрузить изображения с сервера. Откройте раздел повторно.';
     }
   }
-  let personalImageRevision=0;
-  async function renderPersonalFrescoLibrary(){
-    const target=$('accountOwnFrescoList'),note=$('accountOwnFrescoFeedback');
-    if(!target||!note||!window.affrescoMediaLibrary)return;
-    const identity=identityRevision,revision=++personalImageRevision;
-    target.replaceChildren();note.textContent='Загружаем ваши фрески…';
+  const personalImageRevision={fresco:0,room:0};
+  async function renderPersonalMediaLibrary(kind){
+    const isRoom=kind==='room',prefix=isRoom?'accountOwnRoom':'accountOwnFresco';
+    const target=$(prefix+'List'),note=$(prefix+'Feedback'),library=window.affrescoMediaLibrary;
+    if(!target||!note||!library)return;
+    const identity=identityRevision,revision=++personalImageRevision[kind];
+    target.replaceChildren();note.textContent=isRoom?'Загружаем ваши комнаты…':'Загружаем ваши фрески…';
     try{
-      const items=await window.affrescoMediaLibrary.all('fresco');
-      if(identity!==identityRevision||revision!==personalImageRevision)return;
-      note.textContent=items.length?'Загружено личных фресок: '+items.length:'У вас пока нет загруженных фресок.';
+      const items=await library.all(kind);
+      if(identity!==identityRevision||revision!==personalImageRevision[kind])return;
+      const limit=library.limit?.()||1;
+      note.textContent=items.length
+        ?'Загружено '+(isRoom?'комнат: ':'фресок: ')+items.length+' из '+limit
+        :isRoom?'У вас пока нет загруженных комнат.':'У вас пока нет загруженных фресок.';
       for(const item of items){
         if(typeof item.id!=='string'||typeof item.url!=='string')continue;
+        const title=String(item.name||(isRoom?'Фото интерьера':'Моя фреска'));
         const card=document.createElement('div');card.className='account-server-image';
-        const img=document.createElement('img');img.src=item.url;img.alt=String(item.name||'Моя фреска');img.loading='lazy';
+        const img=document.createElement('img');img.src=item.url;img.alt=title;img.loading='lazy';
         const name=document.createElement('span');name.className='account-server-image-label';
-        name.textContent=String(item.name||'Моя фреска');
-        name.title=String(item.name||'Моя фреска');
+        name.textContent=title;name.title=title;
         const remove=document.createElement('button');remove.type='button';
-        remove.className='account-server-delete';remove.textContent='Удалить';
-        remove.setAttribute('aria-label','Удалить личную фреску '+name.textContent);
+        remove.className='account-server-delete';remove.textContent='×';remove.title='Удалить '+(isRoom?'комнату':'фреску');
+        remove.setAttribute('aria-label','Удалить '+(isRoom?'комнату ':'личную фреску ')+title);
         remove.addEventListener('click',async()=>{
-          if(!window.confirm('Вы уверены, что хотите удалить фреску? Восстановить изображение будет невозможно.'))return;
-          remove.disabled=true;note.textContent='Удаляем личную фреску…';
+          if(!window.confirm('Удалить '+(isRoom?'фотографию комнаты':'фреску')+' «'+title+'»? Восстановить её будет невозможно.'))return;
+          remove.disabled=true;note.textContent='Удаляем '+(isRoom?'комнату…':'фреску…');
           try{
-            await window.affrescoMediaLibrary.remove('fresco',item.id);
+            await library.remove(kind,item.id);
             if(identity!==identityRevision)return;
-            window.dispatchEvent(new CustomEvent('affresco:own-fresco-changed'));
-            await renderPersonalFrescoLibrary();
+            window.dispatchEvent(new CustomEvent(isRoom?'affresco:room-library-changed':'affresco:own-fresco-changed',{detail:{id:item.id}}));
+            await renderPersonalMediaLibrary(kind);
           }catch(_){
             if(identity===identityRevision){
-              note.textContent='Не удалось удалить фреску. Повторите попытку.';
+              note.textContent='Не удалось удалить изображение. Повторите попытку.';
               remove.disabled=false;
             }
           }
@@ -149,9 +153,8 @@
         card.append(img,name,remove);target.append(card);
       }
     }catch(_){
-      if(identity===identityRevision&&revision===personalImageRevision){
-        note.textContent='Не удалось загрузить личные фрески.';
-      }
+      if(identity===identityRevision&&revision===personalImageRevision[kind])
+        note.textContent='Не удалось загрузить '+(isRoom?'комнаты.':'личные фрески.');
     }
   }
   function selectTab(name,focus=false){
@@ -163,7 +166,7 @@
       $('accountPanel'+tab).hidden=!selected;
       if(selected&&focus)button.focus();
     }
-    if(activeTab==='Generations'){void window.affrescoTryon?.renderHistory?.();void renderServerImageLibrary();void renderPersonalFrescoLibrary();}
+    if(activeTab==='Generations'){void window.affrescoTryon?.renderHistory?.();void renderServerImageLibrary();void renderPersonalMediaLibrary('fresco');void renderPersonalMediaLibrary('room');}
   }
   for(const name of tabs){
     const button=$('accountTab'+name);
@@ -284,7 +287,7 @@
   }
   function openWindow(){window.dispatchEvent(new CustomEvent('affresco:open-modal',{detail:'account'}));}
   function changedIdentity(response){
-    identityRevision++;latestStateRequest++;collectionRevision++;imageLibraryRevision++;personalImageRevision++;
+    identityRevision++;latestStateRequest++;collectionRevision++;imageLibraryRevision++;personalImageRevision.fresco++;personalImageRevision.room++;
     user=response.authenticated?response.account:null;
     guestActivity=response.activity||{};favorites=[];drafts={};
     $('accountEmailFeedback').textContent='';$('accountFeedback').textContent='';
