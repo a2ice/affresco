@@ -8,6 +8,13 @@
   <meta name="theme-color" content="#F8F6F2">
   <meta name="description" content="AFFRESCO — коллекция художественных фресок. Выбирайте рисунок, задавайте размеры и создавайте композицию для своего интерьера.">
   <title>AFFRESCO — художественные фрески для вашего пространства</title>
+  <script>
+    // Explicit, opt-in presentation mode for the A2ICE case-study iframe.
+    // No account privilege or AI-generation quota changes.
+    if (new URLSearchParams(location.search).get('embed') === 'tryon') {
+      document.documentElement.classList.add('affresco-embed');
+    }
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -18,6 +25,7 @@
   <script src="/assets/js/tryon-compat.js?v=tryon-upload-20261028" defer></script>
   <script src="/assets/js/account.js?v=cabinet-cross-20261028" defer></script>
   <link rel="stylesheet" href="/assets/css/tryon.css?v=foreground-depth-20261029">
+  <link rel="stylesheet" href="/assets/css/embed.css?v=case-study-20261029">
   <script src="/assets/js/tryon-core.js?v=soft-shadow-20261028" defer></script>
   <script src="/assets/js/tryon.js?v=foreground-depth-20261029" defer></script>
   <script src="/assets/js/site.js?v=unified-export-20261028" defer></script>
