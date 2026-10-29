@@ -211,10 +211,13 @@
 #tryonModal .tryon-scene-picker-head input{flex:1;min-width:0;border:0;background:transparent;padding:12px}
 #tryonModal .tryon-scene-picker-head button{width:44px;border:0;border-left:1px solid #dad2c7;background:transparent;font-size:24px}
 #tryonModal .tryon-scene-results{overflow-y:auto;min-height:50px;flex:1}
-#tryonModal .tryon-scene-row{display:flex;align-items:center;gap:10px;width:100%;padding:7px;border:0;border-bottom:1px solid #e8e0d5;background:transparent;text-align:left;cursor:pointer;font-size:12px}
+#tryonModal .tryon-scene-row{display:grid;grid-template-columns:42px minmax(0,1fr);align-items:center;column-gap:10px;width:100%;min-width:0;padding:7px;border:0;border-bottom:1px solid #e8e0d5;background:transparent;text-align:left;cursor:pointer;font-size:12px}
 #tryonModal .tryon-scene-row:hover{background:#f3eee6}
-#tryonModal .tryon-scene-row-label{min-width:0;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-#tryonModal .tryon-scene-row img{width:55px;height:65px;object-fit:cover}
+#tryonModal .tryon-scene-row img{display:block;width:42px;height:50px;object-fit:cover;flex:none}
+#tryonModal .tryon-scene-row-details{display:flex;flex-direction:column;gap:4px;width:100%;min-width:0;align-self:center}
+#tryonModal .tryon-scene-row-name,#tryonModal .tryon-scene-row-sku{display:block;width:100%;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;line-height:1.35}
+#tryonModal .tryon-scene-row-name{color:#292521;font-size:12px;font-weight:600}
+#tryonModal .tryon-scene-row-sku{color:#786e63;font-size:11px}
 #tryonModal .tryon-scene-row.is-too-large{animation:tryon-invalid-size .5s ease}
 @keyframes tryon-invalid-size{0%,100%{background:transparent}40%{background:rgba(192,35,35,.37)}}
 #tryonModal #tryonUploadOwnFresco{border:0;border-top:1px solid #d0c5b7;background:#f5f1eb;padding:12px;min-height:44px;cursor:pointer}
