@@ -13,13 +13,13 @@
 
 ## Реализация
 
-Ветка: `feature/media-quota-replacement-cabinet-20261029`, PR: добавляется после открытия.
+Ветка: `feature/media-quota-replacement-cabinet-20261029`, PR: [#36](https://github.com/a2ice/affresco/pull/36).
 
 Файлы: `public/api/media.php`, `public/assets/js/tryon-library.js`, `public/assets/js/site.js`, `public/assets/js/tryon.js`, `public/assets/js/account.js`, `public/index.html`, `public/assets/css/tryon.css`, `tests/media-server.sh`, `tests/cabinet.mjs`.
 
 ## Проверки и ограничения
 
-CI: PHP/JS syntax, `tests/media-server.sh` — guest/account full quota, explicit replacement, 409 without target, rejection foreign ID, private GET, delete restores slot; `tests/cabinet.mjs` — fresco/room delete from cabinet. Считать PASS только по завершении actual GitHub Actions.
+CI: **PASS** [run #40879170717](https://github.com/a2ice/affresco/actions/runs/40879170717) (job `Validate deployable files` success; preflight/deploy skipped, как положено для PR). PHP/JS syntax, `tests/media-server.sh` — guest/account full quota, explicit replacement, 409 without target, rejection foreign ID, private GET, delete restores slot; `tests/cabinet.mjs` — fresco/room delete from cabinet. Считать PASS только по завершении actual GitHub Actions.
 
 Независимый E2E: `https://affresco.a2ice.ru/` **только после отдельного решения владельца о production-публикации**. Сценарии: гость 1/1 загружает вторую фреску → появляется «Заменить текущее», старое до нажатия не теряется; аккаунт 3/3 выбирает одну из трёх и заменяет только её; при ошибке/отмене исходная остаётся; в кабинете удаление одной фрески и комнаты уменьшает соответствующий счётчик и позволяет новую загрузку; проверить мобильный экран, открытие обновлённой сцены и сохранённые результаты (не должны самопроизвольно удаляться).
 
