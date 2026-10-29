@@ -60,6 +60,8 @@ import json,sys
 assert json.load(open(sys.argv[1]))['authenticated'] is True
 PY
 for n in 1 2 3; do upload fresco "$account" "Registered $n" >"$tmp/account-$n.json"; done
+# The private accounts file may be readable but not writable by the PHP process.
+chmod 0444 data/accounts.json
 test "$(curl -sS -o /dev/null -w '%{http_code}' -c "$account" -b "$account" \
  -H 'X-Affresco-Request: 1' -F action=upload -F kind=fresco -F name=Fourth \
  -F width_cm=200 -F height_cm=150 -F "image=@$tmp/photo.jpg;type=image/jpeg" "$base/media.php?kind=fresco")" = 409
@@ -86,6 +88,28 @@ python3 - "$tmp/account-after-delete.json" <<'PY'
 import json,sys
 assert len(json.load(open(sys.argv[1]))['items'])==3
 PY
+# Legacy account JSON metadata must migrate once, even when the profile JSON is read-only.
+chmod 0644 data/accounts.json
+php -r 'require "public/api/_account.php";af_state("ci-test",static function(array $s):array{unset($s["media_assets"]);return $s;});'
+php -r '$p="data/accounts.json";$a=json_decode(file_get_contents($p),true);$id=str_repeat("a",32);$a[0]["media_assets"]=[["id"=>$id,"kind"=>"fresco","sku"=>"own-".$id,"name"=>"Legacy artwork","width_cm"=>200,"height_cm"=>150,"created"=>time()]];file_put_contents($p,json_encode($a));'
+chmod 0444 data/accounts.json
+curl -fsS -b "$account" "$base/media.php?kind=fresco" >"$tmp/legacy-before.json"
+python3 - "$tmp/legacy-before.json" <<'PY'
+import json,sys
+items=json.load(open(sys.argv[1]))['items']
+assert len(items)==1 and items[0]['name']=='Legacy artwork'
+PY
+legacy_id="$(printf 'a%.0s' {1..32})"
+upload fresco "$account" "Migrated artwork" "$legacy_id" >"$tmp/legacy-after.json"
+migrated_id="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["item"]["id"])' "$tmp/legacy-after.json")"
+curl -fsS -b "$account" -c "$account" -H 'X-Affresco-Request: 1' -F action=delete -F kind=fresco -F id="$migrated_id" "$base/media.php?kind=fresco" >/dev/null
+curl -fsS -b "$account" "$base/media.php?kind=fresco" >"$tmp/legacy-deleted.json"
+python3 - "$tmp/legacy-deleted.json" <<'PY'
+import json,sys
+assert json.load(open(sys.argv[1]))['items']==[], 'Legacy item should not reappear after deletion'
+PY
+chmod 0644 data/accounts.json
+echo 'PASS: read-only account JSON, migrated legacy media, delete without resurrection'
 echo 'PASS: explicit replacement guest/account, 409 quota, ownership isolation, delete frees quota'
 
 # Temporary one-shot anonymous production probe for PR fix/media-upload-errors-20261029.
