@@ -1722,6 +1722,7 @@
     if(ownDialogURL){URL.revokeObjectURL(ownDialogURL);ownDialogURL=null;}
   }
   $('ownFrescoClose').addEventListener('click',closeOwnDialog);
+  ownDialog.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();closeOwnDialog();$('ownFrescoTrigger').focus();}});
   $('ownFrescoTrigger').addEventListener('click',()=>ownFile.click());
   ownFile.addEventListener('change',async()=>{
     const file=ownFile.files?.[0];
@@ -1758,9 +1759,11 @@
       const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.86));
       if(!blob)throw Error('image_encoding');
       const name=$('ownFrescoName').value.trim()||'Моя фреска №'+(ownFilesCount+1);
-      await media.put('fresco',blob,{name,width_cm:w,height_cm:h});
+      const savedItem=await media.put('fresco',blob,{name,width_cm:w,height_cm:h});
       ownFile.value='';closeOwnDialog();
       await refreshOwnFrescoes();
+      const selected=ownFrescoes.find(item=>item.id===savedItem.id);
+      if(selected){openEditor(selected,$('ownFrescoTrigger'));if(ownUploadConstraint){cropConstraint=ownUploadConstraint;validateCropWallFit();}}
       $('ownFrescoAddedBadge').hidden=false;
       showCatalogToast('Изображение добавлено в каталог');
     }catch(e){
