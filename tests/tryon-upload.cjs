@@ -4,12 +4,12 @@ const html=fs.readFileSync(require('node:path').join(__dirname,'../public/index.
 const images=new Map();let member=null,accepted=0,aiLaunches=0,manualUploads=0,zipDownloads=0,aiMaskPayload=null;
 const dispatched=[];const listeners=new Map();
 class Element{
- constructor(){this.hidden=false;this.disabled=false;this.value='';this.textContent='';this.handlers={};this.classList={add(){},remove(){},toggle(){}};this.width=1000;this.height=700;this.style={};}
+ constructor(){this.hidden=false;this.disabled=false;this.value='';this.textContent='';this.dataset={};this.children=[];this.handlers={};this.classList={add(){},remove(){},toggle(){}};this.width=1000;this.height=700;this.style={};}
  addEventListener(k,fn){(this.handlers[k]??=[]).push(fn);}
  async fire(k,event={}){for(const fn of this.handlers[k]||[])await fn({type:k,preventDefault(){},...event});}
  setAttribute(k,v){this[k]=v;}
  getBoundingClientRect(){return {width:1000,height:700,left:0,top:0};}
- click(){this.clicks=(this.clicks||0)+1;}focus(){}append(){}replaceChildren(){}setPointerCapture(){}
+ click(){this.clicks=(this.clicks||0)+1;}focus(){}append(...items){this.children.push(...items);}replaceChildren(...items){this.children=[...items];}querySelectorAll(){return [];}querySelector(){return null;}setPointerCapture(){}
  getContext(){return {canvas:this,createLinearGradient(){return {addColorStop(){}};},drawImage(){},fillRect(){},save(){},restore(){},beginPath(){},closePath(){},moveTo(){},lineTo(){},clip(){},transform(){},fill(){},stroke(){},setLineDash(){},strokeRect(){}};}
  toDataURL(){return 'data:image/jpeg;base64,TEST';}
  toBlob(callback){callback({size:1000,type:'image/jpeg'});}
@@ -68,13 +68,15 @@ const delay=()=>new Promise(r=>setTimeout(r,30));
  await $('tryonFitPhoto').fire('click');assert.equal($('tryonZoomValue').textContent,'100%');
 
  
+ assert.equal($('tryonLayerWall').textContent,'Подтвердить стену','Confirmation is integrated in the wall tab');
  await $('tryonBegin').fire('click');
  assert.equal($('tryonLayerFresco')['aria-pressed'],'true');
  await $('tryonLayerWall').fire('click');assert.equal($('tryonScale').disabled,true);
  await $('tryonLayerFresco').fire('click');assert.equal($('tryonScale').disabled,false);
  $('tryonWallWidth').value=150;await $('tryonWallWidth').fire('input');
  assert.equal($('tryonPreset').value,'custom');assert.ok(Number($('tryonScale').max)<=75);
- $('tryonPreset').value='standard';await $('tryonPreset').fire('change');await $('tryonResetPerspective').fire('click');
+ $('tryonPreset').value='standard';await $('tryonPreset').fire('change');
+ await $('tryonLayerWall').fire('click'); // Reconfirm the changed wall geometry.
 
  assert.equal($('tryonFooter').hidden,false);assert.match($('tryonControls').innerHTML,/width="12" height="12"/);
  await $('tryonApply').fire('click');assert.equal($('tryonControls').innerHTML,'');
@@ -96,7 +98,8 @@ const delay=()=>new Promise(r=>setTimeout(r,30));
  await $('tryonFitPhoto').fire('click');
 
  // Foreground protection is drawn on the original room, not the generated guide.
- assert.equal($('tryonForegroundTools').hidden,false,'Protection controls available while placing');
+ await $('tryonMaskDock').fire('click');
+ assert.equal($('tryonForegroundTools').hidden,false,'Optional protection controls expand from scene dock');
  await $('tryonProtectToggle').fire('click');
  assert.equal($('tryonProtectToggle')['aria-pressed'],'true','Foreground painting enabled');
  $('tryonProtectBrush').value='3';await $('tryonProtectBrush').fire('input');
