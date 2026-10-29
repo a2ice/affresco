@@ -397,7 +397,7 @@
   function summary(){if(selection){$('tryonSummary').textContent='Арт. '+selection.sku+' · Исходный кадр '+cm(selection.width_cm)+' × '+cm(selection.height_cm);$('tryonCopyFeedback').textContent='';}}
   function showStep(which){
     $('tryonUploadStep').hidden=which!=='upload';$('tryonWorkspace').hidden=!['setup','placement'].includes(which);$('tryonSavedStep').hidden=which!=='saved';
-    $('tryonSetupActions').hidden=which!=='setup';$('tryonPlacementActions').hidden=which!=='placement';
+    $('tryonPlacementActions').hidden=which!=='placement';
     $('tryonFooter').hidden=!['placement','saved'].includes(which);
     $('tryonFooterPlacement').hidden=which!=='placement';$('tryonFooterSaved').hidden=which!=='saved';
 
