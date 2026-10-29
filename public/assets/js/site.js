@@ -81,6 +81,7 @@
   const emailSendSubmit = $('emailSendSubmit');
   const media=window.affrescoMediaLibrary;
   let ownFrescoes=[];
+  const ownImageUrls=new Map();
   let cropConstraint=null;
   let emailSendBusy = false;
   let emailSendRequest = 0;
@@ -1646,10 +1647,11 @@
   async function refreshOwnFrescoes(){
     if(!media)return;
     try{
-      ownFrescoes=(await media.all('fresco')).map(item=>({
-        ...item,image:URL.createObjectURL(item.blob),sku:item.sku,
-        name:item.name||'Моя фреска',isOwn:true
-      }));
+      ownFrescoes=(await media.all('fresco')).map(item=>{
+        if(!ownImageUrls.has(item.id))ownImageUrls.set(item.id,URL.createObjectURL(item.blob));
+        return {...item,image:ownImageUrls.get(item.id),sku:item.sku,
+          name:item.name||'Моя фреска',isOwn:true};
+      });
       window.affrescoTryon?.sceneItems?.([...ownFrescoes,...items]);
       if(openDialog===modalPicker)updatePickerResults();
       if(items.length||ownFrescoes.length)resetAndRenderCatalog();
@@ -1702,6 +1704,7 @@
     const item=[...ownFrescoes,...items].find(x=>String(x.sku)===String(event.detail?.sku));
     if(item)currentItem=item;
   });
+  window.addEventListener('affresco:own-fresco-changed',()=>{void refreshOwnFrescoes();});
   void refreshOwnFrescoes();
   function pickerResultsFor(query) {
     const q=query.trim().toLocaleLowerCase('ru');
