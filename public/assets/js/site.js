@@ -331,6 +331,7 @@
     catalogToast.hidden=false;
     toastTimer=setTimeout(()=>{catalogToast.hidden=true;},2400);
   }
+  window.addEventListener('affresco:toast',event=>showCatalogToast(String(event.detail||'')));
   async function copyCatalogSku(sku){
     let copied=false;
     try{
@@ -1672,6 +1673,7 @@
     try{
       const url=URL.createObjectURL(file),img=new Image();
       await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;img.src=url;});
+      if(img.naturalWidth<100||img.naturalHeight<100||img.naturalWidth*img.naturalHeight>60000000)throw Error('image_size');
       const ratio=Math.min(1,1600/img.naturalWidth,1600/img.naturalHeight);
       const canvas=document.createElement('canvas');
       canvas.width=Math.round(img.naturalWidth*ratio);canvas.height=Math.round(img.naturalHeight*ratio);
