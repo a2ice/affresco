@@ -142,7 +142,7 @@
   const ROOM_KEY='affresco:last-room';
   let activeRoomId=null,wallConfirmed=false,sceneMode=null,initialSnapshot=null,initialCrop=null;
   let sceneCatalog=[],ownFrescoItems=[],changeSnapshot=null;
-  const ownSceneUrls=new Map();
+
   let pickerVisible=false,maskDockOpen=false,unresolvedOversize=false;
   const readSession=(key)=>{try{return sessionStorage.getItem(key);}catch(_){return null;}};
   const setSession=(key,value)=>{try{sessionStorage.setItem(key,value);}catch(_){}};
@@ -186,25 +186,20 @@
       const box=document.createElement('div');box.className='tryon-room-card';
       const button=document.createElement('button');button.type='button';button.className='tryon-room-select';
       const image=document.createElement('img');
-      const url=URL.createObjectURL(entry.blob);image.src=url;image.onload=()=>URL.revokeObjectURL(url);
+      image.src=entry.url;
       image.alt=entry.name||'Фото комнаты';
       const name=document.createElement('span');name.textContent=entry.name||'Фото интерьера';
       button.append(image,name);
-      button.addEventListener('click',()=>{if(!busy)void loadRoom(entry.blob,entry);});
+      button.addEventListener('click',async()=>{if(busy)return;try{const res=await fetch(entry.url,{credentials:'same-origin',cache:'no-store'});if(!res.ok)throw Error('photo_unavailable');await loadRoom(await res.blob(),entry);}catch(_){feedback('Не удалось загрузить сохранённое фото комнаты.',true);}});
       const remove=document.createElement('button');remove.type='button';remove.className='tryon-room-delete';remove.textContent='×';
       remove.setAttribute('aria-label','Удалить '+(entry.name||'фото комнаты'));
       remove.addEventListener('click',async()=>{if(busy)return;await media.remove('room',entry.id);if(activeRoomId===entry.id){activeRoomId=null;setSession(ROOM_KEY,'');}await renderRoomSessions();});
       box.append(button,remove);target.append(box);
     }
-    for(let i=list.length;i<3;i++){
-      const box=document.createElement('div');box.className='tryon-room-card';
-      const button=document.createElement('button');button.className='tryon-room-select';button.type='button';
-      button.innerHTML='<span class="tryon-room-empty" aria-hidden="true">＋</span><span>Добавить фото</span>';
-      button.addEventListener('click',()=>{$('tryonRoomFile').click();});
-      box.append(button);target.append(box);
-    }
-    $('tryonUploadZone').disabled=busy||list.length>=3;
-    $('tryonUploadZone').hidden=list.length>=3;
+    target.hidden=list.length===0;
+    const limit=media.limit?.()||1;
+    $('tryonUploadZone').disabled=busy||(limit>1&&list.length>=limit);
+    $('tryonUploadZone').hidden=limit>1&&list.length>=limit;
   }
   function setSceneMode(value){
     sceneMode=value;
@@ -242,10 +237,7 @@
     const target=$('tryonSceneResults');target.replaceChildren();
     let own=[];
     if(media)try{
-      own=(await media.all('fresco')).map(item=>{
-        if(!ownSceneUrls.has(item.id))ownSceneUrls.set(item.id,URL.createObjectURL(item.blob));
-        return {...item,image:ownSceneUrls.get(item.id),isOwn:true};
-      });
+      own=(await media.all('fresco')).map(item=>({...item,image:item.url,isOwn:true}));
     }catch(_){}
     ownFrescoItems=own;
     const query=$('tryonSceneSearch').value.trim().toLocaleLowerCase('ru');
@@ -275,7 +267,6 @@
         remove.addEventListener('click',async()=>{
           if(!media)return;
           await media.remove('fresco',item.id);
-          const url=ownSceneUrls.get(item.id);if(url)URL.revokeObjectURL(url);ownSceneUrls.delete(item.id);
           await renderScenePicker();
           window.dispatchEvent(new CustomEvent('affresco:own-fresco-changed'));
         });
@@ -342,10 +333,10 @@
       :'';
     $('tryonPlacementInfo').hidden=!placing;
     $('tryonFit').title='* Относительно выделенной области стены';
-    $('tryonLayerWall').textContent=wallConfirmed?'Стена':'Подтвердить стену';
+    $('tryonLayerWall').textContent='Стена';
     for(const id of ['tryonApply','tryonDownload','tryonEmail'])$(id).disabled=busy||invalid||!wallConfirmed||unresolvedOversize;
     $('tryonFit').classList.toggle('is-warning',invalid);
-    for(const id of ['tryonBegin','tryonSave','tryonDownload','tryonEmail'])$(id).disabled=busy||invalid||!wallConfirmed||unresolvedOversize;
+    for(const id of ['tryonSave','tryonDownload','tryonEmail'])$(id).disabled=busy||invalid||!wallConfirmed||unresolvedOversize;
     $('tryonProtectToggle').disabled=busy||invalid||!placing;
     $('tryonAIGenerate').disabled=busy||aiBusy||invalid||!placing||!wallConfirmed||unresolvedOversize;
     $('tryonLayerWall').disabled=busy;$('tryonLayerFresco').disabled=busy||!placing;
@@ -409,7 +400,7 @@
     $('tryonSetupActions').hidden=which!=='setup';$('tryonPlacementActions').hidden=which!=='placement';
     $('tryonFooter').hidden=!['placement','saved'].includes(which);
     $('tryonFooterPlacement').hidden=which!=='placement';$('tryonFooterSaved').hidden=which!=='saved';
-    $('tryonChangeRoom').hidden=!['setup','placement'].includes(which);
+
     if(which!=='placement')$('tryonControls').innerHTML='';
     syncStepNavigation();
   }
@@ -427,7 +418,7 @@
     $('tryonCompatibilityMessage').hidden=true;
     $('tryonUploadZone').disabled=true;
     const token=operation;open();
-    try{await storageAvailable();if(token===operation){$('tryonUploadZone').disabled=false;await prune(keyOwner());await renderRoomSessions();const id=readSession(ROOM_KEY);const embedded=Boolean(document.documentElement?.classList?.contains?.('affresco-embed'));if(id&&media&&!embedded){const entry=await media.get('room',id);if(entry&&token===operation)await loadRoom(entry.blob,entry);}}}
+    try{await storageAvailable();if(token===operation){$('tryonUploadZone').disabled=false;await prune(keyOwner());await renderRoomSessions();const id=readSession(ROOM_KEY);const embedded=Boolean(document.documentElement?.classList?.contains?.('affresco-embed'));if(id&&media&&!embedded){const entry=await media.get('room',id);if(entry&&token===operation){const res=await fetch(entry.url,{credentials:'same-origin',cache:'no-store'});if(res.ok)await loadRoom(await res.blob(),entry);}}}}
     catch(_){if(token===operation){showStep('unsupported');$('tryonCompatibilityMessage').textContent='Браузер не разрешает сохранять примерки на этом устройстве. Разрешите хранение данных сайта или попробуйте другой браузер.';$('tryonCompatibilityMessage').hidden=false;}}
   }
   async function loadRoom(file,stored=null){
@@ -453,9 +444,9 @@
       activeRoomId=entry?.id||null;
       room=buffer;crop=loadedCrop;maskMode=false;foregroundStrokes=[];canvas.width=buffer.width;canvas.height=buffer.height;view={zoom:1,panX:0,panY:0};
       wallQuad=core.rectangle({x:canvas.width*.1,y:canvas.height*.12,width:canvas.width*.8,height:canvas.height*.7});
-      placing=false;wallConfirmed=false;layer='wall';selected=true;rebuildPlacement(100);
+      placing=true;wallConfirmed=true;layer='wall';selected=true;rebuildPlacement(100);
       const restored=activeRoomId&&restoreScene(activeRoomId);
-      showStep(restored&&placing?'placement':'setup');feedback('');syncPreset();setLayer(restored&&layer==='fresco'?'fresco':'wall');
+      showStep('placement');feedback('');syncPreset();setLayer(restored&&layer==='fresco'?'fresco':'wall');
       initialSnapshot={...JSON.parse(JSON.stringify(stateSnapshot())),selection:{...selection}};initialCrop=crop;
       rememberScene();void renderRoomSessions();
     }catch(err){if(token===operation)feedback(err?.message==='session_limit'?'В сессии уже три фотографии. Удалите одну из миниатюр, чтобы добавить новую.':'Не удалось открыть фото или сохранить его в браузере.',true);}
@@ -524,20 +515,10 @@
     if(preset){$('tryonWallWidth').value=preset.width;$('tryonWallHeight').value=preset.height;}
     rebuildPlacement();syncPreset();changed();
   });
-  for(const id of ['tryonWallWidth','tryonWallHeight'])$(id).addEventListener('input',()=>{$('tryonPreset').value='custom';wallConfirmed=false;syncPreset();rebuildPlacement();changed();});
-  $('tryonLayerWall').addEventListener('click',()=>{
-    if(busy)return;
-    maskMode=false;
-    if(!wallConfirmed){
-      if(!validWall()||!room||!crop||!wallQuad)return;
-      wallConfirmed=true;
-      if(!placing){rebuildPlacement(100);placing=true;}
-      showStep('placement');setLayer('fresco');changed();canvas.focus();return;
-    }
-    setLayer('wall');
-  });
+  for(const id of ['tryonWallWidth','tryonWallHeight'])$(id).addEventListener('input',()=>{$('tryonPreset').value='custom';syncPreset();rebuildPlacement();changed();});
+  $('tryonLayerWall').addEventListener('click',()=>{if(!busy){maskMode=false;setLayer('wall');}});
   $('tryonLayerFresco').addEventListener('click',()=>{if(!busy){maskMode=false;setLayer('fresco');}});
-  $('tryonBegin').addEventListener('click',()=>{$('tryonLayerWall').click();});
+
   $('tryonScale').addEventListener('input',()=>{if(!room||!quad||!validWall())return;rebuildPlacement(Number($('tryonScale').value));changed();});
   $('tryonZoomIn').addEventListener('click',()=>{if(!busy)zoomAt(1.25);});
   $('tryonZoomOut').addEventListener('click',()=>{if(!busy)zoomAt(.8);});
@@ -675,7 +656,7 @@
     const p=point(event);
     if(drag.kind==='light')lighting=core.makeLight(drag.start,p,$('tryonLightTone').value,canvas.width,canvas.height);
     else{
-      if(layer==='wall'){wallConfirmed=false;wallQuad=drag.index>=0
+      if(layer==='wall'){wallQuad=drag.index>=0
         ?core.freeCorner(wallQuad,drag.index,p,canvas.width,canvas.height)
         :core.freeTranslate(wallQuad,p.x-drag.x,p.y-drag.y,canvas.width,canvas.height);}
       else{
@@ -724,8 +705,8 @@
   $('tryonLightToggle').addEventListener('click',()=>{if(busy||!placing)return;if(maskMode)maskMode=false;const enable=!lightMode;if(enable&&layer!=='fresco')setLayer('fresco');lightMode=enable;if(lightMode)selected=false;drag=null;paint();});
   $('tryonLightTone').addEventListener('change',()=>{if(lighting){lighting={...lighting,tone:$('tryonLightTone').value==='cold'?'cold':'warm'};changed();}else syncLightTools();});
   $('tryonLightCancel').addEventListener('click',()=>{if(busy)return;lighting=null;lightMode=false;drag=null;changed();});
-  $('tryonChangeRoom').addEventListener('click',()=>{if(busy)return;rememberScene();showStep('upload');void renderRoomSessions();});
-  $('tryonBack').addEventListener('click',()=>window.dispatchEvent(new CustomEvent('affresco:open-modal',{detail:'editor'})));
+
+
   function jpeg(){
     const output=document.createElement('canvas');output.width=canvas.width;output.height=canvas.height;
     core.draw(output.getContext('2d',{alpha:false}),room,crop,quad,checkFit(),false,lighting,24,{quad:wallQuad,size:lastWall});
@@ -734,7 +715,7 @@
     if(image.length>=2900000)throw Error('image_export');
     return image;
   }
-  function lock(value){busy=value;for(const id of ['tryonAIGenerate','tryonZoomIn','tryonZoomOut','tryonFitPhoto','tryonFitWall','tryonSave','tryonDownload','tryonEmail','tryonChangeRoom','tryonPreset','tryonWallWidth','tryonWallHeight','tryonScale','tryonBack','tryonHandle','tryonResetPerspective','tryonApply','tryonLightToggle','tryonLightTone','tryonLightCancel','tryonLayerWall','tryonLayerFresco'])$(id).disabled=value;syncLightTools();}
+  function lock(value){busy=value;for(const id of ['tryonAIGenerate','tryonZoomIn','tryonZoomOut','tryonFitPhoto','tryonFitWall','tryonSave','tryonDownload','tryonEmail','tryonPreset','tryonWallWidth','tryonWallHeight','tryonScale','tryonHandle','tryonResetPerspective','tryonApply','tryonLightToggle','tryonLightTone','tryonLightCancel','tryonLayerWall','tryonLayerFresco'])$(id).disabled=value;syncLightTools();}
   async function save(){
     if(busy||!placing||!validWall()||!wallConfirmed||unresolvedOversize)return null;
     await window.affrescoAccount?.ready;
@@ -809,7 +790,7 @@
         button.addEventListener('click',()=>{
           if(record.owner!==keyOwner())return;operation++;selection={...record};saved=record;savedRevision=-1;placing=false;
           $('tryonSavedImage').src=record.image;$('tryonSavedMeta').textContent='Сохранено '+new Date(record.created).toLocaleString('ru-RU');
-          $('tryonBack').hidden=true;showStep('saved');summary();feedback('');open();
+          showStep('saved');summary();feedback('');open();
         });target.append(button);
       }
     }catch(_){if(owner===keyOwner()&&request===historyRequest)target.textContent='История примерок на этом устройстве недоступна.';}
@@ -1068,7 +1049,8 @@
     void renderHistory();
   });
   window.affrescoTryon={start,renderHistory,prepareCombinedExport,removeSavedRecord,
-    rememberScene,wallLimits(){return {...lastWall};},sceneItems(items){sceneCatalog=items||[];},changeFresco(item){return replaceFresco(item);}};
+    rememberScene,goToRoomSelection(){if(room){rememberScene();showStep('upload');void renderRoomSessions();}},
+    wallLimits(){return {...lastWall};},sceneItems(items){sceneCatalog=items||[];},changeFresco(item){return replaceFresco(item);}};
   void window.affrescoAccount?.ready.then(()=>renderHistory());
 })();
 
