@@ -87,3 +87,36 @@ import json,sys
 assert len(json.load(open(sys.argv[1]))['items'])==3
 PY
 echo 'PASS: explicit replacement guest/account, 409 quota, ownership isolation, delete frees quota'
+
+# Temporary one-shot anonymous production probe for PR fix/media-upload-errors-20261029.
+# Uses only a synthetic 100x100 JPEG and a fresh cookie jar, never touches real accounts.
+if [[ "${GITHUB_HEAD_REF:-}" == "fix/media-upload-errors-20261029" ]]; then
+  echo "DIAGNOSTIC: probing anonymous production media upload with synthetic image"
+  probe_cookie="$tmp/probe.cookie"
+  probe_body="$tmp/probe.json"
+  probe_status="$(curl --silent --show-error --max-time 25 -o "$probe_body" -w '%{http_code}' \
+    -c "$probe_cookie" -b "$probe_cookie" \
+    -H 'X-Affresco-Request: 1' -H 'Origin: https://affresco.a2ice.ru' \
+    -F action=upload -F kind=fresco -F name=diagnostic-ci-guest \
+    -F width_cm=120 -F height_cm=120 \
+    -F "image=@$tmp/photo.jpg;type=image/jpeg" \
+    'https://affresco.a2ice.ru/api/media.php?kind=fresco' || true)"
+  echo "DIAGNOSTIC: HTTP $probe_status"
+  head -c 500 "$probe_body" | tr '\n' ' '; echo
+  if [[ "$probe_status" == '201' ]]; then
+    probe_id="$(python3 - "$probe_body" <<'PY'
+import json,sys,re
+try: id=json.load(open(sys.argv[1]))['item']['id']
+except Exception: id=''
+print(id if re.fullmatch(r'[a-f0-9]{32}',str(id)) else '')
+PY
+)"
+    if [[ -n "$probe_id" ]]; then
+      delete_code="$(curl --silent --show-error --max-time 25 -o "$tmp/probe-delete.json" -w '%{http_code}' \
+        -c "$probe_cookie" -b "$probe_cookie" -H 'X-Affresco-Request: 1' -H 'Origin: https://affresco.a2ice.ru' \
+        -F action=delete -F kind=fresco -F "id=$probe_id" \
+        'https://affresco.a2ice.ru/api/media.php?kind=fresco' || true)"
+      echo "DIAGNOSTIC: synthetic media cleanup HTTP $delete_code"
+    fi
+  fi
+fi
