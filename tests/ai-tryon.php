@@ -32,39 +32,35 @@ try{
  $job=['id'=>$id,'context'=>$ctx,'owner'=>'fixture','metadata'=>$meta,'status'=>'pending','created'=>time()-1900];
  ai_check(af_ai_write('fixture',$job),'Atomic private job write');
  ai_check(af_ai_read('fixture',$id)['status']==='pending','Read private job');
- $prompt=af_ai_prompt($meta);
+ $prompt=af_ai_prompt([...$meta,'room_px'=>[1200,900]]);
  foreach([
-    'ORIGINAL ROOM','FRESCO CROP','MANUAL PLACEMENT GUIDE',
-    'NON-NEGOTIABLE SCENE PRESERVATION','An EMPTY ORIGINAL ROOM MUST STAY EMPTY',
-    'Never infer or create foreground furniture','Do NOT perform virtual staging',
-    'Every region OUTSIDE the target fresco footprint',
-    'EXACT WALL ARTWORK GEOMETRY','fresco_width_to_height_cm_ratio',
-    'four original projected corners','AUTOMATIC FOREGROUND OCCLUSION',
-    'ORIGINAL ROOM FIRST','MANUAL PLACEMENT GUIDE AS AN UNMASKED WALL PROJECTION',
-    'bring back its ORIGINAL pixels',
-    'WITHOUT A BREAK','Do not let the fresco erase the upper part',
-    'KEEP THE ORIGINAL OBJECT IN FRONT',
-    'no manual mask is required',
-    'OPTIONAL USER FOREGROUND MARKS',
-    'THE ALPHA EDIT MASK ON ORIGINAL ROOM',
-    'ONLY ONE MURAL','source artwork must fill exactly',
-    'transparent ghost','translucent filler wedge',
-    'TEXTURE COORDINATES','no distinct axis-aligned rectangular perimeter',
-    'without a second faint upright rectangle',
-    'ARCHITECTURAL INTERRUPTIONS',
-    'LIGHT AND REFLECTIONS','do not invent a table or polished surface',
-    'FINAL CHECK BEFORE OUTPUT','no extra furniture',
-    'INVENTORY BEFORE EDITING','DELETION IS STRICTLY FORBIDDEN',
-    'existing bed, bedding, rug, carpet',
-    'OUTSIDE the target fresco footprint must be IDENTICAL',
-    'server independently enforces this boundary'
+    'EDIT IMAGE 1','ORIGINAL ROOM','FRESCO ART','MANUAL PLACEMENT PREVIEW',
+    'flat overlay, NOT a depth-correct image','Do NOT copy its occlusion mistakes',
+    'REAL-WORLD DEPTH','IN FRONT of the artwork',
+    'object crossing the fresco border must remain complete',
+    'original photographed object rather than cover it',
+    'do not generate, redesign or refurnish',
+    'EXACT PLACEMENT','ONE copy','fresco_quad_normalized',
+    'opaque areas and optional user-protected foreground strokes',
+    'thin matte wall covering','SAME room'
  ] as $fragment)
-    ai_check(str_contains(strtolower($prompt),strtolower($fragment)),'Missing preservation contract: '.$fragment);
- ai_check(str_contains($prompt,'"fresco_width_to_height_cm_ratio":1.5'),'Physical mural aspect ratio transmitted');
- ai_check(str_contains($prompt,'"fresco_quad_normalized":[[0.2,0.2],[0.6,0.2],[0.6,0.6],[0.2,0.6]]'),'Unchanged manual projected quadrilateral transmitted');
- $regression=strtolower($prompt);
- ai_check(!str_contains($regression,'failure case to avoid — sofa example'),'Obsolete sofa examples must not prime furniture hallucinations');
- ai_check(!str_contains($regression,'300 × 215 cm fresco'),'No fictional example dimensions should be included');
+     ai_check(str_contains(strtolower($prompt),strtolower($fragment)),'Missing scene-preservation rule: '.$fragment);
+ ai_check(strlen($prompt)<6500,'Canonical prompt stays concise and prioritized');
+ ai_check(str_contains($prompt,'"room_image_px":[1200,900]'),'Photo dimensions passed in prompt');
+ ai_check(str_contains($prompt,'"wall_cm":[500,275]'),'Wall dimensions passed in prompt');
+ ai_check(str_contains($prompt,'"fresco_cm":[180,120]'),'Fresco dimensions passed in prompt');
+ ai_check(str_contains($prompt,'"fresco_width_to_height_cm_ratio":1.5'),'Physical aspect ratio passed');
+ ai_check(str_contains($prompt,'"wall_quad_normalized":[[0,0],[1,0],[1,1],[0,1]]'),'Wall perspective passed');
+ ai_check(str_contains($prompt,'"fresco_quad_normalized":[[0.2,0.2],[0.6,0.2],[0.6,0.6],[0.2,0.6]]'),'Fresco perspective passed');
+ ai_check(str_contains($prompt,'"lighting":{"tone":"warm","from":[0.1,0.3],"to":[0.8,0.5]}'),'Lighting direction and tone passed');
+ ai_check(str_contains(af_ai_prompt([...$meta,'lighting'=>null]),'"lighting":null'),'Unset lighting stays optional');
+ ai_check(!str_contains(strtolower($prompt),'existing bed, bedding, rug, carpet'),'No furniture examples that can prime hallucinations');
+ // Verify the runner forwards all three images, mask, and the complete prompt
+ // rather than dropping physical metadata before the OpenAI call.
+ $runner=(string)file_get_contents(dirname(__DIR__).'/.github/workflows/openai-room-tryon.yml');
+ foreach(['image[]=@reference-0.jpg','image[]=@reference-1.jpg','image[]=@reference-2.jpg',
+          'mask=@edit-mask.png','--form-string "prompt=$prompt"'] as $fragment)
+     ai_check(str_contains($runner,$fragment),'OpenAI request missing: '.$fragment);
  // Actual ORIGINAL ROOM dimensions, not a rigid 3:2 output, control OpenAI size.
  ai_check(af_ai_output_size(['room_px'=>[1200,900]])==='1280x960','4:3 room stays 4:3');
  ai_check(af_ai_output_size(['room_px'=>[900,1200]])==='960x1280','Portrait 3:4 room stays 3:4');
