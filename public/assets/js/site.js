@@ -82,7 +82,7 @@
   const media=window.affrescoMediaLibrary;
   let ownFrescoes=[];
   const ownImageUrls=new Map();
-  let cropConstraint=null;
+  let cropConstraint=null,ownUploadConstraint=null;
   let emailSendBusy = false;
   let emailSendRequest = 0;
   let preparedEmailCrop = null;
@@ -1631,7 +1631,7 @@
     if(!validateCropWallFit())return;
     try{
       const selection={image:cropEmailJpeg(),sku:currentItem.sku,width_cm:state.width,height_cm:state.height};
-      saveDraft();cropConstraint=null;
+      saveDraft();cropConstraint=null;ownUploadConstraint=null;
       window.affrescoTryon.start(selection);
     }catch(_){showFeedback('Не удалось подготовить кадр для примерки. Попробуйте снова.',true);}
   });
@@ -1686,16 +1686,18 @@
       $('ownFrescoFile').value='';
       await refreshOwnFrescoes();
       const own=ownFrescoes.find(x=>x.sku===item.sku);
-      if(own)openEditor(own,$('ownFrescoAdd'));
+      if(own){openEditor(own,$('ownFrescoAdd'));if(ownUploadConstraint){cropConstraint=ownUploadConstraint;validateCropWallFit();}}
     }catch(e){
       error.textContent=e.message==='session_limit'?'Можно сохранить до 12 собственных фресок в текущей сессии.':'Не удалось сохранить изображение в браузере.';
       error.hidden=false;
     }
   }
   $('ownFrescoAdd').addEventListener('click',()=>{void addOwnFresco();});
-  window.addEventListener('affresco:open-own-fresco',()=>{
+  window.addEventListener('affresco:open-own-fresco',event=>{
+    ownUploadConstraint=event.detail==='tryon'?window.affrescoTryon?.wallLimits?.()||null:null;
     const item=currentItem||items[0];
     if(item)openEditor(item);
+    if(ownUploadConstraint){cropConstraint=ownUploadConstraint;validateCropWallFit();}
     $('ownFrescoFile').focus();
   });
   window.addEventListener('affresco:tryon-crop-item',event=>{
