@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches: [main, feat/session-tryon-ux-on-current-main-20261029]
   workflow_dispatch:
     inputs:
       dry_run:
