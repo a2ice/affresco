@@ -142,6 +142,7 @@
   const ROOM_KEY='affresco:last-room';
   let activeRoomId=null,wallConfirmed=false,sceneMode=null,initialSnapshot=null,initialCrop=null;
   let sceneCatalog=[],ownFrescoItems=[],changeSnapshot=null;
+  const ownSceneUrls=new Map();
   let pickerVisible=false,maskDockOpen=false,unresolvedOversize=false;
   const readSession=(key)=>{try{return sessionStorage.getItem(key);}catch(_){return null;}};
   const setSession=(key,value)=>{try{sessionStorage.setItem(key,value);}catch(_){}};
@@ -240,13 +241,14 @@
     const target=$('tryonSceneResults');target.replaceChildren();
     let own=[];
     if(media)try{
-      own=(await media.all('fresco')).map(item=>({
-        ...item,image:URL.createObjectURL(item.blob),isOwn:true
-      }));
+      own=(await media.all('fresco')).map(item=>{
+        if(!ownSceneUrls.has(item.id))ownSceneUrls.set(item.id,URL.createObjectURL(item.blob));
+        return {...item,image:ownSceneUrls.get(item.id),isOwn:true};
+      });
     }catch(_){}
     ownFrescoItems=own;
     const query=$('tryonSceneSearch').value.trim().toLocaleLowerCase('ru');
-    const items=[...own,...sceneCatalog].filter(item=>
+    const items=[...own,...sceneCatalog.filter(x=>!x.isOwn)].filter(item=>
       !query||String(item.sku).toLocaleLowerCase('ru').includes(query)||
       String(item.name||'').toLocaleLowerCase('ru').includes(query)).slice(0,70);
     for(const item of items){
@@ -264,7 +266,20 @@
           window.dispatchEvent(new CustomEvent('affresco:tryon-crop-item',{detail:{...item}}));return;
         }
         await replaceFresco(item);
-      });target.append(button);
+      });
+      if(item.isOwn){
+        const row=document.createElement('div');row.className='tryon-personal-row';
+        const remove=document.createElement('button');remove.type='button';
+        remove.textContent='×';remove.title='Удалить свою фреску';remove.setAttribute('aria-label','Удалить '+item.sku);
+        remove.addEventListener('click',async()=>{
+          if(!media)return;
+          await media.remove('fresco',item.id);
+          const url=ownSceneUrls.get(item.id);if(url)URL.revokeObjectURL(url);ownSceneUrls.delete(item.id);
+          await renderScenePicker();
+          window.dispatchEvent(new CustomEvent('affresco:own-fresco-changed'));
+        });
+        row.append(button,remove);target.append(row);
+      }else target.append(button);
     }
     if(!items.length)target.textContent='Фрески не найдены.';
   }
