@@ -14,7 +14,17 @@ $owner=$account?'account:'.(string)$account['id']:'guest:'.session_id();
 $root=dirname(af_account_state_file('media-storage')).'/.affresco-user-media';
 $folder=$root.'/'.hash('sha256',$owner);
 function af_media_items(?array $account,string $kind):array {
-    $items=$account!==null?($account['media_assets']??[]):($_SESSION['affresco_media_assets']??[]);
+    if($account===null){
+        $items=$_SESSION['affresco_media_assets']??[];
+    }else{
+        // Account profile JSON is an identity source and may be intentionally read-only on hosting.
+        // Media metadata belongs to the already writable per-account private state store.
+        $state=af_state((string)$account['id']);
+        if($state===null)af_response(503,['error'=>'storage_unavailable']);
+        $items=array_key_exists('media_assets',$state)
+            ?$state['media_assets']
+            :($account['media_assets']??[]); // lazy migration from older releases
+    }
     if (!is_array($items))return [];
     return array_values(array_filter($items,static fn($e)=>is_array($e)&&($e['kind']??null)===$kind));
 }
@@ -27,41 +37,27 @@ function af_media_meta(array $row):array {
     ];
 }
 function af_media_update(?array $account,callable $callback):?array {
-    if ($account===null) {
+    if($account===null){
         $rows=is_array($_SESSION['affresco_media_assets']??null)?$_SESSION['affresco_media_assets']:[];
         $next=$callback($rows);
         if(!is_array($next))return null;
         $_SESSION['affresco_media_assets']=$next;
         return $next;
     }
-    $path=af_accounts_path();
-    $h=@fopen($path,'c+');
-    if(!$h||!flock($h,LOCK_EX)){if(is_resource($h))fclose($h);return null;}
-    try {
-        rewind($h);$raw=stream_get_contents($h);
-        if(!is_string($raw)||strlen($raw)>1048576)return null;
-        $parsed=json_decode($raw,true);
-        if(!is_array($parsed))return null;
-        $wrapped=isset($parsed['accounts'])&&is_array($parsed['accounts']);
-        $list=$wrapped?$parsed['accounts']:$parsed;
-        if(!is_array($list))return null;
-        $updated=null;
-        foreach($list as &$row){
-            if(!is_array($row)||(string)($row['id']??'')!==(string)$account['id'])continue;
-            $before=is_array($row['media_assets']??null)?$row['media_assets']:[];
-            $updated=$callback($before);
-            if(!is_array($updated))return null;
-            $row['media_assets']=$updated;
-            break;
-        }
-        unset($row);
-        if($updated===null)return null;
-        $out=json_encode($wrapped?array_replace($parsed,['accounts'=>$list]):$list,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_PRETTY_PRINT);
-        if(!is_string($out)||strlen($out)>1048576)return null;
-        rewind($h);
-        if(!ftruncate($h,0)||fwrite($h,$out."\n")!==strlen($out)+1||!fflush($h))return null;
-        return $updated;
-    } finally {flock($h,LOCK_UN);fclose($h);}
+    $updated=null;
+    $state=af_state((string)$account['id'],static function(array $state)use($account,$callback,&$updated):?array {
+        // Import legacy records only once. An explicitly empty list must not resurrect
+        // previously deleted legacy images on the next request.
+        $before=array_key_exists('media_assets',$state)
+            ?$state['media_assets']
+            :($account['media_assets']??[]);
+        if(!is_array($before))$before=[];
+        $updated=$callback($before);
+        if(!is_array($updated))return null;
+        $state['media_assets']=array_values($updated);
+        return $state;
+    });
+    return $state===null?null:$updated;
 }
 function af_media_safe_file(string $folder,string $id):string{
     return $folder.'/'.$id.'.jpg';

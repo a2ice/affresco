@@ -456,10 +456,15 @@
       showStep('placement');feedback('');syncPreset();setLayer(restored&&layer==='fresco'?'fresco':'wall');
       initialSnapshot={...JSON.parse(JSON.stringify(stateSnapshot())),selection:{...selection}};initialCrop=crop;
       rememberScene();void renderRoomSessions();
-    }catch(err){if(token===operation)feedback(
-      err?.message==='media_limit_reached'?'Лимит фотографий исчерпан. Выберите «Заменить» под нужной комнатой.':
-      err?.message==='replace_target_not_found'?'Комната уже удалена. Обновите список и попробуйте снова.':
-      'Не удалось открыть фото или сохранить его в браузере.',true);}
+    }catch(err){if(token===operation)feedback(({
+      media_limit_reached:'Лимит фотографий исчерпан. Выберите «Заменить» под нужной комнатой.',
+      replace_target_not_found:'Комната уже удалена. Обновите список и попробуйте снова.',
+      image_too_large:'Файл превышает допустимый размер сервера (12 МБ).',
+      invalid_image:'Сервер не смог прочитать изображение.',
+      invalid_action:'Сервер не принял запрос. Попробуйте файл меньшего размера.',
+      storage_unavailable:'Хранилище изображений временно недоступно. Повторите позже.',
+      server_unavailable:'Сервер временно недоступен. Повторите позже.'
+    })[err?.message]||'Не удалось открыть или сохранить фото комнаты. Повторите попытку.',true);}
     finally{if(url)URL.revokeObjectURL(url);$('tryonRoomFile').value='';}
   }
   $('tryonRoomFile').addEventListener('change',()=>{const target=roomReplaceId;roomReplaceId=null;void loadRoom($('tryonRoomFile').files?.[0],null,target);});
