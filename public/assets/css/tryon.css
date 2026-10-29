@@ -225,3 +225,14 @@
 #tryonModal .tryon-restore-dialog>div>div{display:flex;justify-content:flex-end;gap:8px}
 #tryonModal .tryon-restore-dialog button{padding:10px 18px;min-height:44px;border:1px solid #ab9d8e;background:#fff}
 @media(max-width:640px){.tryon-room-sessions{gap:5px}.tryon-room-card img{height:65px}.tryon-foreground-hint{display:none}.affresco-step-nav{bottom:20px}}
+
+#tryonModal #tryonPreset{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+#tryonModal .tryon-preset-dropdown{position:relative;width:100%;font-family:Manrope,sans-serif}
+#tryonModal #tryonPresetButton{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;min-height:44px;border:1px solid #c5b8ab;background:#fcfaf6;padding:9px 13px;font-size:13px;text-align:left;color:#4a4037}
+#tryonModal #tryonPresetButton span{margin-left:auto;padding-right:8px}
+#tryonModal #tryonPresetList:not([hidden]){display:block;position:absolute;z-index:20;top:100%;left:0;right:0;max-height:230px;overflow:auto;margin:0;padding:3px;list-style:none;border:1px solid #c3b7a7;background:#fcfaf6;box-shadow:0 5px 20px #0002}
+#tryonModal #tryonPresetList li{font:500 12px/1.5 Manrope,sans-serif;padding:12px;cursor:pointer;min-height:44px;color:#4a4037}
+#tryonModal #tryonPresetList li:hover,#tryonModal #tryonPresetList li:focus-visible,#tryonModal #tryonPresetList li[aria-selected=true]{background:#eee7de;outline:none}
+#tryonModal #tryonPresetList[hidden]{display:none}
+.crop-viewport.is-invalid-size{outline:2px solid #b53631;outline-offset:2px}
+.crop-viewport.is-invalid-size .crop-dim-layer{background:rgba(72,25,18,.18)}
