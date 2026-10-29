@@ -248,12 +248,18 @@
       const button=document.createElement('button');button.type='button';button.className='tryon-scene-row';
       const img=document.createElement('img');img.src=item.image;img.alt='';
       const fullName=String(item.name||'Фреска');
-      const shortName=Array.from(fullName).length>15?Array.from(fullName).slice(0,15).join('')+'…':fullName;
-      const text=document.createElement('span');text.className='tryon-scene-row-label';
-      text.textContent=shortName+(item.isOwn?'':' · '+String(item.sku));
-      text.title=fullName;
-      button.title=fullName+(item.isOwn?'':' · Арт. '+String(item.sku));
-      button.append(img,text);
+      const fullSku=String(item.sku||'—');
+      const shortened=(value,limit)=>Array.from(value).length>limit
+        ?Array.from(value).slice(0,limit).join('')+'…':value;
+      const details=document.createElement('span');details.className='tryon-scene-row-details';
+      const name=document.createElement('span');name.className='tryon-scene-row-name';
+      name.textContent=shortened(fullName,28);name.title=fullName;
+      const sku=document.createElement('span');sku.className='tryon-scene-row-sku';
+      sku.textContent='Арт. '+shortened(fullSku,20);sku.title='Артикул: '+fullSku;
+      details.append(name,sku);
+      button.title=fullName+' · Арт. '+fullSku;
+      button.setAttribute('aria-label',fullName+', артикул '+fullSku);
+      button.append(img,details);
       button.addEventListener('click',async()=>{
         if(Number(item.width_cm)>lastWall.width||Number(item.height_cm)>lastWall.height){
           button.classList.add('is-too-large');
