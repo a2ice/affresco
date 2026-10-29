@@ -20,9 +20,9 @@ PY
 status="$(curl -sS -o /dev/null -w '%{http_code}' -X POST -F action=upload -F kind=room -F "image=@$tmp/photo.jpg;type=image/jpeg" "$base/media.php?kind=room")"
 test "$status" = 403
 upload(){
- local kind="$1" cookie="$2" name="$3"
+ local kind="$1" cookie="$2" name="$3" replace_id="${4:-}"
  curl -fsS -c "$cookie" -b "$cookie" -H 'X-Affresco-Request: 1' \
- -F action=upload -F kind="$kind" -F "name=$name" \
+ -F action=upload -F kind="$kind" -F "name=$name" -F "replace_id=$replace_id" \
  -F width_cm=200 -F height_cm=150 \
  -F "image=@$tmp/photo.jpg;type=image/jpeg" "$base/media.php?kind=$kind"
 }
@@ -30,7 +30,9 @@ upload room "$cookie1" "First room" >"$tmp/first.json"
 id1="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["item"]["id"])' "$tmp/first.json")"
 test "$(curl -sS -o /dev/null -w '%{http_code}' -c "$cookie2" -b "$cookie2" "$base/media.php?kind=room&id=$id1")" = 404
 test "$(curl -sS -o /dev/null -w '%{http_code}' -c "$cookie1" -b "$cookie1" "$base/media.php?kind=room&id=$id1")" = 200
-upload room "$cookie1" "Replacement room" >"$tmp/replacement.json"
+test "$(curl -sS -o /dev/null -w '%{http_code}' -b "$cookie1" -c "$cookie1" -H 'X-Affresco-Request: 1' -F action=upload -F kind=room -F "image=@$tmp/photo.jpg;type=image/jpeg" "$base/media.php?kind=room")" = 409
+test "$(curl -sS -o /dev/null -w '%{http_code}' -b "$cookie1" "$base/media.php?kind=room&id=$id1")" = 200
+upload room "$cookie1" "Replacement room" "$id1" >"$tmp/replacement.json"
 test "$(curl -sS -o /dev/null -w '%{http_code}' -b "$cookie1" "$base/media.php?kind=room&id=$id1")" = 404
 curl -fsS -b "$cookie1" "$base/media.php?kind=room" >"$tmp/guest-list.json"
 python3 - "$tmp/guest-list.json" <<'PY'
@@ -39,7 +41,10 @@ data=json.load(open(sys.argv[1]));assert len(data['items'])==1
 assert data['items'][0]['name']=='Replacement room'
 PY
 upload fresco "$cookie1" "My fresco" >"$tmp/guest-fresco.json"
-upload fresco "$cookie1" "Another fresco" >"$tmp/guest-fresco2.json"
+guest_fresco_id="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["item"]["id"])' "$tmp/guest-fresco.json")"
+test "$(curl -sS -o /dev/null -w '%{http_code}' -b "$cookie1" -c "$cookie1" -H 'X-Affresco-Request: 1' -F action=upload -F kind=fresco -F width_cm=200 -F height_cm=150 -F "image=@$tmp/photo.jpg;type=image/jpeg" "$base/media.php?kind=fresco")" = 409
+upload fresco "$cookie1" "Another fresco" "$guest_fresco_id" >"$tmp/guest-fresco2.json"
+test "$(curl -sS -o /dev/null -w '%{http_code}' -b "$cookie1" "$base/media.php?kind=fresco&id=$guest_fresco_id")" = 404
 curl -fsS -b "$cookie1" "$base/media.php?kind=fresco" >"$tmp/guest-fresco-list.json"
 python3 - "$tmp/guest-fresco-list.json" <<'PY'
 import json,sys
@@ -58,10 +63,27 @@ for n in 1 2 3; do upload fresco "$account" "Registered $n" >"$tmp/account-$n.js
 test "$(curl -sS -o /dev/null -w '%{http_code}' -c "$account" -b "$account" \
  -H 'X-Affresco-Request: 1' -F action=upload -F kind=fresco -F name=Fourth \
  -F width_cm=200 -F height_cm=150 -F "image=@$tmp/photo.jpg;type=image/jpeg" "$base/media.php?kind=fresco")" = 409
+account_first_id="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["item"]["id"])' "$tmp/account-1.json")"
+test "$(curl -sS -o /dev/null -w '%{http_code}' -b "$account" -c "$account" -H 'X-Affresco-Request: 1' -F action=upload -F kind=fresco -F replace_id="$guest_fresco_id" -F width_cm=200 -F height_cm=150 -F "image=@$tmp/photo.jpg;type=image/jpeg" "$base/media.php?kind=fresco")" = 409
+test "$(curl -sS -o /dev/null -w '%{http_code}' -b "$account" "$base/media.php?kind=fresco&id=$account_first_id")" = 200
+upload fresco "$account" "Registered replaced" "$account_first_id" >"$tmp/account-replaced.json"
+test "$(curl -sS -o /dev/null -w '%{http_code}' -b "$account" "$base/media.php?kind=fresco&id=$account_first_id")" = 404
 php -r '$a=json_decode(file_get_contents("data/accounts.json"),true);$rows=$a[0]["media_assets"]??[];if(count($rows)!==3)exit(1);'
 curl -fsS -b "$account" "$base/media.php?kind=fresco" >"$tmp/account-fresco-list.json"
 python3 - "$tmp/account-fresco-list.json" <<'PY'
 import json,sys
 assert len(json.load(open(sys.argv[1]))['items'])==3
 PY
-echo 'PASS: PHP media endpoint guest replace, account 3/4 limit, private GET, owner isolation, accounts.json metadata'
+replacement_id="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["item"]["id"])' "$tmp/account-replaced.json")"
+curl -fsS -b "$account" -c "$account" -H 'X-Affresco-Request: 1' -F action=delete -F kind=fresco -F id="$replacement_id" "$base/media.php?kind=fresco" >"$tmp/deleted.json"
+python3 - "$tmp/deleted.json" <<'PY'
+import json,sys
+assert json.load(open(sys.argv[1]))['deleted'] is True
+PY
+upload fresco "$account" "Space freed" >"$tmp/account-new.json"
+curl -fsS -b "$account" "$base/media.php?kind=fresco" >"$tmp/account-after-delete.json"
+python3 - "$tmp/account-after-delete.json" <<'PY'
+import json,sys
+assert len(json.load(open(sys.argv[1]))['items'])==3
+PY
+echo 'PASS: explicit replacement guest/account, 409 quota, ownership isolation, delete frees quota'
