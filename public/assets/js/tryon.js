@@ -247,7 +247,12 @@
     for(const item of items){
       const button=document.createElement('button');button.type='button';button.className='tryon-scene-row';
       const img=document.createElement('img');img.src=item.image;img.alt='';
-      const text=document.createElement('span');text.textContent=(item.name||'Фреска')+' · '+item.sku;
+      const fullName=String(item.name||'Фреска');
+      const shortName=Array.from(fullName).length>15?Array.from(fullName).slice(0,15).join('')+'…':fullName;
+      const text=document.createElement('span');text.className='tryon-scene-row-label';
+      text.textContent=shortName+(item.isOwn?'':' · '+String(item.sku));
+      text.title=fullName;
+      button.title=fullName+(item.isOwn?'':' · Арт. '+String(item.sku));
       button.append(img,text);
       button.addEventListener('click',async()=>{
         if(Number(item.width_cm)>lastWall.width||Number(item.height_cm)>lastWall.height){
@@ -260,18 +265,8 @@
         }
         await replaceFresco(item);
       });
-      if(item.isOwn){
-        const row=document.createElement('div');row.className='tryon-personal-row';
-        const remove=document.createElement('button');remove.type='button';
-        remove.textContent='×';remove.title='Удалить свою фреску';remove.setAttribute('aria-label','Удалить '+item.sku);
-        remove.addEventListener('click',async()=>{
-          if(!media)return;
-          await media.remove('fresco',item.id);
-          await renderScenePicker();
-          window.dispatchEvent(new CustomEvent('affresco:own-fresco-changed'));
-        });
-        row.append(button,remove);target.append(row);
-      }else target.append(button);
+      // Management and deletion of personal files belong exclusively to the account panel.
+      target.append(button);
     }
     if(!items.length)target.textContent='Фрески не найдены.';
   }
@@ -282,8 +277,9 @@
     if(!visible||!room)return;
     const pts=core.controlPoints(quad,scene().scale,scene().x,scene().y);
     const maxX=Math.max(...pts.map(p=>p.x)),minY=Math.min(...pts.map(p=>p.y));
-    buttons.style.left=Math.min((stage.clientWidth||scene().bounds.width)-6,Math.max(90,maxX))+'px';
-    buttons.style.top=Math.max(10,minY)+'px';
+    buttons.style.left=Math.min((stage.clientWidth||scene().bounds.width)-10,Math.max(72,maxX))+'px';
+    // Place compact tools above the projected fresco, not on top of its image.
+    buttons.style.top=Math.max(42,minY-8)+'px';
   }
   function showRestoreDialog(){
     $('tryonRestoreDialog').hidden=false;
