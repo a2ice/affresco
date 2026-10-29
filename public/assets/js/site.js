@@ -251,6 +251,8 @@
   try{navCollapsed=sessionStorage.getItem('affresco:step-nav-collapsed')==='1';}catch(_){}
   function updateStepNav(){
     stepNav.hidden=![modalPicker,modalEditor,modalTryon].includes(openDialog);
+    document.body.classList.toggle('has-ux-step-nav',!stepNav.hidden);
+    document.body.classList.toggle('ux-step-nav-collapsed',navCollapsed);
     stepNav.classList.toggle('is-collapsed',navCollapsed);
     stepCollapse.setAttribute('aria-expanded',String(!navCollapsed));
     stepCollapse.setAttribute('aria-label',navCollapsed?'Развернуть навигацию':'Свернуть навигацию');
