@@ -10,7 +10,7 @@ AI-результат иногда помещает фреску **перед н
 
 | Источник | Браузер → сервер | Сервер → подписанный manifest → GitHub runner → OpenAI |
 | --- | --- | --- |
-| Чистая фотография комнаты | `room` JPEG: `aiToBlob(room)` | `references[0]` → `reference-0.jpg` → `image[]` № 1 |
+| Чистая фотография комнаты | `room` JPEG: `aiToBlob(room)` из canvas, сохраняющего композицию исходного фото (длинная сторона ограничена 1800 px) | `references[0]` → `reference-0.jpg` → `image[]` № 1 |
 | Выбранный **кроп** изображения фрески | `fresco` JPEG из `crop` | `references[1]` → `reference-1.jpg` → `image[]` № 2 |
 | Ручная примерка на комнате | `guide` JPEG из `core.draw(room,crop,quad,...)` | `references[2]` → `reference-2.jpg` → `image[]` № 3 |
 | Размеры стены, фрески | `metadata.wall_cm`, `metadata.fresco_cm` в см | `af_ai_prompt` включает их как JSON в **тексте prompt**, не отдельными API-полями |
@@ -21,7 +21,7 @@ AI-результат иногда помещает фреску **перед н
 
 Файлы трассировки: `public/assets/js/tryon.js:aiInputs`, `public/api/ai-tryon.php` (POST, signed manifest), `public/api/_ai_tryon.php:af_ai_prompt`, `.github/workflows/openai-room-tryon.yml`, `.github/scripts/protect-original-room.py`.
 
-OpenAI получает три изображения и PNG-маску запросом `POST /v1/images/edits` (`gpt-image-2`, `quality=medium`). Размер ответа подбирается по фактическому соотношению сторон фото комнаты. Это трассировка **на уровне исходного кода и тестового мока**: реальный сетевой запрос на production и поведение модели не измерялись.
+Исходная картинка фрески берётся из текущего выбранного кропа и при необходимости уменьшается до 1600 px; это не обязательная передача полного оригинального файла из каталога. Изображения передаются с JPEG-компрессией (quality 0.86), а не исходными байтами пользователя.\n\nOpenAI получает три изображения и PNG-маску запросом `POST /v1/images/edits` (`gpt-image-2`, `quality=medium`). Размер ответа подбирается по фактическому соотношению сторон фото комнаты. Это трассировка **на уровне исходного кода и тестового мока**: реальный сетевой запрос на production и поведение модели не измерялись.
 
 ## Изменения
 
