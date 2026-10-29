@@ -1,0 +1,32 @@
+/* Opt-in, iframe-only view for the A2ICE portfolio. The regular site is unchanged. */
+html.affresco-embed,
+.affresco-embed body { height: 100%; min-height: 100%; background: #f8f6f2; overflow: hidden; }
+.affresco-embed .site-header,
+.affresco-embed main,
+.affresco-embed .site-footer,
+.affresco-embed .mobile-nav,
+.affresco-embed #tryonGlobalNotice { display: none !important; }
+.affresco-embed #tryonModal { inset: 0; padding: 0; background: #f8f6f2; }
+.affresco-embed #tryonModal .tryon-panel {
+  width: 100%;
+  max-width: none;
+  max-height: 100dvh;
+  height: 100dvh;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: #f8f6f2;
+}
+.affresco-embed #tryonModal .tryon-scroll { padding-top: clamp(26px, 4vw, 48px); }
+.affresco-embed #tryonModal .modal-close,
+.affresco-embed #tryonBack { display: none !important; }
+.affresco-embed #tryonModal h2 { padding-right: 0; }
+.affresco-embed #tryonUploadZone:focus-visible { outline: 2px solid #8c6550; outline-offset: 3px; }
+/* Keep account, login and email dialogs working when invoked from the demo. */
+.affresco-embed #accountModal:not([hidden]),
+.affresco-embed #emailModal:not([hidden]),
+.affresco-embed #emailSuccessModal:not([hidden]) { z-index: 1200; }
+@media (max-width: 640px) {
+  .affresco-embed #tryonModal .tryon-panel { height: 100dvh; max-height: 100dvh; }
+  .affresco-embed #tryonModal .tryon-scroll { padding: 28px 16px 16px; }
+}
