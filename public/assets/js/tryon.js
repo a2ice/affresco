@@ -412,7 +412,7 @@
     view={zoom:1,panX:0,panY:0};pointers.clear();pinch=null;stage.classList.remove('is-panning');wallQuad=null;placed=null;layer='wall';lastWall={width:500,height:275};$('tryonLayerWall').setAttribute('aria-pressed','true');$('tryonLayerFresco').setAttribute('aria-pressed','false');selected=true;lightMode=false;lighting=null;syncLightTools();room=null;quad=null;placing=false;drag=null;saved=null;revision++;savedRevision=-1;$('tryonRoomFile').value='';showStep('upload');feedback('');}
   async function start(value){
     operation++;selection={...value};crop=null;resetRoom();summary();
-    $('tryonPreset').value='standard';syncPreset();$('tryonWallWidth').value=500;$('tryonWallHeight').value=275;$('tryonBack').hidden=false;
+    $('tryonPreset').value='standard';syncPreset();$('tryonWallWidth').value=500;$('tryonWallHeight').value=275;
     $('tryonScaleValue').textContent='100%';$('tryonHandle').value='layer';
     $('tryonStorageNote').textContent=storageNote();$('tryonStorageNote').hidden=!$('tryonStorageNote').textContent;
     $('tryonCompatibilityMessage').hidden=true;
