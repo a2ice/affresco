@@ -75,7 +75,8 @@
     ctx.restore();
   }
   function syncProtectTools(){
-    $('tryonForegroundTools').hidden=!placing;
+    $('tryonForegroundTools').hidden=!placing||!maskDockOpen;
+    $('tryonMaskDock').hidden=!placing;
     $('tryonProtectToggle').setAttribute('aria-pressed',String(maskMode));
     $('tryonProtectToggle').textContent=maskMode?'Готово':'Защитить предметы';
     $('tryonProtectHint').hidden=!maskMode;
@@ -136,6 +137,182 @@
       tx.oncomplete=()=>{db.close();resolve();};tx.onerror=tx.onabort=()=>{db.close();reject(Error('local_storage'));};
     });
   }
+
+  const media=window.affrescoMediaLibrary;
+  const ROOM_KEY='affresco:last-room';
+  let activeRoomId=null,wallConfirmed=false,sceneMode=null,initialSnapshot=null,initialCrop=null;
+  let sceneCatalog=[],ownFrescoItems=[],changeSnapshot=null;
+  const ownSceneUrls=new Map();
+  let pickerVisible=false,maskDockOpen=false,unresolvedOversize=false;
+  const readSession=(key)=>{try{return sessionStorage.getItem(key);}catch(_){return null;}};
+  const setSession=(key,value)=>{try{sessionStorage.setItem(key,value);}catch(_){}};
+  function stateSnapshot(){
+    return {wallQuad,placed,lastWall,placing,wallConfirmed,lighting,foregroundStrokes,
+      layer,selected,view};
+  }
+  function rememberScene(){
+    if(!activeRoomId||!room)return;
+    setSession('affresco:room-layout:'+activeRoomId,JSON.stringify(stateSnapshot()));
+    setSession(ROOM_KEY,activeRoomId);
+  }
+  function restoreScene(id){
+    const raw=readSession('affresco:room-layout:'+id);
+    if(!raw)return false;
+    try{
+      const data=JSON.parse(raw);
+      if(!Array.isArray(data.wallQuad)||data.wallQuad.length!==4)return false;
+      wallQuad=data.wallQuad;lastWall=data.lastWall||lastWall;
+      $('tryonWallWidth').value=lastWall.width;$('tryonWallHeight').value=lastWall.height;
+      $('tryonPreset').value=Object.keys(core.presets).find(key=>core.presets[key].width===lastWall.width&&core.presets[key].height===lastWall.height)||'custom';
+      wallConfirmed=data.wallConfirmed===true;
+      placing=Boolean(data.placing&&wallConfirmed);
+      placed=placing?core.placement(selection,lastWall,(data.placed?.width||selection.width_cm)/selection.width_cm*100,data.placed):null;
+      quad=placing?core.placementQuad(wallQuad,lastWall,placed):null;
+      lighting=data.lighting||null;foregroundStrokes=Array.isArray(data.foregroundStrokes)?data.foregroundStrokes:[];
+      view=data.view||view;layer=data.layer==='fresco'&&placing?'fresco':'wall';selected=data.selected!==false;
+      return true;
+    }catch(_){return false;}
+  }
+  function syncStepNavigation(){
+    window.dispatchEvent(new CustomEvent('affresco:tryon-step',{detail:{step:placing?'placement':room?'setup':'upload'}}));
+  }
+  async function renderRoomSessions(){
+    const target=$('tryonRoomSessions');
+    if(!target||!media)return;
+    let list;
+    try{list=await media.all('room');}catch(_){target.textContent='Не удалось прочитать сохранённые фото.';return;}
+    target.replaceChildren();
+    for(const entry of list){
+      const box=document.createElement('div');box.className='tryon-room-card';
+      const button=document.createElement('button');button.type='button';button.className='tryon-room-select';
+      const image=document.createElement('img');
+      const url=URL.createObjectURL(entry.blob);image.src=url;image.onload=()=>URL.revokeObjectURL(url);
+      image.alt=entry.name||'Фото комнаты';
+      const name=document.createElement('span');name.textContent=entry.name||'Фото интерьера';
+      button.append(image,name);
+      button.addEventListener('click',()=>{if(!busy)void loadRoom(entry.blob,entry);});
+      const remove=document.createElement('button');remove.type='button';remove.className='tryon-room-delete';remove.textContent='×';
+      remove.setAttribute('aria-label','Удалить '+(entry.name||'фото комнаты'));
+      remove.addEventListener('click',async()=>{if(busy)return;await media.remove('room',entry.id);if(activeRoomId===entry.id){activeRoomId=null;setSession(ROOM_KEY,'');}await renderRoomSessions();});
+      box.append(button,remove);target.append(box);
+    }
+    for(let i=list.length;i<3;i++){
+      const box=document.createElement('div');box.className='tryon-room-card';
+      const button=document.createElement('button');button.className='tryon-room-select';button.type='button';
+      button.innerHTML='<span class="tryon-room-empty" aria-hidden="true">＋</span><span>Добавить фото</span>';
+      button.addEventListener('click',()=>{$('tryonRoomFile').click();});
+      box.append(button);target.append(box);
+    }
+    $('tryonUploadZone').disabled=busy||list.length>=3;
+    $('tryonUploadZone').hidden=list.length>=3;
+  }
+  function setSceneMode(value){
+    sceneMode=value;
+    stage.classList.toggle('is-fresco-picking',value==='picker');
+    stage.classList.toggle('is-fresco-editing',value==='crop');
+    pickerVisible=value==='picker';
+    $('tryonScenePicker').hidden=!pickerVisible;
+  }
+
+  async function replaceFresco(item){
+    if(!item||busy||!placing)return false;
+    const width=Number(item.width_cm),height=Number(item.height_cm);
+    if(!Number.isFinite(width)||!Number.isFinite(height)||width<30||height<30){
+      feedback('Укажите ширину и высоту фрески в сантиметрах.',true);
+      window.dispatchEvent(new CustomEvent('affresco:tryon-crop-item',{detail:{...item}}));return false;
+    }
+    if(width>lastWall.width||height>lastWall.height){
+      unresolvedOversize=true;feedback('Размер фрески больше допустимого.',true);
+      window.dispatchEvent(new CustomEvent('affresco:toast',{detail:'Размер фрески больше допустимого'}));checkFit();
+      window.dispatchEvent(new CustomEvent('affresco:tryon-crop-item',{detail:{...item}}));return false;
+    }
+    try{
+      const image=await imageFrom(item.image);
+      if(!changeSnapshot)changeSnapshot={selection:{...selection},placed:placed?{...placed}:null,crop};
+      const previous=placed?{...placed}:null;
+      selection={image:item.image,sku:String(item.sku),width_cm:width,height_cm:height};
+      crop=image;placed=null;rebuildPlacement(100);
+      if(previous){placed=core.placement(selection,lastWall,100,previous);quad=core.placementQuad(wallQuad,lastWall,placed);}
+      unresolvedOversize=false;setSceneMode(null);summary();changed();
+      window.dispatchEvent(new CustomEvent('affresco:tryon-current-art',{detail:{...item}}));
+      return true;
+    }catch(_){feedback('Не удалось открыть фреску.',true);return false;}
+  }
+  async function renderScenePicker(){
+    const target=$('tryonSceneResults');target.replaceChildren();
+    let own=[];
+    if(media)try{
+      own=(await media.all('fresco')).map(item=>{
+        if(!ownSceneUrls.has(item.id))ownSceneUrls.set(item.id,URL.createObjectURL(item.blob));
+        return {...item,image:ownSceneUrls.get(item.id),isOwn:true};
+      });
+    }catch(_){}
+    ownFrescoItems=own;
+    const query=$('tryonSceneSearch').value.trim().toLocaleLowerCase('ru');
+    const items=[...own,...sceneCatalog.filter(x=>!x.isOwn)].filter(item=>
+      !query||String(item.sku).toLocaleLowerCase('ru').includes(query)||
+      String(item.name||'').toLocaleLowerCase('ru').includes(query)).slice(0,70);
+    for(const item of items){
+      const button=document.createElement('button');button.type='button';button.className='tryon-scene-row';
+      const img=document.createElement('img');img.src=item.image;img.alt='';
+      const text=document.createElement('span');text.textContent=(item.name||'Фреска')+' · '+item.sku;
+      button.append(img,text);
+      button.addEventListener('click',async()=>{
+        if(Number(item.width_cm)>lastWall.width||Number(item.height_cm)>lastWall.height){
+          button.classList.add('is-too-large');
+          feedback('Размер фрески больше допустимого.',true);
+          await new Promise(resolve=>setTimeout(resolve,500));
+          button.classList.remove('is-too-large');
+          unresolvedOversize=true;checkFit();
+          window.dispatchEvent(new CustomEvent('affresco:tryon-crop-item',{detail:{...item}}));return;
+        }
+        await replaceFresco(item);
+      });
+      if(item.isOwn){
+        const row=document.createElement('div');row.className='tryon-personal-row';
+        const remove=document.createElement('button');remove.type='button';
+        remove.textContent='×';remove.title='Удалить свою фреску';remove.setAttribute('aria-label','Удалить '+item.sku);
+        remove.addEventListener('click',async()=>{
+          if(!media)return;
+          await media.remove('fresco',item.id);
+          const url=ownSceneUrls.get(item.id);if(url)URL.revokeObjectURL(url);ownSceneUrls.delete(item.id);
+          await renderScenePicker();
+          window.dispatchEvent(new CustomEvent('affresco:own-fresco-changed'));
+        });
+        row.append(button,remove);target.append(row);
+      }else target.append(button);
+    }
+    if(!items.length)target.textContent='Фрески не найдены.';
+  }
+  function syncSceneButtons(){
+    const visible=placing&&selected&&layer==='fresco'&&!maskMode&&!lightMode&&quad;
+    const buttons=$('tryonSceneFrescoTools');
+    buttons.hidden=!visible;
+    if(!visible||!room)return;
+    const pts=core.controlPoints(quad,scene().scale,scene().x,scene().y);
+    const maxX=Math.max(...pts.map(p=>p.x)),minY=Math.min(...pts.map(p=>p.y));
+    buttons.style.left=Math.min((stage.clientWidth||scene().bounds.width)-6,Math.max(90,maxX))+'px';
+    buttons.style.top=Math.max(10,minY)+'px';
+  }
+  function showRestoreDialog(){
+    $('tryonRestoreDialog').hidden=false;
+    $('tryonRestoreCancel').focus();
+  }
+  function restoreInitial(){
+    if(!initialSnapshot)return;
+    const data=initialSnapshot;
+    if(data.selection){
+      selection={...data.selection};crop=initialCrop||crop;
+      changeSnapshot=null;unresolvedOversize=false;summary();
+    }
+    wallQuad=data.wallQuad.map(p=>({...p}));lastWall={...data.lastWall};wallConfirmed=data.wallConfirmed;
+    placed=data.placed?{...data.placed}:null;placing=data.placing;layer=data.layer;
+    lighting=data.lighting;foregroundStrokes=data.foregroundStrokes||[];selected=true;
+    $('tryonWallWidth').value=lastWall.width;$('tryonWallHeight').value=lastWall.height;
+    rebuildPlacement(placed?placed.width/selection.width_cm*100:100);
+    showStep(placing?'placement':'setup');setLayer(layer);rememberScene();paint();
+  }
+
   function wall(){return {width:core.wallValue($('tryonWallWidth').value),height:core.wallValue($('tryonWallHeight').value)};}
   function validWall(){const w=wall();return Number.isFinite(w.width)&&Number.isFinite(w.height);}
   const cm=value=>Number(value).toLocaleString('ru-RU',{maximumFractionDigits:1})+' см';
@@ -160,13 +337,17 @@
   }
   function checkFit(){
     const invalid=!validWall();
-    $('tryonFit').textContent=invalid?'Укажите ширину и высоту стены от 30 до 5000 см.'
-      :!placing?'Выделите четыре угла стены и подтвердите её размеры.'
-      :'Размещение: '+cm(placed.width)+' × '+cm(placed.height)+'. Максимум — размер исходного кадра и границы стены.';
+    $('tryonFit').textContent=invalid?'Укажите размеры стены от 30 до 5000 см.'
+      :placing&&placed?'Расположение фрески* · Слева: '+cm(placed.x)+'; Снизу: '+cm(Math.max(0,lastWall.height-placed.y-placed.height))
+      :'';
+    $('tryonPlacementInfo').hidden=!placing;
+    $('tryonFit').title='* Относительно выделенной области стены';
+    $('tryonLayerWall').textContent=wallConfirmed?'Стена':'Подтвердить стену';
+    for(const id of ['tryonApply','tryonDownload','tryonEmail'])$(id).disabled=busy||invalid||!wallConfirmed||unresolvedOversize;
     $('tryonFit').classList.toggle('is-warning',invalid);
-    for(const id of ['tryonBegin','tryonSave','tryonDownload','tryonEmail'])$(id).disabled=busy||invalid;
+    for(const id of ['tryonBegin','tryonSave','tryonDownload','tryonEmail'])$(id).disabled=busy||invalid||!wallConfirmed||unresolvedOversize;
     $('tryonProtectToggle').disabled=busy||invalid||!placing;
-    $('tryonAIGenerate').disabled=busy||aiBusy||invalid||!placing;
+    $('tryonAIGenerate').disabled=busy||aiBusy||invalid||!placing||!wallConfirmed||unresolvedOversize;
     $('tryonLayerWall').disabled=busy;$('tryonLayerFresco').disabled=busy||!placing;
     $('tryonScale').disabled=busy||invalid||layer!=='fresco';
     return invalid;
@@ -179,7 +360,7 @@
       ctx.drawImage(room,0,0,canvas.width,canvas.height);
       previewForeground();
     }else core.draw(ctx,room,placing?crop:null,placing?quad:null,false,false,lighting,12,{quad:wallQuad,size:lastWall});
-    layoutScene();renderControls();syncLightTools();syncProtectTools();
+    layoutScene();renderControls();syncLightTools();syncProtectTools();syncSceneButtons();
   }
   function syncLightTools(){
     $('tryonLightToggle').setAttribute('aria-pressed',String(lightMode));
@@ -221,7 +402,7 @@
   }
   window.addEventListener('resize',()=>{if(room)paint();});
   if(typeof ResizeObserver!=='undefined')new ResizeObserver(()=>{if(room)paint();}).observe(stage);
-  function changed(){revision++;saved=null;manualExport=null;deletedManualRevision=null;feedback('');paint();}
+  function changed(){revision++;saved=null;manualExport=null;deletedManualRevision=null;feedback('');paint();rememberScene();}
   function summary(){if(selection){$('tryonSummary').textContent='Арт. '+selection.sku+' · Исходный кадр '+cm(selection.width_cm)+' × '+cm(selection.height_cm);$('tryonCopyFeedback').textContent='';}}
   function showStep(which){
     $('tryonUploadStep').hidden=which!=='upload';$('tryonWorkspace').hidden=!['setup','placement'].includes(which);$('tryonSavedStep').hidden=which!=='saved';
@@ -230,24 +411,26 @@
     $('tryonFooterPlacement').hidden=which!=='placement';$('tryonFooterSaved').hidden=which!=='saved';
     $('tryonChangeRoom').hidden=!['setup','placement'].includes(which);
     if(which!=='placement')$('tryonControls').innerHTML='';
+    syncStepNavigation();
   }
   function resetRoom(){maskMode=false;foregroundStrokes=[];aiRequest++;aiContext=crypto.randomUUID();aiBusy=false;aiLoginPending=false;aiJobs=[];aiLastShown=null;manualExport=null;deletedManualRevision=null;
     if(aiPollTimer)clearTimeout(aiPollTimer);aiPollTimer=null;
     $('tryonAIToast').hidden=true;$('tryonAIResults').hidden=true;
     $('tryonAIGallery').replaceChildren();$('tryonAIError').hidden=true;syncExportLabels();
+    activeRoomId=null;wallConfirmed=false;initialSnapshot=null;unresolvedOversize=false;setSceneMode(null);
     view={zoom:1,panX:0,panY:0};pointers.clear();pinch=null;stage.classList.remove('is-panning');wallQuad=null;placed=null;layer='wall';lastWall={width:500,height:275};$('tryonLayerWall').setAttribute('aria-pressed','true');$('tryonLayerFresco').setAttribute('aria-pressed','false');selected=true;lightMode=false;lighting=null;syncLightTools();room=null;quad=null;placing=false;drag=null;saved=null;revision++;savedRevision=-1;$('tryonRoomFile').value='';showStep('upload');feedback('');}
   async function start(value){
     operation++;selection={...value};crop=null;resetRoom();summary();
-    $('tryonPreset').value='standard';$('tryonWallWidth').value=500;$('tryonWallHeight').value=275;$('tryonBack').hidden=false;
+    $('tryonPreset').value='standard';syncPreset();$('tryonWallWidth').value=500;$('tryonWallHeight').value=275;$('tryonBack').hidden=false;
     $('tryonScaleValue').textContent='100%';$('tryonHandle').value='layer';
     $('tryonStorageNote').textContent=storageNote();$('tryonStorageNote').hidden=!$('tryonStorageNote').textContent;
     $('tryonCompatibilityMessage').hidden=true;
     $('tryonUploadZone').disabled=true;
     const token=operation;open();
-    try{await storageAvailable();if(token===operation){$('tryonUploadZone').disabled=false;await prune(keyOwner());}}
+    try{await storageAvailable();if(token===operation){$('tryonUploadZone').disabled=false;await prune(keyOwner());await renderRoomSessions();const id=readSession(ROOM_KEY);const embedded=Boolean(document.documentElement?.classList?.contains?.('affresco-embed'));if(id&&media&&!embedded){const entry=await media.get('room',id);if(entry&&token===operation)await loadRoom(entry.blob,entry);}}}
     catch(_){if(token===operation){showStep('unsupported');$('tryonCompatibilityMessage').textContent='Браузер не разрешает сохранять примерки на этом устройстве. Разрешите хранение данных сайта или попробуйте другой браузер.';$('tryonCompatibilityMessage').hidden=false;}}
   }
-  async function loadRoom(file){
+  async function loadRoom(file,stored=null){
     if(!file||!selection||busy)return;
     const token=++operation;feedback('Загружаем фото…');
     if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>15*1024*1024){feedback('Выберите JPEG, PNG или WebP размером до 15 МБ.',true);return;}
@@ -261,10 +444,21 @@
       const bctx=buffer.getContext('2d',{alpha:false});bctx.fillStyle='#fff';bctx.fillRect(0,0,buffer.width,buffer.height);bctx.drawImage(source,0,0,buffer.width,buffer.height);
       const loadedCrop=await imageFrom(selection.image);
       if(token!==operation)return;
+      rememberScene();
+      let entry=stored;
+      if(!entry&&media){
+        const blob=await new Promise(resolve=>buffer.toBlob(resolve,'image/jpeg',.86));
+        entry=await media.put('room',blob,{name:file.name||'Фото интерьера'});
+      }
+      activeRoomId=entry?.id||null;
       room=buffer;crop=loadedCrop;maskMode=false;foregroundStrokes=[];canvas.width=buffer.width;canvas.height=buffer.height;view={zoom:1,panX:0,panY:0};
       wallQuad=core.rectangle({x:canvas.width*.1,y:canvas.height*.12,width:canvas.width*.8,height:canvas.height*.7});
-      placing=false;layer='wall';selected=true;rebuildPlacement(100);showStep('setup');feedback('');setLayer('wall');
-    }catch(_){if(token===operation)feedback('Не удалось прочитать фото. Выберите изображение от 100 × 100 пикселей, до 60 мегапикселей.',true);}
+      placing=false;wallConfirmed=false;layer='wall';selected=true;rebuildPlacement(100);
+      const restored=activeRoomId&&restoreScene(activeRoomId);
+      showStep(restored&&placing?'placement':'setup');feedback('');syncPreset();setLayer(restored&&layer==='fresco'?'fresco':'wall');
+      initialSnapshot={...JSON.parse(JSON.stringify(stateSnapshot())),selection:{...selection}};initialCrop=crop;
+      rememberScene();void renderRoomSessions();
+    }catch(err){if(token===operation)feedback(err?.message==='session_limit'?'В сессии уже три фотографии. Удалите одну из миниатюр, чтобы добавить новую.':'Не удалось открыть фото или сохранить его в браузере.',true);}
     finally{if(url)URL.revokeObjectURL(url);$('tryonRoomFile').value='';}
   }
   $('tryonRoomFile').addEventListener('change',()=>{void loadRoom($('tryonRoomFile').files?.[0]);});
@@ -282,15 +476,68 @@
   });
   // Dropping outside the upload area must not navigate away from the editor.
   for(const type of ['dragover','drop'])$('tryonModal').addEventListener(type,event=>{if(event.dataTransfer&&Array.from(event.dataTransfer.types).includes('Files'))event.preventDefault();});
+  const presetSelect=$('tryonPreset'),presetButton=$('tryonPresetButton'),presetList=$('tryonPresetList');
+  function syncPreset(){
+    const option=presetSelect.selectedOptions?.[0];
+    $('tryonPresetLabel').textContent=option?.textContent||({
+      standard:'Стандартная комната · 500 × 275 см',custom:'Свой размер',
+      high:'Высокие потолки · 500 × 350 см',hall:'Большой зал · 800 × 400 см',
+      compact:'Компактная комната · 300 × 250 см',wide:'Широкая стена · 650 × 300 см'
+    }[presetSelect.value]||'Свой размер');
+    (presetList.querySelectorAll?.('[role=option]')||[]).forEach(node=>
+      node.setAttribute('aria-selected',String(node.dataset.value===presetSelect.value)));
+  }
+  function closePreset(){presetList.hidden=true;presetButton.setAttribute('aria-expanded','false');}
+  const fallbackOptions=Object.entries({
+    custom:'Свой размер',standard:'Стандартная комната · 500 × 275 см',
+    high:'Высокие потолки · 500 × 350 см',hall:'Большой зал · 800 × 400 см',
+    compact:'Компактная комната · 300 × 250 см',wide:'Широкая стена · 650 × 300 см'
+  }).map(([value,textContent])=>({value,textContent}));
+  for(const option of Array.from(presetSelect.options||fallbackOptions)){
+    const li=document.createElement('li');li.setAttribute('role','option');
+    li.tabIndex=-1;li.dataset.value=option.value;li.textContent=option.textContent;
+    li.addEventListener('click',()=>{
+      presetSelect.value=option.value;presetSelect.dispatchEvent(new Event('change',{bubbles:true}));
+      syncPreset();closePreset();presetButton.focus();
+    });
+    li.addEventListener('keydown',event=>{
+      const options=Array.from(presetList.children),i=options.indexOf(li);
+      if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();options[(i+(event.key==='ArrowDown'?1:options.length-1))%options.length].focus();}
+      if(event.key==='Enter'||event.key===' '){event.preventDefault();li.click();}
+      if(event.key==='Escape'){event.preventDefault();closePreset();presetButton.focus();}
+    });presetList.append(li);
+  }
+  presetButton.addEventListener('click',()=>{
+    presetList.hidden=!presetList.hidden;presetButton.setAttribute('aria-expanded',String(!presetList.hidden));
+    if(!presetList.hidden)presetList.querySelector?.('[aria-selected=true]')?.focus();
+  });
+  presetButton.addEventListener('keydown',event=>{
+    if(event.key==='ArrowDown'||event.key==='Enter'){event.preventDefault();presetButton.click();}
+    else if(event.key==='Escape')closePreset();
+  });
+  document.addEventListener?.('pointerdown',event=>{
+    if(!event.target?.closest?.('.tryon-preset-dropdown'))closePreset();
+  });
+  syncPreset();
   $('tryonPreset').addEventListener('change',()=>{
     const preset=core.presets[$('tryonPreset').value];
     if(preset){$('tryonWallWidth').value=preset.width;$('tryonWallHeight').value=preset.height;}
-    rebuildPlacement();changed();
+    rebuildPlacement();syncPreset();changed();
   });
-  for(const id of ['tryonWallWidth','tryonWallHeight'])$(id).addEventListener('input',()=>{$('tryonPreset').value='custom';rebuildPlacement();changed();});
-  $('tryonLayerWall').addEventListener('click',()=>{if(!busy){maskMode=false;setLayer('wall');}});
+  for(const id of ['tryonWallWidth','tryonWallHeight'])$(id).addEventListener('input',()=>{$('tryonPreset').value='custom';wallConfirmed=false;syncPreset();rebuildPlacement();changed();});
+  $('tryonLayerWall').addEventListener('click',()=>{
+    if(busy)return;
+    maskMode=false;
+    if(!wallConfirmed){
+      if(!validWall()||!room||!crop||!wallQuad)return;
+      wallConfirmed=true;
+      if(!placing){rebuildPlacement(100);placing=true;}
+      showStep('placement');setLayer('fresco');changed();canvas.focus();return;
+    }
+    setLayer('wall');
+  });
   $('tryonLayerFresco').addEventListener('click',()=>{if(!busy){maskMode=false;setLayer('fresco');}});
-  $('tryonBegin').addEventListener('click',()=>{if(!validWall()||!room||!crop||!wallQuad)return;rebuildPlacement(100);placing=true;showStep('placement');setLayer('fresco');changed();canvas.focus();});
+  $('tryonBegin').addEventListener('click',()=>{$('tryonLayerWall').click();});
   $('tryonScale').addEventListener('input',()=>{if(!room||!quad||!validWall())return;rebuildPlacement(Number($('tryonScale').value));changed();});
   $('tryonZoomIn').addEventListener('click',()=>{if(!busy)zoomAt(1.25);});
   $('tryonZoomOut').addEventListener('click',()=>{if(!busy)zoomAt(.8);});
@@ -298,6 +545,23 @@
   $('tryonFitWall').addEventListener('click',()=>{if(!busy)fitWall();});
   $('tryonProtectBrush').addEventListener('input',()=>{
     $('tryonProtectBrushValue').textContent=String($('tryonProtectBrush').value)+' px';
+  });
+  stage.append($('tryonForegroundTools'),$('tryonProtectHint'));
+  $('tryonMaskDock').addEventListener('click',()=>{
+    maskDockOpen=!maskDockOpen;syncProtectTools();
+    $('tryonMaskDock').setAttribute('aria-expanded',String(maskDockOpen));
+  });
+  $('tryonSceneSearch').addEventListener('input',()=>{void renderScenePicker();});
+  $('tryonScenePickerClose').addEventListener('click',()=>{setSceneMode(null);paint();});
+  $('tryonChangeFresco').addEventListener('click',()=>{
+    setSceneMode(pickerVisible?null:'picker');void renderScenePicker();paint();
+  });
+  $('tryonEditCrop').addEventListener('click',()=>{
+    if(!selection)return;setSceneMode('crop');paint();
+    window.dispatchEvent(new CustomEvent('affresco:tryon-crop-item',{detail:{...selection,name:selection.sku}}));
+  });
+  $('tryonUploadOwnFresco').addEventListener('click',()=>{
+    window.dispatchEvent(new CustomEvent('affresco:open-own-fresco',{detail:'tryon'}));
   });
   $('tryonProtectToggle').addEventListener('click',()=>{
     if(busy||!placing)return;
@@ -331,6 +595,7 @@
   }
   stage.addEventListener('pointerdown',event=>{
     if(busy||!room||!wallQuad||!validWall())return;
+    if(event.target?.closest?.('button,input'))return;
     if(event.pointerType==='touch'){
       pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
       if(pointers.size===2){
@@ -362,14 +627,20 @@
       lighting=core.makeLight(p,p,$('tryonLightTone').value,canvas.width,canvas.height);
       stage.setPointerCapture(event.pointerId);paint();return;
     }
-    const activeQuad=layer==='wall'?wallQuad:quad;
-    if(!activeQuad)return;
     const radius=24/scene().scale;
-    const index=selected?activeQuad.findIndex(c=>Math.hypot(c.x-p.x,c.y-p.y)<=radius):-1;
-    if(index<0&&!core.inside(activeQuad,p)){
-      selected=false;drag={id:event.pointerId,kind:'pan',x:event.clientX,y:event.clientY,panX:view.panX,panY:view.panY};
+    const nearLayer=q=>q?.some(c=>Math.hypot(c.x-p.x,c.y-p.y)<=radius);
+    const target=placing&&quad&&(core.inside(quad,p)||selected&&layer==='fresco'&&nearLayer(quad))?'fresco':
+      core.inside(wallQuad,p)||selected&&layer==='wall'&&nearLayer(wallQuad)?'wall':null;
+    if(!target){
+      selected=false;
+      $('tryonLayerWall').setAttribute('aria-pressed','false');
+      $('tryonLayerFresco').setAttribute('aria-pressed','false');
+      drag={id:event.pointerId,kind:'pan',x:event.clientX,y:event.clientY,panX:view.panX,panY:view.panY};
       stage.classList.add('is-panning');
     }else{
+      if(target!==layer)setLayer(target);
+      const activeQuad=layer==='wall'?wallQuad:quad;
+      const index=activeQuad.findIndex(c=>Math.hypot(c.x-p.x,c.y-p.y)<=radius);
       selected=true;$('tryonHandle').value=index<0?'layer':String(index);
       drag={...p,id:event.pointerId,index,kind:'geometry'};
     }
@@ -404,9 +675,9 @@
     const p=point(event);
     if(drag.kind==='light')lighting=core.makeLight(drag.start,p,$('tryonLightTone').value,canvas.width,canvas.height);
     else{
-      if(layer==='wall')wallQuad=drag.index>=0
+      if(layer==='wall'){wallConfirmed=false;wallQuad=drag.index>=0
         ?core.freeCorner(wallQuad,drag.index,p,canvas.width,canvas.height)
-        :core.freeTranslate(wallQuad,p.x-drag.x,p.y-drag.y,canvas.width,canvas.height);
+        :core.freeTranslate(wallQuad,p.x-drag.x,p.y-drag.y,canvas.width,canvas.height);}
       else{
         const current=core.unproject(wallQuad,p),previous=core.unproject(wallQuad,drag);
         if(current&&previous){
@@ -431,7 +702,7 @@
     const index=drag.kind==='geometry'?drag.index:-1;
     drag=null;stage.classList.remove('is-panning');
     if(index>=0)keepCornerVisible(index);
-    paint();
+    rememberScene();paint();
   }
   stage.addEventListener('pointerup',stopDrag);
   stage.addEventListener('pointercancel',stopDrag);
@@ -445,17 +716,15 @@
     else placed=core.movePlacement(placed,dx,dy,lastWall);
     changed();
   });
-  $('tryonResetPerspective').addEventListener('click',()=>{
-    if(busy||!crop)return;selected=true;lightMode=false;
-    if(layer==='wall')wallQuad=core.rectangle({x:canvas.width*.1,y:canvas.height*.12,width:canvas.width*.8,height:canvas.height*.7});
-    else {placed=null;rebuildPlacement(100);}
-    changed();
-  });
+  $('tryonResetPerspective').addEventListener('click',()=>{if(!busy)showRestoreDialog();});
+  $('tryonRestoreCancel').addEventListener('click',()=>{$('tryonRestoreDialog').hidden=true;});
+  $('tryonRestoreConfirm').addEventListener('click',()=>{$('tryonRestoreDialog').hidden=true;restoreInitial();});
+  window.addEventListener('affresco:restore-tryon',()=>showRestoreDialog());
   $('tryonApply').addEventListener('click',()=>{if(busy)return;selected=false;lightMode=false;drag=null;paint();});
   $('tryonLightToggle').addEventListener('click',()=>{if(busy||!placing)return;if(maskMode)maskMode=false;const enable=!lightMode;if(enable&&layer!=='fresco')setLayer('fresco');lightMode=enable;if(lightMode)selected=false;drag=null;paint();});
   $('tryonLightTone').addEventListener('change',()=>{if(lighting){lighting={...lighting,tone:$('tryonLightTone').value==='cold'?'cold':'warm'};changed();}else syncLightTools();});
   $('tryonLightCancel').addEventListener('click',()=>{if(busy)return;lighting=null;lightMode=false;drag=null;changed();});
-  $('tryonChangeRoom').addEventListener('click',()=>{if(busy)return;operation++;resetRoom();});
+  $('tryonChangeRoom').addEventListener('click',()=>{if(busy)return;rememberScene();showStep('upload');void renderRoomSessions();});
   $('tryonBack').addEventListener('click',()=>window.dispatchEvent(new CustomEvent('affresco:open-modal',{detail:'editor'})));
   function jpeg(){
     const output=document.createElement('canvas');output.width=canvas.width;output.height=canvas.height;
@@ -467,7 +736,7 @@
   }
   function lock(value){busy=value;for(const id of ['tryonAIGenerate','tryonZoomIn','tryonZoomOut','tryonFitPhoto','tryonFitWall','tryonSave','tryonDownload','tryonEmail','tryonChangeRoom','tryonPreset','tryonWallWidth','tryonWallHeight','tryonScale','tryonBack','tryonHandle','tryonResetPerspective','tryonApply','tryonLightToggle','tryonLightTone','tryonLightCancel','tryonLayerWall','tryonLayerFresco'])$(id).disabled=value;syncLightTools();}
   async function save(){
-    if(busy||!placing||!validWall())return null;
+    if(busy||!placing||!validWall()||!wallConfirmed||unresolvedOversize)return null;
     await window.affrescoAccount?.ready;
     const owner=keyOwner(),identity=window.affrescoAccount?.identity(),sceneRevision=revision;
     if(saved&&savedRevision===revision&&saved.owner===owner&&saved.tracked)return saved;
@@ -709,7 +978,7 @@
     });
   }
   async function aiInputs(){
-    if(!placing||!crop||!room||!quad||!wallQuad||!validWall())throw Error('invalid_request');
+    if(!placing||!crop||!room||!quad||!wallQuad||!validWall()||!wallConfirmed||unresolvedOversize)throw Error('invalid_request');
     const source=document.createElement('canvas');
     const width=crop.naturalWidth||crop.width,height=crop.naturalHeight||crop.height;
     const factor=Math.min(1,1600/width,1600/height);
@@ -798,7 +1067,8 @@
     $('tryonStorageNote').hidden=!$('tryonStorageNote').textContent;
     void renderHistory();
   });
-  window.affrescoTryon={start,renderHistory,prepareCombinedExport,removeSavedRecord};
+  window.affrescoTryon={start,renderHistory,prepareCombinedExport,removeSavedRecord,
+    rememberScene,wallLimits(){return {...lastWall};},sceneItems(items){sceneCatalog=items||[];},changeFresco(item){return replaceFresco(item);}};
   void window.affrescoAccount?.ready.then(()=>renderHistory());
 })();
 
