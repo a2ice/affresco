@@ -2,6 +2,8 @@
 (() => {
   'use strict';
   const $ = (id) => document.getElementById(id);
+  const embedParams = new URLSearchParams(location.search);
+  const embeddedTryon = embedParams.get('embed') === 'tryon';
   const catalogGrid = $('catalogGrid');
   const catalogStatus = $('catalogStatus');
   const catalogLoadMore = $('catalogLoadMore');
@@ -56,7 +58,7 @@
   let guideNavigationTimeout = 0;
   // A deep link skips the collection: do not eagerly load every batch while
   // jumping over it. Manual "Показать ещё" stays available below the gallery.
-  let catalogManualMode = ['#try','#how','#about'].includes(location.hash);
+  let catalogManualMode = embeddedTryon || ['#try','#how','#about'].includes(location.hash);
   const menuToggle = $('menuToggle');
   const mobileNav = $('mobileNav');
   const cropViewport = $('cropViewport');
@@ -253,7 +255,9 @@
     document.body.classList.toggle('modal-open', Boolean(modal));
     if(closingLogin)window.dispatchEvent(new CustomEvent('affresco:modal-closed',{detail:'login'}));
     if (modal) {
-      const target = modal.querySelector('[data-close]') || modal.querySelector('button, [href], input');
+      const target = embeddedTryon && modal === modalTryon
+        ? $('tryonUploadZone')
+        : modal.querySelector('[data-close]') || modal.querySelector('button, [href], input');
       if (target) target.focus();
     } else if (previousFocus?.isConnected) {
       previousFocus.focus();
@@ -1013,6 +1017,25 @@
         catalogStatus.textContent='Пока нет изображений';
         stopHeroLoading();
         catalogMessage('Как только изображения по артикулам появятся в /Images/catalog/ на FTP, карточки автоматически появятся здесь. Также поддерживается /Images/каталог/.');
+        return;
+      }
+      // An embedded try-on needs only metadata and a selected image, not a
+      // hidden catalogue gallery or hero downloads.
+      if (embeddedTryon) {
+        const requestedSku = embedParams.get('sku');
+        const candidate = requestedSku && safeSku(requestedSku)
+          ? items.find(item => item.sku === requestedSku) : null;
+        const item = candidate || items[0];
+        const size = catalogDimensions(item) || {width: 300, height: 225};
+        if (typeof window.affrescoTryon?.start === 'function') {
+          void window.affrescoTryon.start({
+            image: item.image,
+            sku: item.sku,
+            width_cm: size.width,
+            height_cm: size.height,
+          });
+        }
+        catalogStatus.textContent = 'Примерка готова';
         return;
       }
       // Only six cards/images are mounted at first. Remaining images wait for scrolling.
