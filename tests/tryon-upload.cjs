@@ -71,6 +71,8 @@ const delay=()=>new Promise(r=>setTimeout(r,30));
  assert.equal($('tryonLayerWall').textContent,'Подтвердить стену','Confirmation is integrated in the wall tab');
  await $('tryonLayerWall').fire('click'); // User confirms directly using the wall tab.
  assert.equal($('tryonLayerFresco')['aria-pressed'],'true');
+ assert.equal($('tryonLayerWall').textContent,'Стена','Wall confirmation returns to layer switch');
+ assert.match($('tryonFit').textContent,/Расположение фрески/,'Physical position shown above scene');
  await $('tryonLayerWall').fire('click');assert.equal($('tryonScale').disabled,true);
  await $('tryonLayerFresco').fire('click');assert.equal($('tryonScale').disabled,false);
  $('tryonWallWidth').value=150;await $('tryonWallWidth').fire('input');
@@ -145,6 +147,22 @@ const delay=()=>new Promise(r=>setTimeout(r,30));
  await window.affrescoTryon.removeSavedRecord(currentId);
  assert.equal(images.has(currentId),false,'Deleting server-linked manual image clears IndexedDB copy');
 
+ // Oversized new fresco cannot silently shrink or become downloadable.
+ const denied=await window.affrescoTryon.changeFresco({
+   image:'data:image/jpeg;base64,TEST',sku:'too-big',width_cm:900,height_cm:500
+ });
+ assert.equal(denied,false,'Larger than the wall must redirect to crop');
+ assert.equal($('tryonAIGenerate').disabled,true,'Oversized fresco cannot consume AI quota');
+ assert.equal($('tryonDownload').disabled,true,'Oversized fresco cannot be downloaded');
+ assert.ok(dispatched.some(e=>e.type==='affresco:tryon-crop-item'),'Crop editor receives oversized item');
+ await $('tryonResetPerspective').fire('click');
+ assert.equal($('tryonRestoreDialog').hidden,false,'Brand-styled reset dialog appears');
+ await $('tryonRestoreCancel').fire('click');
+ assert.equal($('tryonRestoreDialog').hidden,true,'Cancel preserves current editor state');
+ await $('tryonResetPerspective').fire('click');
+ await $('tryonRestoreConfirm').fire('click');
+ assert.equal($('tryonRestoreDialog').hidden,true,'Confirm closes branded dialog');
+ assert.equal($('tryonWorkspace').hidden,false,'Original workspace remains available');
  indexedDB.open=()=>{const req={};setTimeout(()=>req.onerror?.(),0);return req;};
  await window.affrescoTryon.start({image:'data:image/jpeg;base64,TEST',sku:'6039',width_cm:200,height_cm:200});
  assert.equal($('tryonUploadStep').hidden,true);assert.match($('tryonCompatibilityMessage').textContent,/не разрешает сохранять/);
