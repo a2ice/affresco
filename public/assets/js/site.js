@@ -1783,14 +1783,21 @@
       $('ownFrescoAddedBadge').hidden=false;
       showCatalogToast(replaceId?'Фреска заменена':'Изображение добавлено в каталог');
     }catch(e){
+      if(['media_limit_reached','replace_target_not_found'].includes(e.message))await refreshOwnFrescoes();
       error.textContent=({
-        media_limit_reached:'Достигнут лимит. Выберите изображение для замены.',
-        replace_target_not_found:'Выбранная фреска уже удалена. Закройте окно и загрузите файл снова.',
-        media_limit_or_storage_unavailable:'Не удалось сохранить изображение.',
+        media_limit_reached:'Лимит достигнут. Выберите фреску для замены ниже.',
+        replace_target_not_found:'Выбранная фреска больше недоступна. Выберите другую.',
+        media_limit_or_storage_unavailable:'Не удалось сохранить изображение. Попробуйте ещё раз.',
         image_size:'Разрешение изображения не поддерживается.',
         invalid_dimensions:'Проверьте физические размеры.',
-        storage_unavailable:'Не удалось сохранить изображение на сервере.'
-      })[e.message]||'Не удалось сохранить изображение. Повторите попытку.';
+        invalid_image:'Сервер не распознал файл. Попробуйте JPEG, PNG или WebP.',
+        jpeg_required:'Не удалось подготовить JPEG для загрузки.',
+        image_too_large:'Изображение превышает допустимый размер сервера (12 МБ).',
+        invalid_action:'Сервер не принял запрос загрузки. Попробуйте файл меньшего размера.',
+        request_rejected:'Сервер отклонил запрос. Обновите страницу и повторите.',
+        storage_unavailable:'Хранилище изображений временно недоступно. Повторите позже.',
+        server_unavailable:'Сервер временно недоступен. Повторите позже.'
+      })[e.message]||'Не удалось сохранить изображение'+(Number.isInteger(e.status)?' (HTTP '+e.status+')':'')+'. Повторите попытку.';
       error.hidden=false;
     }finally{if(!ownDialog.hidden)renderOwnReplacement();else $('ownFrescoAdd').disabled=false;}
   }
