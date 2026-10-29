@@ -78,7 +78,7 @@ const delay=()=>new Promise(r=>setTimeout(r,30));
  $('tryonWallWidth').value=150;await $('tryonWallWidth').fire('input');
  assert.equal($('tryonPreset').value,'custom');assert.ok(Number($('tryonScale').max)<=75);
  $('tryonPreset').value='standard';await $('tryonPreset').fire('change');
- await $('tryonLayerWall').fire('click'); // Reconfirm the changed wall geometry.
+ await $('tryonLayerFresco').fire('click'); // Wall geometry stays valid without extra confirmation.
 
  assert.equal($('tryonFooter').hidden,false);assert.match($('tryonControls').innerHTML,/width="12" height="12"/);
  await $('tryonApply').fire('click');assert.equal($('tryonControls').innerHTML,'');
