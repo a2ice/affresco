@@ -275,7 +275,7 @@
     if(!visible||!room)return;
     const pts=core.controlPoints(quad,scene().scale,scene().x,scene().y);
     const maxX=Math.max(...pts.map(p=>p.x)),minY=Math.min(...pts.map(p=>p.y));
-    buttons.style.left=Math.min(stage.clientWidth-6,Math.max(90,maxX))+'px';
+    buttons.style.left=Math.min((stage.clientWidth||scene().bounds.width)-6,Math.max(90,maxX))+'px';
     buttons.style.top=Math.max(10,minY)+'px';
   }
   function showRestoreDialog(){
@@ -411,7 +411,7 @@
     $('tryonCompatibilityMessage').hidden=true;
     $('tryonUploadZone').disabled=true;
     const token=operation;open();
-    try{await storageAvailable();if(token===operation){await prune(keyOwner());await renderRoomSessions();const id=readSession(ROOM_KEY);if(id&&media){const entry=await media.get('room',id);if(entry&&token===operation)await loadRoom(entry.blob,entry);}}}
+    try{await storageAvailable();if(token===operation){$('tryonUploadZone').disabled=false;await prune(keyOwner());await renderRoomSessions();const id=readSession(ROOM_KEY);if(id&&media){const entry=await media.get('room',id);if(entry&&token===operation)await loadRoom(entry.blob,entry);}}}
     catch(_){if(token===operation){showStep('unsupported');$('tryonCompatibilityMessage').textContent='Браузер не разрешает сохранять примерки на этом устройстве. Разрешите хранение данных сайта или попробуйте другой браузер.';$('tryonCompatibilityMessage').hidden=false;}}
   }
   async function loadRoom(file,stored=null){
@@ -462,13 +462,22 @@
   for(const type of ['dragover','drop'])$('tryonModal').addEventListener(type,event=>{if(event.dataTransfer&&Array.from(event.dataTransfer.types).includes('Files'))event.preventDefault();});
   const presetSelect=$('tryonPreset'),presetButton=$('tryonPresetButton'),presetList=$('tryonPresetList');
   function syncPreset(){
-    const option=presetSelect.selectedOptions[0];
-    presetButton.firstChild.textContent=(option?.textContent||'Свой размер')+' ';
-    presetList.querySelectorAll('[role=option]').forEach(node=>
+    const option=presetSelect.selectedOptions?.[0];
+    $('tryonPresetLabel').textContent=option?.textContent||({
+      standard:'Стандартная комната · 500 × 275 см',custom:'Свой размер',
+      high:'Высокие потолки · 500 × 350 см',hall:'Большой зал · 800 × 400 см',
+      compact:'Компактная комната · 300 × 250 см',wide:'Широкая стена · 650 × 300 см'
+    }[presetSelect.value]||'Свой размер');
+    (presetList.querySelectorAll?.('[role=option]')||[]).forEach(node=>
       node.setAttribute('aria-selected',String(node.dataset.value===presetSelect.value)));
   }
   function closePreset(){presetList.hidden=true;presetButton.setAttribute('aria-expanded','false');}
-  for(const option of Array.from(presetSelect.options)){
+  const fallbackOptions=Object.entries({
+    custom:'Свой размер',standard:'Стандартная комната · 500 × 275 см',
+    high:'Высокие потолки · 500 × 350 см',hall:'Большой зал · 800 × 400 см',
+    compact:'Компактная комната · 300 × 250 см',wide:'Широкая стена · 650 × 300 см'
+  }).map(([value,textContent])=>({value,textContent}));
+  for(const option of Array.from(presetSelect.options||fallbackOptions)){
     const li=document.createElement('li');li.setAttribute('role','option');
     li.tabIndex=-1;li.dataset.value=option.value;li.textContent=option.textContent;
     li.addEventListener('click',()=>{
@@ -484,13 +493,13 @@
   }
   presetButton.addEventListener('click',()=>{
     presetList.hidden=!presetList.hidden;presetButton.setAttribute('aria-expanded',String(!presetList.hidden));
-    if(!presetList.hidden)presetList.querySelector('[aria-selected=true]')?.focus();
+    if(!presetList.hidden)presetList.querySelector?.('[aria-selected=true]')?.focus();
   });
   presetButton.addEventListener('keydown',event=>{
     if(event.key==='ArrowDown'||event.key==='Enter'){event.preventDefault();presetButton.click();}
     else if(event.key==='Escape')closePreset();
   });
-  document.addEventListener('pointerdown',event=>{
+  document.addEventListener?.('pointerdown',event=>{
     if(!event.target?.closest?.('.tryon-preset-dropdown'))closePreset();
   });
   syncPreset();
