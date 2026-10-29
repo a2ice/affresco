@@ -1,49 +1,50 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),{randomUUID}=require('node:crypto');
 const source=fs.readFileSync(require('node:path').join(__dirname,'../public/assets/js/tryon-library.js'),'utf8');
-const values=new Map(),session=new Map();
-const sessionStorage={
- getItem:key=>session.get(key)||null,
- setItem:(key,value)=>session.set(key,String(value)),
- clear:()=>session.clear()
-};
-let made=false;
-const database={
- objectStoreNames:{contains:()=>made},createObjectStore:()=>{made=true;},
- close(){},
- transaction:()=>{
-  const tx={};tx.objectStore=()=>({
-   put:item=>{values.set(item.key,item);setImmediate(()=>tx.oncomplete?.());},
-   delete:key=>{values.delete(key);setImmediate(()=>tx.oncomplete?.());},
-   getAll:()=>{const req={};setImmediate(()=>{req.result=[...values.values()];req.onsuccess?.();tx.oncomplete?.();});return req;}
-  });return tx;
+let member=false,requests=[],next=0;
+let lists={room:[],fresco:[]};
+class FormData{constructor(){this.fields=new Map();}append(key,value){this.fields.set(key,value);}}
+function fetch(url,opts={}){
+ const kind=new URL(url,'https://example.invalid').searchParams.get('kind');
+ requests.push({url,opts});
+ if(!opts.method)return Promise.resolve({ok:true,json:async()=>({items:lists[kind],limit:member?3:1})});
+ const action=opts.body.fields.get('action');
+ if(action==='upload'){
+   if(lists[kind].length >= (member?3:1) && member)return Promise.resolve({ok:false,json:async()=>({error:'media_limit_or_storage_unavailable'})});
+   if(lists[kind].length>=1&&!member)lists[kind]=[];
+   const item={id:++next+'',kind,name:opts.body.fields.get('name'),sku:'own-'+next,
+     width_cm:Number(opts.body.fields.get('width_cm')),height_cm:Number(opts.body.fields.get('height_cm')),
+     url:'/api/media.php?kind='+kind+'&id='+next};
+   lists[kind].push(item);
+   return Promise.resolve({ok:true,json:async()=>({item})});
  }
-};
-const indexedDB={open:()=>{const req={result:database};setImmediate(()=>{if(!made)req.onupgradeneeded?.();req.onsuccess?.();});return req;}};
-function boot(){
- const window={};vm.runInNewContext(source,{window,indexedDB,sessionStorage,crypto:{randomUUID}});
- return window.affrescoMediaLibrary;
+ if(action==='delete'){lists[kind]=lists[kind].filter(x=>x.id!==opts.body.fields.get('id'));
+   return Promise.resolve({ok:true,json:async()=>({deleted:true})});}
+ throw Error('unknown action');
 }
+const window={affrescoAccount:{signedIn:()=>member}};
+vm.runInNewContext(source,{window,fetch,FormData});
 (async()=>{
- const media=boot();
- assert.equal((await media.all('room')).length,0);
+ const media=window.affrescoMediaLibrary;
  const blob={type:'image/jpeg',size:1000};
- for(let i=0;i<3;i++)await media.put('room',blob,{name:'room-'+i});
- assert.equal((await media.all('room')).length,3,'Three room images available without sign-in');
- await assert.rejects(()=>media.put('room',blob),/session_limit/,'Fourth room image rejected');
- const first=(await media.all('room'))[0];
- assert.equal((await media.get('room',first.id)).name,'room-0');
- const afterReload=boot();
- assert.equal((await afterReload.all('room')).length,3,'Page reload in same session keeps three rooms');
- await afterReload.remove('room',first.id);
- assert.equal((await afterReload.all('room')).length,2);
- await afterReload.put('room',blob,{name:'replacement'});
- assert.equal((await afterReload.all('room')).length,3,'Deleted slot reusable');
- for(let i=0;i<12;i++)await media.put('fresco',blob,{sku:'own-'+i,width_cm:100,height_cm:80});
- assert.equal((await media.all('fresco')).length,12);
- await assert.rejects(()=>media.put('fresco',blob),/session_limit/);
- sessionStorage.clear();
- const unrelated=boot();
- assert.equal((await unrelated.all('room')).length,0,'New independent session cannot see prior photos');
- assert.equal((await unrelated.all('fresco')).length,0,'New independent session cannot see prior custom murals');
- console.log('PASS: browser-session room and artwork library, 3-room limit, removal and session isolation');
+ assert.equal(media.limit(),1,'Guest one upload per kind');
+ await media.put('room',blob,{name:'A'});
+ await media.put('room',blob,{name:'B'});
+ assert.equal((await media.all('room')).length,1,'Guest replacement at server, no empty slot');
+ assert.equal((await media.all('room'))[0].name,'B');
+ await media.put('fresco',blob,{name:'Mine',width_cm:200,height_cm:100});
+ assert.equal((await media.all('fresco')).length,1);
+ assert.equal((await media.get('fresco',String(next))).name,'Mine');
+ member=true;lists={room:[],fresco:[]};
+ assert.equal(media.limit(),3,'Account three photos per kind');
+ for(let i=0;i<3;i++)await media.put('room',blob,{name:'Room '+i});
+ assert.equal((await media.all('room')).length,3);
+ await assert.rejects(()=>media.put('room',blob,{name:'Fourth'}),/media_limit_or_storage_unavailable/);
+ await media.remove('room',lists.room[0].id);
+ await media.put('room',blob,{name:'Third replacement'});
+ assert.equal((await media.all('room')).length,3);
+ for(let i=0;i<3;i++)await media.put('fresco',blob,{name:'Fresco '+i,width_cm:300,height_cm:200});
+ await assert.rejects(()=>media.put('fresco',blob,{name:'Fourth'}),/media_limit_or_storage_unavailable/);
+ assert.ok(requests.filter(r=>r.opts.method==='POST').every(r=>r.opts.headers['X-Affresco-Request']==='1'));
+ assert.ok(requests.every(r=>r.opts.credentials==='same-origin'));
+ console.log('PASS: server-backed media adapter guest 1 replacement/account 3, metadata, deletion, private cookies');
 })().catch(error=>{console.error(error);process.exitCode=1;});
