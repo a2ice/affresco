@@ -79,6 +79,8 @@
   const modalFavorites = $('favoritesModal');
   const emailRecipient = $('emailRecipient');
   const emailSendSubmit = $('emailSendSubmit');
+  const media=window.affrescoMediaLibrary;
+  let ownFrescoes=[];
   let emailSendBusy = false;
   let emailSendRequest = 0;
   let preparedEmailCrop = null;
@@ -87,6 +89,7 @@
   let previousFocus = null;
   let openDialog = null;
   let items = [];
+  window.affrescoCatalog={list:()=>[...ownFrescoes,...items]};
   let currentItem = null;
   let state = {zoom: 1, dx: 0, dy: 0, ratio: 4 / 3, width: 300, height: 225};
   let imageLoaded = false;
@@ -241,6 +244,22 @@
   mobileNav.querySelectorAll('a').forEach(a => a.addEventListener('click',closeMenu));
   window.addEventListener('resize', () => { if (window.innerWidth > 800) closeMenu(); });
 
+  const stepNav=$('affrescoStepNav'),stepBack=$('affrescoStepBack'),stepCollapse=$('affrescoStepCollapse');
+  let navCollapsed=false;
+  try{navCollapsed=sessionStorage.getItem('affresco:step-nav-collapsed')==='1';}catch(_){}
+  function updateStepNav(){
+    stepNav.hidden=![modalPicker,modalEditor,modalTryon].includes(openDialog);
+    stepNav.classList.toggle('is-collapsed',navCollapsed);
+    stepCollapse.setAttribute('aria-expanded',String(!navCollapsed));
+    stepCollapse.setAttribute('aria-label',navCollapsed?'Развернуть навигацию':'Свернуть навигацию');
+    stepBack.textContent=openDialog===modalTryon?'← К кадрированию':openDialog===modalEditor?'← К выбору фрески':'← К каталогу';
+  }
+  stepCollapse.addEventListener('click',()=>{navCollapsed=!navCollapsed;try{sessionStorage.setItem('affresco:step-nav-collapsed',navCollapsed?'1':'0');}catch(_){}updateStepNav();});
+  stepBack.addEventListener('click',()=>{
+    if(openDialog===modalTryon){window.affrescoTryon?.rememberScene?.();setModal(modalEditor);}
+    else if(openDialog===modalEditor){setModal(modalPicker);updatePickerResults();}
+    else if(openDialog===modalPicker)setModal(null);
+  });
   function setModal(modal, trigger=null) {
     // A response from a window that was closed must not reopen the success
     // dialog unexpectedly (the server may already have accepted the email).
@@ -251,6 +270,7 @@
     const closingLogin=openDialog===modalLogin&&modal===null;
     openDialog = modal;
     document.body.classList.toggle('modal-open', Boolean(modal));
+    updateStepNav();
     if(closingLogin)window.dispatchEvent(new CustomEvent('affresco:modal-closed',{detail:'login'}));
     if (modal) {
       const target = modal.querySelector('[data-close]') || modal.querySelector('button, [href], input');
@@ -1008,6 +1028,7 @@
       items=body.items.filter(x => x && typeof x === 'object').map(x => ({...x,sku:normalizeSku(x.sku)}))
         .filter(x => safeSku(x.sku) && typeof x.image==='string' && /^\/(?:Images|images)\//.test(x.image));
       window.affrescoAccount?.setCatalogItems(items);
+      window.affrescoTryon?.sceneItems?.(items);
       catalogGrid.replaceChildren();
       if (items.length===0) {
         catalogStatus.textContent='Пока нет изображений';
@@ -1610,10 +1631,63 @@
     pickerSearch.focus();
   });
 
+
+  async function refreshOwnFrescoes(){
+    if(!media)return;
+    try{
+      ownFrescoes=(await media.all('fresco')).map(item=>({
+        ...item,image:URL.createObjectURL(item.blob),sku:item.sku,
+        name:item.name||'Моя фреска',isOwn:true
+      }));
+      window.affrescoTryon?.sceneItems?.([...ownFrescoes,...items]);
+      if(openDialog===modalPicker)updatePickerResults();
+    }catch(_){}
+  }
+  async function addOwnFresco(){
+    const file=$('ownFrescoFile').files?.[0],w=Number($('ownFrescoWidth').value),h=Number($('ownFrescoHeight').value);
+    const error=$('ownFrescoError');error.hidden=true;
+    if(!file||!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>12*1024*1024){
+      error.textContent='Выберите изображение JPEG, PNG или WebP до 12 МБ.';error.hidden=false;return;
+    }
+    if(!Number.isFinite(w)||!Number.isFinite(h)||w<30||h<30||w>1000||h>1000){
+      error.textContent='Обязательно укажите ширину и высоту от 30 до 1000 см.';error.hidden=false;return;
+    }
+    try{
+      const url=URL.createObjectURL(file),img=new Image();
+      await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;img.src=url;});
+      const ratio=Math.min(1,1600/img.naturalWidth,1600/img.naturalHeight);
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.round(img.naturalWidth*ratio);canvas.height=Math.round(img.naturalHeight*ratio);
+      canvas.getContext('2d',{alpha:false}).drawImage(img,0,0,canvas.width,canvas.height);
+      URL.revokeObjectURL(url);
+      const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.86));
+      if(!blob)throw Error('image_encoding');
+      const count=(await media.all('fresco')).length;
+      const item=await media.put('fresco',blob,{sku:'own-'+crypto.randomUUID(),name:file.name.replace(/\.[^.]+$/,'').slice(0,70)||'Моя фреска',width_cm:w,height_cm:h});
+      $('ownFrescoFile').value='';
+      await refreshOwnFrescoes();
+      const own=ownFrescoes.find(x=>x.sku===item.sku);
+      if(own)openEditor(own,$('ownFrescoAdd'));
+    }catch(e){
+      error.textContent=e.message==='session_limit'?'Можно сохранить до 12 собственных фресок в текущей сессии.':'Не удалось сохранить изображение в браузере.';
+      error.hidden=false;
+    }
+  }
+  $('ownFrescoAdd').addEventListener('click',()=>{void addOwnFresco();});
+  window.addEventListener('affresco:open-own-fresco',()=>{
+    const item=currentItem||items[0];
+    if(item)openEditor(item);
+    $('ownFrescoFile').focus();
+  });
+  window.addEventListener('affresco:tryon-crop-item',event=>{
+    if(event.detail)openEditor(event.detail);
+  });
+  void refreshOwnFrescoes();
   function pickerResultsFor(query) {
     const q=query.trim().toLocaleLowerCase('ru');
-    if(!q) return items;
-    return items.filter(item =>
+    const source=[...ownFrescoes,...items];
+    if(!q) return source;
+    return source.filter(item =>
       item.sku.toLocaleLowerCase('ru').includes(q) ||
       (typeof item.name==='string' && item.name.toLocaleLowerCase('ru').includes(q))
     );
