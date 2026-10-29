@@ -236,3 +236,8 @@
 #tryonModal #tryonPresetList[hidden]{display:none}
 .crop-viewport.is-invalid-size{outline:2px solid #b53631;outline-offset:2px}
 .crop-viewport.is-invalid-size .crop-dim-layer{background:rgba(72,25,18,.18)}
+
+#tryonModal .tryon-personal-row{display:flex;align-items:stretch;border-bottom:1px solid #e8e0d5}
+#tryonModal .tryon-personal-row .tryon-scene-row{flex:1;min-width:0}
+#tryonModal .tryon-personal-row>button:last-child{width:44px;flex:0 0 44px;border:0;background:#fff7f5;color:#8b463a;cursor:pointer}
+#tryonModal #tryonScenePickerClose{position:absolute;right:-17px;top:-17px;width:34px;height:34px;border:1px solid #c5b8a6;background:#fcfaf6;border-radius:50%;font-size:21px;z-index:10}
