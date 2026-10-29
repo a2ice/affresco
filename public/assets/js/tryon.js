@@ -140,7 +140,7 @@
 
   const media=window.affrescoMediaLibrary;
   const ROOM_KEY='affresco:last-room';
-  let activeRoomId=null,wallConfirmed=false,sceneMode=null,initialSnapshot=null;
+  let activeRoomId=null,wallConfirmed=false,sceneMode=null,initialSnapshot=null,initialCrop=null;
   let sceneCatalog=[],ownFrescoItems=[],changeSnapshot=null;
   let pickerVisible=false,maskDockOpen=false,unresolvedOversize=false;
   const readSession=(key)=>{try{return sessionStorage.getItem(key);}catch(_){return null;}};
@@ -284,6 +284,8 @@
     if(changeSnapshot){
       selection={...changeSnapshot.selection};crop=changeSnapshot.crop;
       changeSnapshot=null;unresolvedOversize=false;summary();
+    }else if(data.selection){
+      selection={...data.selection};crop=initialCrop||crop;unresolvedOversize=false;summary();
     }
     const data=initialSnapshot;
     wallQuad=data.wallQuad.map(p=>({...p}));lastWall={...data.lastWall};wallConfirmed=data.wallConfirmed;
@@ -402,7 +404,7 @@
     view={zoom:1,panX:0,panY:0};pointers.clear();pinch=null;stage.classList.remove('is-panning');wallQuad=null;placed=null;layer='wall';lastWall={width:500,height:275};$('tryonLayerWall').setAttribute('aria-pressed','true');$('tryonLayerFresco').setAttribute('aria-pressed','false');selected=true;lightMode=false;lighting=null;syncLightTools();room=null;quad=null;placing=false;drag=null;saved=null;revision++;savedRevision=-1;$('tryonRoomFile').value='';showStep('upload');feedback('');}
   async function start(value){
     operation++;selection={...value};crop=null;resetRoom();summary();
-    $('tryonPreset').value='standard';$('tryonWallWidth').value=500;$('tryonWallHeight').value=275;$('tryonBack').hidden=false;
+    $('tryonPreset').value='standard';syncPreset();$('tryonWallWidth').value=500;$('tryonWallHeight').value=275;$('tryonBack').hidden=false;
     $('tryonScaleValue').textContent='100%';$('tryonHandle').value='layer';
     $('tryonStorageNote').textContent=storageNote();$('tryonStorageNote').hidden=!$('tryonStorageNote').textContent;
     $('tryonCompatibilityMessage').hidden=true;
@@ -436,8 +438,8 @@
       wallQuad=core.rectangle({x:canvas.width*.1,y:canvas.height*.12,width:canvas.width*.8,height:canvas.height*.7});
       placing=false;wallConfirmed=false;layer='wall';selected=true;rebuildPlacement(100);
       const restored=activeRoomId&&restoreScene(activeRoomId);
-      showStep(restored&&placing?'placement':'setup');feedback('');setLayer(restored&&layer==='fresco'?'fresco':'wall');
-      initialSnapshot=JSON.parse(JSON.stringify(stateSnapshot()));
+      showStep(restored&&placing?'placement':'setup');feedback('');syncPreset();setLayer(restored&&layer==='fresco'?'fresco':'wall');
+      initialSnapshot={...JSON.parse(JSON.stringify(stateSnapshot())),selection:{...selection}};initialCrop=crop;
       rememberScene();void renderRoomSessions();
     }catch(err){if(token===operation)feedback(err?.message==='session_limit'?'В сессии уже три фотографии. Удалите одну из миниатюр, чтобы добавить новую.':'Не удалось открыть фото или сохранить его в браузере.',true);}
     finally{if(url)URL.revokeObjectURL(url);$('tryonRoomFile').value='';}
@@ -457,12 +459,46 @@
   });
   // Dropping outside the upload area must not navigate away from the editor.
   for(const type of ['dragover','drop'])$('tryonModal').addEventListener(type,event=>{if(event.dataTransfer&&Array.from(event.dataTransfer.types).includes('Files'))event.preventDefault();});
+  const presetSelect=$('tryonPreset'),presetButton=$('tryonPresetButton'),presetList=$('tryonPresetList');
+  function syncPreset(){
+    const option=presetSelect.selectedOptions[0];
+    presetButton.firstChild.textContent=(option?.textContent||'Свой размер')+' ';
+    presetList.querySelectorAll('[role=option]').forEach(node=>
+      node.setAttribute('aria-selected',String(node.dataset.value===presetSelect.value)));
+  }
+  function closePreset(){presetList.hidden=true;presetButton.setAttribute('aria-expanded','false');}
+  for(const option of Array.from(presetSelect.options)){
+    const li=document.createElement('li');li.setAttribute('role','option');
+    li.tabIndex=-1;li.dataset.value=option.value;li.textContent=option.textContent;
+    li.addEventListener('click',()=>{
+      presetSelect.value=option.value;presetSelect.dispatchEvent(new Event('change',{bubbles:true}));
+      syncPreset();closePreset();presetButton.focus();
+    });
+    li.addEventListener('keydown',event=>{
+      const options=Array.from(presetList.children),i=options.indexOf(li);
+      if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();options[(i+(event.key==='ArrowDown'?1:options.length-1))%options.length].focus();}
+      if(event.key==='Enter'||event.key===' '){event.preventDefault();li.click();}
+      if(event.key==='Escape'){event.preventDefault();closePreset();presetButton.focus();}
+    });presetList.append(li);
+  }
+  presetButton.addEventListener('click',()=>{
+    presetList.hidden=!presetList.hidden;presetButton.setAttribute('aria-expanded',String(!presetList.hidden));
+    if(!presetList.hidden)presetList.querySelector('[aria-selected=true]')?.focus();
+  });
+  presetButton.addEventListener('keydown',event=>{
+    if(event.key==='ArrowDown'||event.key==='Enter'){event.preventDefault();presetButton.click();}
+    else if(event.key==='Escape')closePreset();
+  });
+  document.addEventListener('pointerdown',event=>{
+    if(!event.target?.closest?.('.tryon-preset-dropdown'))closePreset();
+  });
+  syncPreset();
   $('tryonPreset').addEventListener('change',()=>{
     const preset=core.presets[$('tryonPreset').value];
     if(preset){$('tryonWallWidth').value=preset.width;$('tryonWallHeight').value=preset.height;}
-    rebuildPlacement();changed();
+    rebuildPlacement();syncPreset();changed();
   });
-  for(const id of ['tryonWallWidth','tryonWallHeight'])$(id).addEventListener('input',()=>{$('tryonPreset').value='custom';rebuildPlacement();changed();});
+  for(const id of ['tryonWallWidth','tryonWallHeight'])$(id).addEventListener('input',()=>{$('tryonPreset').value='custom';wallConfirmed=false;syncPreset();rebuildPlacement();changed();});
   $('tryonLayerWall').addEventListener('click',()=>{
     if(busy)return;
     maskMode=false;
