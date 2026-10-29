@@ -291,10 +291,13 @@
     modal.addEventListener('pointerdown', e => { if (e.target === modal) setModal(null); });
   });
   document.addEventListener('keydown', (event) => {
-    if (!openDialog) return;
+    if (!openDialog || event.defaultPrevented) return;
     if (event.key === 'Escape') { event.preventDefault(); setModal(null); return; }
     if (event.key !== 'Tab') return;
-    const tabbables = [...openDialog.querySelectorAll('button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])')].filter(el => el.getClientRects().length);
+    const tabbables = [
+      ...openDialog.querySelectorAll('button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])'),
+      ...(!stepNav.hidden?stepNav.querySelectorAll('button:not([disabled])'):[])
+    ].filter(el => el.getClientRects().length);
     if (!tabbables.length) return;
     const first = tabbables[0], last = tabbables[tabbables.length - 1];
     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
