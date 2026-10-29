@@ -68,7 +68,7 @@ test "$(curl -sS -o /dev/null -w '%{http_code}' -b "$account" -c "$account" -H '
 test "$(curl -sS -o /dev/null -w '%{http_code}' -b "$account" "$base/media.php?kind=fresco&id=$account_first_id")" = 200
 upload fresco "$account" "Registered replaced" "$account_first_id" >"$tmp/account-replaced.json"
 test "$(curl -sS -o /dev/null -w '%{http_code}' -b "$account" "$base/media.php?kind=fresco&id=$account_first_id")" = 404
-php -r '$a=json_decode(file_get_contents("data/accounts.json"),true);$rows=$a[0]["media_assets"]??[];if(count($rows)!==3)exit(1);'
+php -r 'require "public/api/_account.php";$s=af_state("ci-test");if(count($s["media_assets"]??[])!==3)exit(1);'
 curl -fsS -b "$account" "$base/media.php?kind=fresco" >"$tmp/account-fresco-list.json"
 python3 - "$tmp/account-fresco-list.json" <<'PY'
 import json,sys
