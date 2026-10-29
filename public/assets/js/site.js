@@ -81,6 +81,10 @@
   const modalFavorites = $('favoritesModal');
   const emailRecipient = $('emailRecipient');
   const emailSendSubmit = $('emailSendSubmit');
+  const media=window.affrescoMediaLibrary;
+  let ownFrescoes=[];
+  const ownImageUrls=new Map();
+  let cropConstraint=null,ownUploadConstraint=null;
   let emailSendBusy = false;
   let emailSendRequest = 0;
   let preparedEmailCrop = null;
@@ -89,6 +93,7 @@
   let previousFocus = null;
   let openDialog = null;
   let items = [];
+  window.affrescoCatalog={list:()=>[...ownFrescoes,...items]};
   let currentItem = null;
   let state = {zoom: 1, dx: 0, dy: 0, ratio: 4 / 3, width: 300, height: 225};
   let imageLoaded = false;
@@ -243,6 +248,24 @@
   mobileNav.querySelectorAll('a').forEach(a => a.addEventListener('click',closeMenu));
   window.addEventListener('resize', () => { if (window.innerWidth > 800) closeMenu(); });
 
+  const stepNav=$('affrescoStepNav'),stepBack=$('affrescoStepBack'),stepCollapse=$('affrescoStepCollapse');
+  let navCollapsed=false;
+  try{navCollapsed=sessionStorage.getItem('affresco:step-nav-collapsed')==='1';}catch(_){}
+  function updateStepNav(){
+    stepNav.hidden=![modalPicker,modalEditor,modalTryon].includes(openDialog);
+    document.body.classList.toggle('has-ux-step-nav',!stepNav.hidden);
+    document.body.classList.toggle('ux-step-nav-collapsed',navCollapsed);
+    stepNav.classList.toggle('is-collapsed',navCollapsed);
+    stepCollapse.setAttribute('aria-expanded',String(!navCollapsed));
+    stepCollapse.setAttribute('aria-label',navCollapsed?'Развернуть навигацию':'Свернуть навигацию');
+    stepBack.textContent=openDialog===modalTryon?'← К кадрированию':openDialog===modalEditor?'← К выбору фрески':'← К каталогу';
+  }
+  stepCollapse.addEventListener('click',()=>{navCollapsed=!navCollapsed;try{sessionStorage.setItem('affresco:step-nav-collapsed',navCollapsed?'1':'0');}catch(_){}updateStepNav();});
+  stepBack.addEventListener('click',()=>{
+    if(openDialog===modalTryon){window.affrescoTryon?.rememberScene?.();setModal(modalEditor);}
+    else if(openDialog===modalEditor){setModal(modalPicker);updatePickerResults();}
+    else if(openDialog===modalPicker)setModal(null);
+  });
   function setModal(modal, trigger=null) {
     // A response from a window that was closed must not reopen the success
     // dialog unexpectedly (the server may already have accepted the email).
@@ -253,6 +276,7 @@
     const closingLogin=openDialog===modalLogin&&modal===null;
     openDialog = modal;
     document.body.classList.toggle('modal-open', Boolean(modal));
+    updateStepNav();
     if(closingLogin)window.dispatchEvent(new CustomEvent('affresco:modal-closed',{detail:'login'}));
     if (modal) {
       const target = embeddedTryon && modal === modalTryon
@@ -273,10 +297,13 @@
     modal.addEventListener('pointerdown', e => { if (e.target === modal) setModal(null); });
   });
   document.addEventListener('keydown', (event) => {
-    if (!openDialog) return;
+    if (!openDialog || event.defaultPrevented) return;
     if (event.key === 'Escape') { event.preventDefault(); setModal(null); return; }
     if (event.key !== 'Tab') return;
-    const tabbables = [...openDialog.querySelectorAll('button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])')].filter(el => el.getClientRects().length);
+    const tabbables = [
+      ...openDialog.querySelectorAll('button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])'),
+      ...(!stepNav.hidden?stepNav.querySelectorAll('button:not([disabled])'):[])
+    ].filter(el => el.getClientRects().length);
     if (!tabbables.length) return;
     const first = tabbables[0], last = tabbables[tabbables.length - 1];
     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
@@ -310,6 +337,7 @@
     catalogToast.hidden=false;
     toastTimer=setTimeout(()=>{catalogToast.hidden=true;},2400);
   }
+  window.addEventListener('affresco:toast',event=>showCatalogToast(String(event.detail||'')));
   async function copyCatalogSku(sku){
     let copied=false;
     try{
@@ -354,7 +382,7 @@
     };
     const flag=document.createElement('span');
     flag.className='catalog-label';
-    flag.textContent='Выбрать фреску';
+    flag.textContent=item.isOwn?'Моя фреска':'Выбрать фреску';
     figure.append(photo,flag);
     open.append(figure);
     open.addEventListener('click',()=>openEditor(item,open));
@@ -418,8 +446,8 @@
     favoriteButton.dataset.favoriteSku=item.sku;
     favoriteButton.innerHTML=heartSvg;
     favoriteButton.addEventListener('click',()=>void toggleFavorite(item.sku));
-    card.append(content,favoriteButton);
-    updateFavoriteButton(favoriteButton,item.sku);
+    card.append(content);
+    if(!item.isOwn){card.append(favoriteButton);updateFavoriteButton(favoriteButton,item.sku);}
     return card;
   }
   function awaitCardImage(card) {
@@ -442,7 +470,7 @@
     });
   }
   function catalogItems(){
-    const source=favoritesOnly?items.filter(item=>favorites.has(item.sku)):items;
+    const source=favoritesOnly?items.filter(item=>favorites.has(item.sku)):[...ownFrescoes,...items];
     if(!catalogSearchQuery)return source;
     return source.filter(item=>matchesCatalogQuery(item,catalogSearchQuery));
   }
@@ -1012,16 +1040,17 @@
       items=body.items.filter(x => x && typeof x === 'object').map(x => ({...x,sku:normalizeSku(x.sku)}))
         .filter(x => safeSku(x.sku) && typeof x.image==='string' && /^\/(?:Images|images)\//.test(x.image));
       window.affrescoAccount?.setCatalogItems(items);
+      window.affrescoTryon?.sceneItems?.(items);
       catalogGrid.replaceChildren();
-      if (items.length===0) {
+      if (items.length===0 && ownFrescoes.length===0) {
         catalogStatus.textContent='Пока нет изображений';
         stopHeroLoading();
         catalogMessage('Как только изображения по артикулам появятся в /Images/catalog/ на FTP, карточки автоматически появятся здесь. Также поддерживается /Images/каталог/.');
         return;
       }
-      // An embedded try-on needs only metadata and a selected image, not a
-      // hidden catalogue gallery or hero downloads.
-      if (embeddedTryon) {
+      // Opt-in A2ICE iframe demonstration remains upload-first, with no
+      // hidden gallery, hero downloads or default editor changes.
+      if (embeddedTryon && items.length) {
         const requestedSku = embedParams.get('sku');
         const candidate = requestedSku && safeSku(requestedSku)
           ? items.find(item => item.sku === requestedSku) : null;
@@ -1139,8 +1168,16 @@
     state.width=width;state.height=height;state.ratio=width/height;
     state.dimensionsSource='custom';
     fitSelectionToRatio(state.ratio);
-    updateCrop(true);
+    updateCrop(true);validateCropWallFit();
     return true;
+  }
+  function validateCropWallFit(){
+    const blocked=Boolean(cropConstraint&&(state.width>cropConstraint.width||state.height>cropConstraint.height));
+    cropViewport.classList.toggle('is-invalid-size',blocked);
+    $('tryOnWall').disabled=blocked;
+    $('sendCrop').disabled=blocked;
+    if(blocked)showFeedback('Размер фрески больше допустимого. Уменьшите кадр до размеров стены.',true);
+    return !blocked;
   }
   function setRatio(value){
     const limits=sizeLimits();
@@ -1160,7 +1197,7 @@
     state.lockRatio=true;ratioLock.checked=true;
     widthInput.value=state.width;heightInput.value=state.height;
     fitSelectionToRatio(state.ratio);
-    updateCrop(true);saveDraft();
+    updateCrop(true);validateCropWallFit();saveDraft();
   }
   function metrics(){
     const {w,h}=stageSize();
@@ -1263,6 +1300,7 @@
   }
   function openEditor(item,trigger){
     if(!item||!safeSku(item.sku))return;
+    if(!openDialog||openDialog!==modalTryon)cropConstraint=null;
     pickerHasSearchContext=openDialog===modalPicker;
     currentItem=item;
     const draft=getDraft(item.sku);
@@ -1321,7 +1359,7 @@
         widthInput.value=state.width;
         heightInput.value=state.height;
       }
-      updateCrop();
+      updateCrop();validateCropWallFit();
     };
     cropImage.onerror=()=>{
       imageLoaded=false;stopCropLoading();
@@ -1341,7 +1379,7 @@
         ' см и высоту от 30 до '+limits.height+' см.',true);
       widthInput.value=oldW;heightInput.value=oldH;return;
     }
-    saveDraft();
+    validateCropWallFit();saveDraft();
   }));
   ratioLock.addEventListener('change',()=>{
     state.lockRatio=ratioLock.checked;
@@ -1607,7 +1645,7 @@
     state.ratio=state.width/state.height;state.lockRatio=true;ratioLock.checked=true;
     state.selection={x:0,y:0,w:1,h:1};
     widthInput.value=state.width;heightInput.value=state.height;
-    updateCrop();saveDraft();
+    updateCrop();validateCropWallFit();saveDraft();
     showFeedback('Исходное изображение восстановлено, кадрирование и масштаб сброшены.');
   });
   window.addEventListener('resize',()=>{
@@ -1615,9 +1653,10 @@
   });
   $('tryOnWall').addEventListener('click',()=>{
     if(!currentItem||!imageLoaded){showFeedback('Сначала дождитесь загрузки изображения.',true);return;}
+    if(!validateCropWallFit())return;
     try{
       const selection={image:cropEmailJpeg(),sku:currentItem.sku,width_cm:state.width,height_cm:state.height};
-      saveDraft();
+      saveDraft();cropConstraint=null;ownUploadConstraint=null;
       window.affrescoTryon.start(selection);
     }catch(_){showFeedback('Не удалось подготовить кадр для примерки. Попробуйте снова.',true);}
   });
@@ -1633,10 +1672,77 @@
     pickerSearch.focus();
   });
 
+
+  async function refreshOwnFrescoes(){
+    if(!media)return;
+    try{
+      ownFrescoes=(await media.all('fresco')).map(item=>{
+        if(!ownImageUrls.has(item.id))ownImageUrls.set(item.id,URL.createObjectURL(item.blob));
+        return {...item,image:ownImageUrls.get(item.id),sku:item.sku,
+          name:item.name||'Моя фреска',isOwn:true};
+      });
+      window.affrescoTryon?.sceneItems?.([...ownFrescoes,...items]);
+      if(openDialog===modalPicker)updatePickerResults();
+      if(items.length||ownFrescoes.length)resetAndRenderCatalog();
+    }catch(_){}
+  }
+  async function addOwnFresco(){
+    const file=$('ownFrescoFile').files?.[0],w=Number($('ownFrescoWidth').value),h=Number($('ownFrescoHeight').value);
+    const error=$('ownFrescoError');error.hidden=true;
+    if(!file||!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>12*1024*1024){
+      error.textContent='Выберите изображение JPEG, PNG или WebP до 12 МБ.';error.hidden=false;return;
+    }
+    if(!Number.isFinite(w)||!Number.isFinite(h)||w<30||h<30||w>1000||h>1000){
+      error.textContent='Обязательно укажите ширину и высоту от 30 до 1000 см.';error.hidden=false;return;
+    }
+    try{
+      const url=URL.createObjectURL(file),img=new Image();
+      await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;img.src=url;});
+      if(img.naturalWidth<100||img.naturalHeight<100||img.naturalWidth*img.naturalHeight>60000000)throw Error('image_size');
+      const ratio=Math.min(1,1600/img.naturalWidth,1600/img.naturalHeight);
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.round(img.naturalWidth*ratio);canvas.height=Math.round(img.naturalHeight*ratio);
+      canvas.getContext('2d',{alpha:false}).drawImage(img,0,0,canvas.width,canvas.height);
+      URL.revokeObjectURL(url);
+      const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.86));
+      if(!blob)throw Error('image_encoding');
+      const count=(await media.all('fresco')).length;
+      const item=await media.put('fresco',blob,{sku:'own-'+crypto.randomUUID(),name:file.name.replace(/\.[^.]+$/,'').slice(0,70)||'Моя фреска',width_cm:w,height_cm:h});
+      $('ownFrescoFile').value='';
+      await refreshOwnFrescoes();
+      const own=ownFrescoes.find(x=>x.sku===item.sku);
+      if(own){openEditor(own,$('ownFrescoAdd'));if(ownUploadConstraint){cropConstraint=ownUploadConstraint;validateCropWallFit();}}
+    }catch(e){
+      error.textContent=e.message==='session_limit'?'Можно сохранить до 12 собственных фресок в текущей сессии.':'Не удалось сохранить изображение в браузере.';
+      error.hidden=false;
+    }
+  }
+  $('ownFrescoAdd').addEventListener('click',()=>{void addOwnFresco();});
+  window.addEventListener('affresco:open-own-fresco',event=>{
+    ownUploadConstraint=event.detail==='tryon'?window.affrescoTryon?.wallLimits?.()||null:null;
+    const item=currentItem||items[0];
+    if(item)openEditor(item);
+    if(ownUploadConstraint){cropConstraint=ownUploadConstraint;validateCropWallFit();}
+    $('ownFrescoFile').focus();
+  });
+  window.addEventListener('affresco:tryon-crop-item',event=>{
+    if(!event.detail)return;
+    const original=[...ownFrescoes,...items].find(x=>String(x.sku)===String(event.detail.sku));
+    cropConstraint=window.affrescoTryon?.wallLimits?.()||null;
+    openEditor(original||event.detail);
+    validateCropWallFit();
+  });
+  window.addEventListener('affresco:tryon-current-art',event=>{
+    const item=[...ownFrescoes,...items].find(x=>String(x.sku)===String(event.detail?.sku));
+    if(item)currentItem=item;
+  });
+  window.addEventListener('affresco:own-fresco-changed',()=>{void refreshOwnFrescoes();});
+  void refreshOwnFrescoes();
   function pickerResultsFor(query) {
     const q=query.trim().toLocaleLowerCase('ru');
-    if(!q) return items;
-    return items.filter(item =>
+    const source=[...ownFrescoes,...items];
+    if(!q) return source;
+    return source.filter(item =>
       item.sku.toLocaleLowerCase('ru').includes(q) ||
       (typeof item.name==='string' && item.name.toLocaleLowerCase('ru').includes(q))
     );
