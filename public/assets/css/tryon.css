@@ -182,8 +182,6 @@
 .affresco-step-nav{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:1300;display:flex;align-items:center;gap:3px;padding:5px;background:#f9f7f3;border:1px solid #bfb3a6;box-shadow:0 6px 25px #0003;max-width:calc(100vw - 20px)}
 .affresco-step-nav button{background:transparent;border:0;font:600 12px/1.4 Manrope,sans-serif;color:#50453b;padding:10px 14px;min-height:44px;cursor:pointer}
 .affresco-step-nav button:focus-visible{outline:2px solid #715b4c;outline-offset:1px}
-.affresco-step-nav.is-collapsed #affrescoStepBack{display:none}
-.affresco-step-nav.is-collapsed #affrescoStepCollapse{transform:rotate(180deg)}
 .tryon-room-sessions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0 18px}
 .tryon-room-card{position:relative;min-width:0;border:1px solid #cfc5b8;background:#f5f2ed;padding:6px}
 .tryon-room-card button.tryon-room-select{border:0;background:transparent;width:100%;font:500 12px Manrope,sans-serif;cursor:pointer;text-align:left;color:#4e453a}
@@ -261,9 +259,6 @@ body.has-ux-step-nav:not(.ux-step-nav-collapsed) #pickerModal .modal-panel{paddi
 }
 .affresco-step-nav .affresco-step-badge[aria-current=step]{background:#5d5045;border-color:#5d5045;cursor:default;opacity:1}
 .affresco-step-nav .affresco-step-badge:hover:not([disabled]){background:#44403a}
-.affresco-step-nav #affrescoStepCollapse{flex-shrink:0;color:#2b2520;background:transparent;border:0;font-size:18px;min-width:33px;padding:8px}
-.affresco-step-nav.is-collapsed .affresco-step-badges{display:none}
-.affresco-step-nav.is-collapsed #affrescoStepCollapse{transform:rotate(180deg)}
 .tryon-room-sessions[hidden],.own-fresco-dialog[hidden],.own-fresco-added[hidden]{display:none!important}
 .editor-upload-own{display:flex;gap:12px;justify-content:flex-start;align-items:center;flex-wrap:wrap;margin:10px 0 0 18px}
 .editor-upload-own>button{border:0;background:transparent;padding:7px 0;color:#604c3c;text-decoration:underline;font-size:12px;cursor:pointer}
